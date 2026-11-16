@@ -136,20 +136,45 @@ dl-crossmatch --suggest-plan \
   -o euclid_partners.suggest.json
 ```
 
-Heuristics (first hit wins): shared ID-like column names; foreign-key style
-columns such as `GAIA_ID` → partner `source_id`; otherwise sky with
-`--radius-arcsec` as the default (1.0). Reasons are printed on stderr and stored
-under `_suggestions` in the JSON. Edit radii/columns by hand, then run with
-`--plan` or copy partners into an area. `_suggestions` is ignored at execute
-time. Suggest never joins on `_source_id` (lake-local hashes differ by survey).
+Or pull every other ingested catalog from the lake registry (smallest
+`total_rows` first, so large all-sky partners come last). Refresh the registry
+if the lake changed:
+
+```bash
+dl-refresh-lake-registry /data/lake
+dl-crossmatch --suggest-plan \
+  --base EUCLID_Q1_MER \
+  --partners-from-registry \
+  --exclude SOME_TEST_CAT \
+  --radius-arcsec 1.0 \
+  -o plans/euclid_all_catalogs.json
+```
+
+`--kind ingested|product|all` (default `ingested`) filters registry rows;
+repeatable `--partner` names are appended if missing. Heuristics (first hit
+wins): shared ID-like column names; foreign-key style columns such as
+`GAIA_ID` → partner `source_id`; otherwise sky with `--radius-arcsec` as the
+default (1.0). Reasons are printed on stderr and stored under `_suggestions`
+in the JSON (including `partner_order_reason` when registry ordering applied).
+Edit radii/columns by hand, then run with `--plan` or copy partners into an
+area. `_suggestions` is ignored at execute time. Suggest never joins on
+`_source_id` (lake-local hashes differ by survey).
 
 ```bash
 # Run the area's crossmatch_plan, bounded to the area's region (gap-fill only)
 dl-crossmatch /data/lake --from-area Euclid_North --n-workers 8
 
 # Or run a standalone plan file (no region restriction; --overwrite allowed)
-dl-crossmatch /data/lake --plan plans/euclid_partners.json
+dl-crossmatch /data/lake --plan plans/euclid_partners.json \
+  --n-workers 16 --memory-budget-gb 120
 ```
+
+Partners in a plan run **one after another** (not in parallel). Within each
+partner, tiles still use `--n-workers`. By default `--skip-complete-partners`
+skips trees that already have every in-scope tile so a re-run of a long plan
+does not re-start workers for finished pairs; pass
+`--no-skip-complete-partners` to force the full path (tile resume still
+applies inside `build_crossmatch`).
 
 In plan mode the only positional argument is the lake root. A plan has the same
 shape as the `crossmatch_plan` block of an area (see
@@ -207,6 +232,25 @@ For crossmatch coverage of one area (tile overlap and exact counts), use
 For large surveys, set `--n-workers` to the number of CPU cores and leave the
 other settings at their defaults. On HDD or NFS storage, where reading survey-B
 tiles dominates, fewer workers are often faster.
+
+### Bulk catalog × X (registry plan)
+
+When matching one science sample **X** against many catalogs:
+
+1. Put **X as `--base` (survey A)**. Cost scales with A tiles × covering B; the
+   plan loop is A-centric (nearest B per A source).
+2. Draft with `--partners-from-registry` (small B first). Edit the JSON to
+   postpone or drop the densest all-sky partners if needed.
+3. Pilot with `--from-area` on a small field before a full-lake `--plan`.
+4. Set `--memory-budget-gb` to the job limit; keep the B-cache on; raise
+   `--b-cache-mib` when `t_b_load_s` or evictions dominate for dense B.
+5. Re-run the same plan to gap-fill; complete partners are skipped by default.
+6. Inventory with `dl-describe-crossmatch --json` / `dl-refresh-lake-registry`.
+
+Do **not** fan out partners in parallel (disk and RAM thrash on Gaia/2MASS-scale
+B catalogs). To answer “every Gaia source → X”, use Gaia as `--base` in a
+separate plan — that is a different science question and cost model.
+
 
 | Flag | Default | Meaning |
 |------|---------|---------|

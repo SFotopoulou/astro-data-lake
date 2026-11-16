@@ -77,6 +77,6 @@ TODO.md
 _demo_lake/
 notebooks/_output/
 .scratch_*/
-
+temp/
 # uv lockfile is fine to commit, but keep its cache out
 .uv-cache/

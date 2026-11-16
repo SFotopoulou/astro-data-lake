@@ -5,11 +5,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pyarrow as pa
+import pyarrow.parquet as pq
+from click.testing import CliRunner
+
 from data_lake.discovery.area_plan import (
+    list_catalog_partners_from_registry,
     strip_crossmatch_plan_annotations,
     suggest_crossmatch_plan,
     suggest_partner_match,
 )
+from data_lake.lake_registry import registry_path
 
 
 class TestSuggestPartnerMatch:
@@ -136,3 +142,174 @@ class TestSuggestCrossmatchPlanLake:
         assert "GAIA_DR3_source" in plan["_suggestions"]
         clean = strip_crossmatch_plan_annotations(plan)
         assert "_suggestions" not in clean
+
+
+def _write_mini_registry(
+    lake: Path,
+    rows: list[dict],
+) -> Path:
+    """Write a minimal ``surveys.parquet`` for partner-discovery tests."""
+    path = registry_path(lake)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    table = pa.Table.from_pylist(rows)
+    pq.write_table(table, path)
+    return path
+
+
+class TestListCatalogPartnersFromRegistry:
+    def test_excludes_base_sorts_by_rows_and_kind(self, tmp_path: Path) -> None:
+        lake = tmp_path / "lake"
+        _write_mini_registry(
+            lake,
+            [
+                {
+                    "survey": "BASE",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 10,
+                },
+                {
+                    "survey": "SMALL",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 100,
+                },
+                {
+                    "survey": "LARGE",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 1_000_000,
+                },
+                {
+                    "survey": "PROD",
+                    "modality": "catalog",
+                    "kind": "product",
+                    "total_rows": 50,
+                },
+                {
+                    "survey": "SPECTRA_ONLY",
+                    "modality": "spectra",
+                    "kind": "ingested",
+                    "total_rows": 5,
+                },
+            ],
+        )
+        partners = list_catalog_partners_from_registry(
+            lake, base_catalog="BASE", kind="ingested"
+        )
+        assert partners == ["SMALL", "LARGE"]
+
+        with_exclude = list_catalog_partners_from_registry(
+            lake, base_catalog="BASE", kind="ingested", exclude=["LARGE"]
+        )
+        assert with_exclude == ["SMALL"]
+
+        products = list_catalog_partners_from_registry(
+            lake, base_catalog="BASE", kind="product"
+        )
+        assert products == ["PROD"]
+
+        all_kinds = list_catalog_partners_from_registry(
+            lake, base_catalog="BASE", kind="all"
+        )
+        assert all_kinds == ["PROD", "SMALL", "LARGE"]
+
+    def test_suggest_from_registry(self, tmp_path: Path) -> None:
+        lake = tmp_path / "lake"
+        _write_manifest(
+            lake / "catalogs" / "BASE",
+            "BASE",
+            ["OBJECT_ID", "RA", "DEC"],
+            link_id_mode="column:OBJECT_ID",
+        )
+        _write_manifest(
+            lake / "catalogs" / "SMALL",
+            "SMALL",
+            ["id", "ra", "dec"],
+            link_id_mode="column:id",
+        )
+        _write_manifest(
+            lake / "catalogs" / "LARGE",
+            "LARGE",
+            ["id", "ra", "dec"],
+            link_id_mode="column:id",
+        )
+        _write_mini_registry(
+            lake,
+            [
+                {
+                    "survey": "BASE",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 10,
+                },
+                {
+                    "survey": "SMALL",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 100,
+                },
+                {
+                    "survey": "LARGE",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 9_000_000,
+                },
+            ],
+        )
+        plan = suggest_crossmatch_plan(
+            lake,
+            "BASE",
+            partners_from_registry=True,
+        )
+        assert [p["survey"] for p in plan["partners"]] == ["SMALL", "LARGE"]
+        assert plan["_suggestions"]["partner_order_reason"]
+
+    def test_cli_partners_from_registry(self, tmp_path: Path) -> None:
+        from data_lake.io.crossmatch_cli import cli
+
+        lake = tmp_path / "lake"
+        _write_manifest(
+            lake / "catalogs" / "BASE",
+            "BASE",
+            ["OBJECT_ID", "RA", "DEC"],
+        )
+        _write_manifest(
+            lake / "catalogs" / "SMALL",
+            "SMALL",
+            ["id", "ra", "dec"],
+        )
+        _write_mini_registry(
+            lake,
+            [
+                {
+                    "survey": "BASE",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 1,
+                },
+                {
+                    "survey": "SMALL",
+                    "modality": "catalog",
+                    "kind": "ingested",
+                    "total_rows": 2,
+                },
+            ],
+        )
+        out = tmp_path / "plan.json"
+        result = CliRunner().invoke(
+            cli,
+            [
+                str(lake),
+                "--suggest-plan",
+                "--base",
+                "BASE",
+                "--partners-from-registry",
+                "-o",
+                str(out),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        draft = json.loads(out.read_text(encoding="utf-8"))
+        assert draft["base_catalog"] == "BASE"
+        assert [p["survey"] for p in draft["partners"]] == ["SMALL"]

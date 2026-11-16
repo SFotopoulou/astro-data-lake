@@ -349,17 +349,91 @@ def suggest_partner_match(
     )
 
 
+_PARTNER_ORDER_REASON_KEY = "partner_order_reason"
+_PARTNER_ORDER_REASON = (
+    "sorted by registry total_rows ascending (smallest B first)"
+)
+
+
+def list_catalog_partners_from_registry(
+    lake_root: Path | str,
+    *,
+    base_catalog: str,
+    kind: str = "ingested",
+    exclude: list[str] | None = None,
+) -> list[str]:
+    """List catalog surveys to match against *base_catalog*, smallest first.
+
+    Reads ``shared/registry/surveys.parquet`` (run ``dl-refresh-lake-registry``
+    if missing or stale). Filters ``modality=catalog``, drops the base survey,
+    applies *kind* (``ingested`` / ``product`` / ``all``), and *exclude*.
+    Orders by ``total_rows`` ascending so bulk plans validate on small partners
+    before multi-hour all-sky catalogs.
+    """
+    from data_lake.lake_registry import (
+        filter_lake_registry_table,
+        filter_registry_by_kind,
+        load_lake_registry,
+    )
+    from data_lake.schema_registry import CATALOG_KIND_INGESTED, MODALITY_CATALOG
+
+    base = base_catalog.strip()
+    if not base:
+        raise ValueError("base_catalog is required")
+    kind_norm = (kind or CATALOG_KIND_INGESTED).strip().lower()
+    if kind_norm not in ("ingested", "product", "all"):
+        raise ValueError(
+            f"kind must be 'ingested', 'product', or 'all'; got {kind!r}"
+        )
+    excluded = {e.strip() for e in (exclude or []) if e and e.strip()}
+    excluded.add(base)
+
+    table = load_lake_registry(lake_root)
+    table = filter_lake_registry_table(table, MODALITY_CATALOG)
+    if kind_norm != "all":
+        table = filter_registry_by_kind(table, kind_norm)
+    if table.num_rows == 0:
+        return []
+
+    names = table.column("survey").to_pylist()
+    if "total_rows" in table.schema.names:
+        rows = table.column("total_rows").to_pylist()
+    else:
+        rows = [None] * len(names)
+
+    scored: list[tuple[float, str]] = []
+    seen: set[str] = set()
+    for name, n_rows in zip(names, rows, strict=True):
+        survey = str(name).strip() if name is not None else ""
+        if not survey or survey in excluded or survey in seen:
+            continue
+        seen.add(survey)
+        size = float(n_rows) if n_rows is not None else float("inf")
+        scored.append((size, survey))
+    scored.sort(key=lambda item: (item[0], item[1]))
+    return [survey for _, survey in scored]
+
+
 def suggest_crossmatch_plan(
     lake_root: Path | str,
     base_catalog: str,
-    partner_surveys: list[str],
+    partner_surveys: list[str] | None = None,
     *,
+    partners_from_registry: bool = False,
+    registry_kind: str = "ingested",
+    exclude: list[str] | None = None,
     reuse_existing: bool = True,
     default_sky_radius_arcsec: float = _DEFAULT_SUGGEST_SKY_RADIUS_ARCSEC,
 ) -> dict[str, Any]:
     """Build a draft ``crossmatch_plan`` from catalog schema manifests.
 
-    Adds a top-level ``_suggestions`` map (partner → reason) for hand editing.
+    When *partners_from_registry* is true, partners are taken from the lake
+    registry (see :func:`list_catalog_partners_from_registry`); any names in
+    *partner_surveys* are appended if missing. Otherwise *partner_surveys*
+    must be non-empty.
+
+    Adds a top-level ``_suggestions`` map (partner → reason) for hand editing,
+    plus ``_suggestions.partner_order_reason`` when registry ordering applied.
     Strip annotations with :func:`strip_crossmatch_plan_annotations` before run.
     """
     from data_lake.schema_registry import load_schema_manifest, resolve_catalog_root
@@ -368,9 +442,28 @@ def suggest_crossmatch_plan(
     base = base_catalog.strip()
     if not base:
         raise ValueError("base_catalog is required")
-    partners = [p.strip() for p in partner_surveys if p and p.strip()]
+
+    explicit = [p.strip() for p in (partner_surveys or []) if p and p.strip()]
+    order_from_registry = False
+    if partners_from_registry:
+        partners = list_catalog_partners_from_registry(
+            lake_root,
+            base_catalog=base,
+            kind=registry_kind,
+            exclude=exclude,
+        )
+        order_from_registry = True
+        for name in explicit:
+            if name not in partners and name != base:
+                partners.append(name)
+    else:
+        partners = explicit
+
     if not partners:
-        raise ValueError("at least one partner survey is required")
+        raise ValueError(
+            "at least one partner survey is required "
+            "(pass --partner and/or --partners-from-registry)"
+        )
     if base in partners:
         raise ValueError(f"base catalog {base!r} cannot also be a partner")
 
@@ -398,6 +491,9 @@ def suggest_crossmatch_plan(
         )
         suggested_partners.append(entry)
         reasons[survey_b] = reason
+
+    if order_from_registry:
+        reasons[_PARTNER_ORDER_REASON_KEY] = _PARTNER_ORDER_REASON
 
     plan = build_crossmatch_plan(
         base, suggested_partners, reuse_existing=reuse_existing

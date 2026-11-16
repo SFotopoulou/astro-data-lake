@@ -677,6 +677,48 @@ class TestCrossmatchNamingAndReuse:
         assert crossmatch_root(lake, "EUCLID", "DESI_DR1", 1.0).is_dir()
         assert crossmatch_root(lake, "EUCLID", "ALLWISE", 2.0).is_dir()
 
+    def test_skip_complete_partners(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from data_lake.io.crossmatch import (
+            execute_crossmatch_plan,
+            try_skip_complete_partner,
+        )
+
+        lake, ra, dec, npix = self._two_partner_lake(tmp_path)
+        plan = {
+            "base_catalog": "EUCLID",
+            "partners": [
+                {"survey": "DESI_DR1", "radius_arcsec": 1.0},
+            ],
+        }
+        first = execute_crossmatch_plan(lake, plan, skip_complete_partners=False)
+        assert first[0].n_match_rows >= 1
+
+        skipped = try_skip_complete_partner(
+            lake,
+            "EUCLID",
+            "DESI_DR1",
+            match_mode="sky",
+            radius_arcsec=1.0,
+        )
+        assert skipped is not None
+        assert skipped.n_match_rows == 0
+        assert skipped.n_workers == 0
+        assert skipped.tree_total_rows is not None
+
+        with patch(
+            "data_lake.io.crossmatch.build_crossmatch",
+            side_effect=AssertionError("build_crossmatch should not run"),
+        ) as mocked:
+            results = execute_crossmatch_plan(
+                lake, plan, skip_complete_partners=True
+            )
+            mocked.assert_not_called()
+        assert len(results) == 1
+        assert results[0].n_workers == 0
+        assert results[0].crossmatch_name == first[0].crossmatch_name
+
     def test_plan_region_restriction(self, tmp_path: Path) -> None:
         from data_lake.discovery.region import Region
         from data_lake.io.crossmatch import execute_crossmatch_plan

@@ -3038,6 +3038,123 @@ def _base_catalog_norder(lake_root: Path, survey: str) -> int:
     return 5
 
 
+def _in_scope_crossmatch_a_tiles(
+    lake_root: Path,
+    survey_a: str,
+    survey_b: str,
+    *,
+    radius_rad: float,
+    restrict_npix: set[int] | None = None,
+) -> tuple[int, list[int]]:
+    """Resolve survey-A norder and tiles that overlap the survey-B footprint."""
+    from data_lake.schema_registry import resolve_catalog_root
+
+    catalog_root_a = resolve_catalog_root(lake_root, survey_a)
+    catalog_root_b = resolve_catalog_root(lake_root, survey_b)
+    _, _, norder_a = _sky_columns_from_catalog_info(catalog_root_a)
+    _, _, norder_b = _sky_columns_from_catalog_info(catalog_root_b)
+    nside_a = hp.order2nside(norder_a)
+    nside_b = hp.order2nside(norder_b)
+    tile_npixels = iter_populated_tile_npixels(catalog_root_a, norder=norder_a)
+    if restrict_npix is not None:
+        tile_npixels = [p for p in tile_npixels if int(p) in restrict_npix]
+    b_populated = set(iter_populated_tile_npixels(catalog_root_b, norder=norder_b))
+    tile_npixels = filter_survey_a_tiles_overlapping_survey_b(
+        tile_npixels,
+        nside_a=nside_a,
+        nside_b=nside_b,
+        b_populated=b_populated,
+        radius_rad=radius_rad,
+    )
+    return norder_a, tile_npixels
+
+
+def try_skip_complete_partner(
+    lake_root: Path | str,
+    survey_a: str,
+    survey_b: str,
+    *,
+    match_mode: str = "sky",
+    radius_arcsec: float | None = None,
+    match_col_a: str | None = None,
+    match_col_b: str | None = None,
+    overwrite: bool = False,
+    restrict_npix: set[int] | None = None,
+) -> CrossmatchResult | None:
+    """Return a zero-work result when the partner tree has no pending tiles.
+
+    Used by :func:`execute_crossmatch_plan` to avoid starting workers when a
+    previous run already wrote every in-scope tile. Returns ``None`` when the
+    tree is missing, incomplete, or *overwrite* is true.
+    """
+    if overwrite:
+        return None
+    lake_root = Path(lake_root)
+    mode = (match_mode or "sky").strip().lower()
+    if mode == "column":
+        if not match_col_a or not match_col_b:
+            return None
+        xm_name = column_crossmatch_name(
+            survey_a, survey_b, str(match_col_a), str(match_col_b)
+        )
+        out_root = Path(lake_root) / "crossmatch" / xm_name
+        pad_norder_a = _base_catalog_norder(lake_root, survey_a)
+        pad_norder_b = _base_catalog_norder(lake_root, survey_b)
+        radius_rad = _column_crossmatch_pad_rad(
+            hp.order2nside(pad_norder_a), hp.order2nside(pad_norder_b)
+        )
+        radius_out = 0.0
+    else:
+        if radius_arcsec is None:
+            return None
+        radius = float(radius_arcsec)
+        xm_name = crossmatch_name(survey_a, survey_b, radius)
+        out_root = crossmatch_root(lake_root, survey_a, survey_b, radius)
+        radius_rad = np.radians(radius / 3600.0)
+        radius_out = radius
+        match_col_a = None
+        match_col_b = None
+
+    if not out_root.is_dir() or not (out_root / CROSSMATCH_INFO_FILENAME).is_file():
+        return None
+
+    norder_a, tile_npixels = _in_scope_crossmatch_a_tiles(
+        lake_root,
+        survey_a,
+        survey_b,
+        radius_rad=radius_rad,
+        restrict_npix=restrict_npix,
+    )
+    pending, n_match_rows, n_tiles_written = _pending_crossmatch_tiles(
+        tile_npixels, out_root, norder_a, overwrite=False
+    )
+    if pending:
+        return None
+
+    info = load_crossmatch_info(out_root)
+    tree_rows = info.get("total_rows", info.get("n_match_rows", n_match_rows))
+    tree_tiles = info.get("n_tiles", n_tiles_written)
+    return CrossmatchResult(
+        survey_a=survey_a,
+        survey_b=survey_b,
+        crossmatch_name=xm_name,
+        output_root=out_root,
+        n_tiles_written=int(n_tiles_written),
+        n_match_rows=0,
+        radius_arcsec=float(radius_out),
+        norder=int(norder_a),
+        elapsed_s=0.0,
+        n_workers=0,
+        match_backend="astropy",
+        match_mode=mode,
+        match_col_a=str(match_col_a) if match_col_a else None,
+        match_col_b=str(match_col_b) if match_col_b else None,
+        tree_total_rows=int(tree_rows) if tree_rows is not None else n_match_rows,
+        tree_n_tiles=int(tree_tiles) if tree_tiles is not None else n_tiles_written,
+        perf=None,
+    )
+
+
 def execute_crossmatch_plan(
     lake_root: Path | str,
     plan: dict,
@@ -3054,6 +3171,7 @@ def execute_crossmatch_plan(
     b_cache_max_mib: int | None = None,
     memory_budget_bytes: int | None = None,
     strips_per_worker: int = 4,
+    skip_complete_partners: bool = True,
 ) -> list[CrossmatchResult]:
     """Execute a crossmatch plan (base catalog x N partners), optionally region-bounded.
 
@@ -3070,10 +3188,10 @@ def execute_crossmatch_plan(
          "reuse_existing": true}
 
     Existing trees are gap-filled (resume) unless ``overwrite``; when
-    ``reuse_existing`` is true and a tree is already complete, no tiles are
-    recomputed (resume skips written tiles). A ``region`` (a
-    :class:`data_lake.discovery.region.Region`) restricts survey-A tiles to the
-    region resolved at the base catalog order.
+    ``skip_complete_partners`` is true (default) and a tree already has every
+    in-scope tile, that partner is skipped without starting workers. A
+    ``region`` (a :class:`data_lake.discovery.region.Region`) restricts
+    survey-A tiles to the region resolved at the base catalog order.
 
     When *region* is set (``dl-crossmatch --from-area``), *overwrite* is forced
     off: existing tiles outside or inside the area are never rebuilt; only
@@ -3102,12 +3220,21 @@ def execute_crossmatch_plan(
         base_norder = _base_catalog_norder(lake_root, base)
         restrict_npix = region.to_npix(base_norder)  # type: ignore[attr-defined]
 
+    n_partners = len(partners)
     results: list[CrossmatchResult] = []
-    for partner in partners:
+    for idx, partner in enumerate(partners, start=1):
         survey_b = partner.get("survey")
         if not survey_b:
             raise ValueError("crossmatch_plan partner missing 'survey'")
         mode = partner_match_mode(partner)
+        log.info(
+            "Crossmatch plan partner %d/%d: base=%s partner=%s mode=%s",
+            idx,
+            n_partners,
+            base,
+            survey_b,
+            mode,
+        )
         if mode == "column":
             match_col_a = partner.get("match_col_a")
             match_col_b = partner.get("match_col_b")
@@ -3116,6 +3243,27 @@ def execute_crossmatch_plan(
                     f"crossmatch_plan column partner {survey_b!r} requires "
                     "match_col_a and match_col_b"
                 )
+            if skip_complete_partners:
+                skipped = try_skip_complete_partner(
+                    lake_root,
+                    base,
+                    survey_b,
+                    match_mode="column",
+                    match_col_a=str(match_col_a),
+                    match_col_b=str(match_col_b),
+                    overwrite=overwrite,
+                    restrict_npix=restrict_npix,
+                )
+                if skipped is not None:
+                    log.info(
+                        "Skipping complete partner %s (%s); "
+                        "tree on disk has %s tile(s)",
+                        survey_b,
+                        skipped.crossmatch_name,
+                        skipped.tree_n_tiles,
+                    )
+                    results.append(skipped)
+                    continue
             result = build_column_crossmatch(
                 lake_root,
                 base,
@@ -3139,6 +3287,26 @@ def execute_crossmatch_plan(
                 raise ValueError(
                     f"crossmatch_plan partner {survey_b!r} missing 'radius_arcsec'"
                 )
+            if skip_complete_partners:
+                skipped = try_skip_complete_partner(
+                    lake_root,
+                    base,
+                    survey_b,
+                    match_mode="sky",
+                    radius_arcsec=float(radius),
+                    overwrite=overwrite,
+                    restrict_npix=restrict_npix,
+                )
+                if skipped is not None:
+                    log.info(
+                        "Skipping complete partner %s (%s); "
+                        "tree on disk has %s tile(s)",
+                        survey_b,
+                        skipped.crossmatch_name,
+                        skipped.tree_n_tiles,
+                    )
+                    results.append(skipped)
+                    continue
             result = build_crossmatch(
                 lake_root,
                 base,

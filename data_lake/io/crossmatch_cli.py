@@ -72,14 +72,15 @@ _cli_b_cache_mib = PARTNER_TILE_CACHE_MAX_BYTES // (1024 * 1024)
     is_flag=True,
     help=(
         "Write a draft crossmatch_plan JSON (auto sky vs column) and exit; "
-        "does not run matching. Requires --base and repeatable --partner."
+        "does not run matching. Requires --base and either --partner and/or "
+        "--partners-from-registry."
     ),
 )
 @click.option(
     "--base",
     "suggest_base",
     default=None,
-    help="[suggest-plan] Base catalog survey name.",
+    help="[suggest-plan] Base catalog survey name (survey A).",
 )
 @click.option(
     "--partner",
@@ -88,12 +89,44 @@ _cli_b_cache_mib = PARTNER_TILE_CACHE_MAX_BYTES // (1024 * 1024)
     help="[suggest-plan] Partner survey name (repeatable). Bare name only.",
 )
 @click.option(
+    "--partners-from-registry",
+    is_flag=True,
+    help=(
+        "[suggest-plan] Fill partners from the lake registry (catalog modality; "
+        "see --kind). Sorted by total_rows ascending. Combine with --partner "
+        "to append extras; use --exclude to drop surveys."
+    ),
+)
+@click.option(
+    "--kind",
+    "suggest_kind",
+    type=click.Choice(["ingested", "product", "all"], case_sensitive=False),
+    default="ingested",
+    show_default=True,
+    help="[suggest-plan] Registry kind filter with --partners-from-registry.",
+)
+@click.option(
+    "--exclude",
+    "suggest_exclude",
+    multiple=True,
+    help="[suggest-plan] Survey to omit from registry partners (repeatable).",
+)
+@click.option(
     "-o",
     "--output",
     "suggest_output",
     type=click.Path(path_type=Path),
     default=None,
     help="[suggest-plan] Write draft JSON here (default: stdout).",
+)
+@click.option(
+    "--skip-complete-partners/--no-skip-complete-partners",
+    default=True,
+    show_default=True,
+    help=(
+        "In --plan / --from-area mode, skip partners whose trees already have "
+        "every in-scope tile (no worker start-up)."
+    ),
 )
 @click.option(
     "--radius-arcsec",
@@ -239,7 +272,11 @@ def cli(
     suggest_plan: bool,
     suggest_base: str | None,
     suggest_partners: tuple[str, ...],
+    partners_from_registry: bool,
+    suggest_kind: str,
+    suggest_exclude: tuple[str, ...],
     suggest_output: Path | None,
+    skip_complete_partners: bool,
     radius_arcsec: float,
     norder_a: int | None,
     norder_b: int | None,
@@ -281,6 +318,9 @@ def cli(
 
         dl-crossmatch --suggest-plan --base EUCLID_Q1_MER \\
           --partner GAIA_DR3_source --partner ALLWISE -o plan.json
+
+        dl-crossmatch --suggest-plan --base EUCLID_Q1_MER \\
+          --partners-from-registry --exclude TEST_CAT -o plan.json
     """
     validate_quiet_verbose(quiet, verbose)
     cfg = load_optional_config(config_path)
@@ -298,9 +338,10 @@ def cli(
             )
         if not suggest_base:
             raise click.ClickException("--suggest-plan requires --base SURVEY")
-        if not suggest_partners:
+        if not suggest_partners and not partners_from_registry:
             raise click.ClickException(
-                "--suggest-plan requires at least one --partner SURVEY"
+                "--suggest-plan requires --partner SURVEY and/or "
+                "--partners-from-registry"
             )
         # Positional may be the lake root when config is unset.
         lake_arg = output_root
@@ -312,6 +353,9 @@ def cli(
                 lake,
                 suggest_base,
                 list(suggest_partners),
+                partners_from_registry=partners_from_registry,
+                registry_kind=suggest_kind,
+                exclude=list(suggest_exclude),
                 default_sky_radius_arcsec=radius_arcsec,
             )
         except (FileNotFoundError, ValueError) as exc:
@@ -451,6 +495,7 @@ def cli(
                 b_cache_max_mib=b_cache_mib,
                 memory_budget_bytes=memory_budget_bytes,
                 strips_per_worker=strips_per_worker,
+                skip_complete_partners=skip_complete_partners,
             )
         except (ValueError, FileNotFoundError) as exc:
             raise click.ClickException(str(exc))
@@ -471,10 +516,13 @@ def cli(
                     f" (tree on disk: {r.tree_total_rows:,} row(s) "
                     f"in {r.tree_n_tiles:,} tile(s))"
                 )
+            skip_note = ""
+            if r.n_workers == 0 and r.n_match_rows == 0 and r.elapsed_s == 0.0:
+                skip_note = " [skipped, complete]"
             _echo_crossmatch_result_line(
                 f"  {r.crossmatch_name}: {r.n_match_rows:,} row(s) in "
                 f"{r.n_tiles_written:,} tile(s) this run → {r.output_root}"
-                f"{tree_note}",
+                f"{tree_note}{skip_note}",
                 r,
             )
         return

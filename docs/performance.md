@@ -209,6 +209,11 @@ dl-crossmatch DESI_DR1 EUCLID_DR1 /data/lake --radius-arcsec 1.0 \
   --n-workers 16 --strips-per-worker 4 --memory-budget-gb 120
 ```
 
+**Many partners against one base.** Prefer a plan (`--suggest-plan
+--partners-from-registry` then `--plan` / `--from-area`) with the science
+sample as `--base`. Partners run sequentially; parallelism stays inside each
+pair. See [Bulk catalog × X](discovery/crossmatch.md#bulk-catalog--x-registry-plan).
+
 **Work strips.** Pending survey-A tiles are put in sky order and cut into
 `--n-workers × --strips-per-worker` contiguous strips of roughly equal
 estimated cost (survey-A rows plus survey-B rows in the covering tiles). Strips
