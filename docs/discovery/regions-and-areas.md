@@ -101,14 +101,14 @@ A FITS MOC can be used as a selector again with `dl-region --moc footprint.moc.f
 
 To export the footprint of a survey (its populated tiles from the tile index), use
 `dl-export-moc`. `--moc-order` is required. Omit `-o` to write the canonical lake
-path `shared/registry/mocs/<survey>.<modality>.moc.fits` (or `.moc.json` /
-`.moc.txt` with `--moc-format`). Optional `--modality` (`catalog` default,
-`spectra`, or `cutout`) and at most one clip selector (`--from-area`, `--cone`,
-`--bbox`, `--npix`, or `--moc`). Prefer `-o` for clipped exports so you do not
-overwrite the full-footprint MOC.
+path `shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.fits` (or
+`.moc.json` / `.moc.txt` with `--moc-format`; `<N>` is `--moc-order`). Optional
+`--modality` (`catalog` default, `spectra`, or `cutout`) and at most one clip
+selector (`--from-area`, `--cone`, `--bbox`, `--npix`, or `--moc`). Prefer `-o`
+for clipped exports so you do not overwrite the full-footprint MOC.
 
 ```bash
-# Full footprint → shared/registry/mocs/SDSS_DR17.catalog.moc.fits
+# Full footprint → shared/registry/mocs/SDSS_DR17.catalog.Norder5.moc.fits
 dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 5
 
 # Explicit path still works

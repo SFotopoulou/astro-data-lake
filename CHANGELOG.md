@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`dl-export-moc` canonical paths + bulk** — omit `-o` to write
-  `shared/registry/mocs/<survey>.<modality>.moc.{fits,json,txt}`;
-  `--all-surveys` exports every registry survey for `--modality` / `--kind`
-  (default ingested catalog) with continue-on-error.
+  `shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.{fits,json,txt}`
+  (`N` = `--moc-order`); `--all-surveys` exports every registry survey for
+  `--modality` / `--kind` (default ingested catalog) with continue-on-error.
 - **Plan-run crossmatch report** — after `--plan` / `--from-area`,
   `dl-crossmatch` writes markdown+JSON under `crossmatch/reports/` (override
   with `--report`, suppress with `--no-report`) listing ok / skipped_complete /

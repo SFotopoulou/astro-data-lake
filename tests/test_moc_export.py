@@ -122,9 +122,10 @@ class TestMocExport:
             [str(lake), "--survey", "ALLWISE", "--moc-order", "5", "--overwrite"],
         )
         assert r.exit_code == 0, r.output
-        out = default_survey_moc_path(lake, "ALLWISE", "catalog")
+        out = default_survey_moc_path(lake, "ALLWISE", "catalog", moc_order=5)
         assert out.is_file()
         assert "shared/registry/mocs" in str(out)
+        assert out.name == "ALLWISE.catalog.Norder5.moc.fits"
 
     def test_export_moc_all_surveys(self, lake: Path) -> None:
         pytest.importorskip("mocpy")
@@ -149,6 +150,10 @@ class TestMocExport:
             [str(lake), "--all-surveys", "--moc-order", "5", "--overwrite"],
         )
         assert r.exit_code == 0, r.output
-        assert default_survey_moc_path(lake, "ALLWISE").is_file()
-        assert default_survey_moc_path(lake, "DESI_DR1").is_file()
+        assert default_survey_moc_path(
+            lake, "ALLWISE", moc_order=5
+        ).is_file()
+        assert default_survey_moc_path(
+            lake, "DESI_DR1", moc_order=5
+        ).is_file()
         assert "ok=" in r.output

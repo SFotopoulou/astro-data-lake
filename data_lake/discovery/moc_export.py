@@ -69,14 +69,21 @@ def default_survey_moc_path(
     survey: str,
     modality: str = MODALITY_CATALOG,
     *,
+    moc_order: int,
     fmt: MocFormat = "fits",
 ) -> Path:
-    """Canonical path: ``shared/registry/mocs/<survey>.<modality>.moc.<ext>``."""
+    """Canonical path: ``shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.<ext>``."""
     if fmt not in _MOC_FORMAT_SUFFIX:
         raise ValueError(f"unsupported MOC format {fmt!r}")
+    order = int(moc_order)
+    if order < 0:
+        raise ValueError(f"moc_order must be >= 0; got {moc_order!r}")
     safe_survey = str(survey).strip()
     safe_mod = str(modality).strip()
-    return moc_registry_dir(lake_root) / f"{safe_survey}.{safe_mod}{_MOC_FORMAT_SUFFIX[fmt]}"
+    return (
+        moc_registry_dir(lake_root)
+        / f"{safe_survey}.{safe_mod}.Norder{order}{_MOC_FORMAT_SUFFIX[fmt]}"
+    )
 
 
 def _require_mocpy():
@@ -208,7 +215,9 @@ def export_survey_moc(
     out_path = (
         Path(output)
         if output is not None
-        else default_survey_moc_path(lake_root, survey, modality, fmt=fmt)
+        else default_survey_moc_path(
+            lake_root, survey, modality, moc_order=moc_order, fmt=fmt
+        )
     )
     if out_path.exists() and not overwrite:
         raise FileExistsError(
@@ -287,7 +296,7 @@ def export_survey_mocs_from_registry(
     errors: list[tuple[str, str, str]] = []
     for survey in targets:
         out_path = default_survey_moc_path(
-            lake_root, survey, modality, fmt=fmt
+            lake_root, survey, modality, moc_order=moc_order, fmt=fmt
         )
         if out_path.exists() and not overwrite:
             results.append(

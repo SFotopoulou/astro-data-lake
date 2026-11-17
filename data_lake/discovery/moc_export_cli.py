@@ -46,7 +46,8 @@ try:
         default=False,
         help=(
             "Export a MOC for every registry survey of --modality / --kind "
-            "into shared/registry/mocs/ (canonical paths; -o not allowed)."
+            "into shared/registry/mocs/ as "
+            "<survey>.<modality>.Norder<N>.moc.* (-o not allowed)."
         ),
     )
     @click.option(
@@ -72,7 +73,7 @@ try:
         type=click.Path(path_type=Path),
         help=(
             "Output file (.fits, .json, or .txt). Default: "
-            "shared/registry/mocs/<survey>.<modality>.moc.<ext>"
+            "shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.<ext>"
         ),
     )
     @click.option(
@@ -124,11 +125,12 @@ try:
 
         Default output (when ``-o`` is omitted)::
 
-            <lake>/shared/registry/mocs/<survey>.<modality>.moc.fits
+            <lake>/shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.fits
 
         Examples::
 
             dl-export-moc --survey SDSS_DR17 --moc-order 5
+            # → …/SDSS_DR17.catalog.Norder5.moc.fits
             dl-export-moc --all-surveys --moc-order 8
             dl-export-moc --survey DESI_DR1 --modality spectra \\
                 --from-area MyCone --moc-order 8 -o desi_cone.moc.fits
@@ -223,7 +225,11 @@ try:
             output_path
             if output_path is not None
             else default_survey_moc_path(
-                lake, survey, modality, fmt=moc_format  # type: ignore[arg-type]
+                lake,
+                survey,  # type: ignore[arg-type]
+                modality,
+                moc_order=moc_order,
+                fmt=moc_format,
             )
         )
         try:
