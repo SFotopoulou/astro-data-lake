@@ -118,7 +118,7 @@ try:
     @click.option("--bbox", nargs=4, type=float, default=None,
                   help="Box: RA_MIN RA_MAX DEC_MIN DEC_MAX (deg); RA may wrap.")
     @click.option("--moc", type=click.Path(path_type=Path), default=None,
-                  help="MOC FITS file (requires the optional mocpy dependency).")
+                  help="MOC FITS file (requires mocpy, a core dependency).")
     @click.option("--surveys", default=None,
                   help="Comma-separated survey names, or 'all' (default).")
     @click.option("--modalities", default=None,

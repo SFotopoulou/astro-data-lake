@@ -128,7 +128,8 @@ errors by default (`--fail-fast` to stop). Existing files are skipped unless
 `--overwrite`. Refresh the registry first if surveys are missing:
 `dl-refresh-lake-registry`.
 
-MOC import and export need the optional `moc` extra: `uv sync --extra moc` (installs `mocpy`).
+MOC import and export use `mocpy` (a core dependency; plain `uv sync` is enough).
+The optional `--extra moc` alias still works for older install notes.
 
 ## Export as DS9 region
 
@@ -165,7 +166,7 @@ region.to_npix(target_norder=6)   # -> set of NESTED pixels
 
 `npix` regions rescale exactly between orders (children or parent in the NESTED scheme).
 `bbox` treats `ra_min > ra_max` as wrapping through RA 0 and clamps Dec to ±90°. MOC regions
-need `mocpy` (`pip install mocpy` or `uv sync --extra moc`).
+need `mocpy` (installed with the project; plain `uv sync`).
 
 ## Areas (`areas/<area_id>.json`)
 

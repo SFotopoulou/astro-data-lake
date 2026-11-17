@@ -5,7 +5,7 @@ A :class:`Region` is one of four spatial selectors (user stories A-D):
 - ``npix`` – explicit pixel list/ranges at a declared source order.
 - ``cone`` – ``ra, dec, radius`` circle.
 - ``bbox`` – ``ra_min/ra_max, dec_min/dec_max`` box (RA wrap-around aware).
-- ``moc`` – Multi-Order Coverage map (requires the optional ``mocpy`` dependency).
+- ``moc`` – Multi-Order Coverage map (requires ``mocpy``, a core dependency).
 
 Every region resolves to a set of pixels **at a target HEALPix order** via
 :meth:`Region.to_npix`. Because catalog, spectra and cutout layers may use
@@ -224,10 +224,10 @@ class Region:
     def _moc_to_npix(self, target_norder: int) -> set[int]:
         try:
             from mocpy import MOC  # type: ignore
-        except ImportError as exc:  # pragma: no cover - optional dep
+        except ImportError as exc:  # pragma: no cover
             raise ImportError(
-                "MOC regions require the optional 'mocpy' dependency. "
-                "Install with: pip install mocpy"
+                "MOC regions require mocpy. Install with: uv sync "
+                "(mocpy[plots] is a core dependency)"
             ) from exc
 
         if self.moc_path is not None:

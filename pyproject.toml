@@ -21,6 +21,8 @@ dependencies = [
     # Astronomy
     "astropy>=6.0",
     "healpy>=1.16",
+    # MOC export/import; [plots] pulls cdshealpix (+ matplotlib) for fill/border
+    "mocpy[plots]>=0.13",
     # ML
     "torch>=2.2",
     "numpy>=1.26",
@@ -42,7 +44,8 @@ dev = [
     "napari",
 ]
 mcp = ["mcp>=1.0"]
-moc = ["mocpy>=0.13"]
+# Kept for docs/scripts that still pass ``--extra moc``; mocpy is also a core dep.
+moc = ["mocpy[plots]>=0.13"]
 viz = ["matplotlib>=3.7"]
 rapids = [
     "cuml-cu12>=24.08",

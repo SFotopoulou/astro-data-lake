@@ -193,7 +193,8 @@ dl-set-ingest-token --ingest-token 'new-secret'
 
 ## Dependencies
 
-Core: `pyarrow`, `zarr>=3`, `numcodecs`, `duckdb`, `astropy`, `healpy`, `numpy`, `polars`, `torch`, `tqdm`, `click`.
+Core: `pyarrow`, `zarr>=3`, `numcodecs`, `duckdb`, `astropy`, `healpy`,
+`mocpy[plots]`, `numpy`, `polars`, `torch`, `tqdm`, `click`.
 
 Optional extras:
 
@@ -204,5 +205,6 @@ Optional extras:
 | `desi` | DESI coadd ingest (adds `desispec`) | `uv sync --extra desi` |
 | `mcp` | MCP server for AI agents | `uv sync --extra mcp` |
 | `viz` | SED + spectrum plots (`dl-plot-source`) | `uv sync --extra viz` |
+| `moc` | No-op alias (mocpy is already core) | `uv sync --extra moc` |
 
 Catalog queries (`CatalogAccessor.query`) return **Polars** DataFrames by default (`fmt="polars"`). Use `fmt="arrow"` or `fmt="astropy"` when needed.

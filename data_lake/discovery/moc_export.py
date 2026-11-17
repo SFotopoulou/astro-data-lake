@@ -91,8 +91,8 @@ def _require_mocpy():
         from mocpy import MOC  # type: ignore
     except ImportError as exc:
         raise ImportError(
-            "MOC export requires the optional 'mocpy' dependency. "
-            "Install with: uv sync --extra moc"
+            "MOC export requires mocpy. Install with: uv sync "
+            "(mocpy[plots] is a core dependency)"
         ) from exc
     return MOC
 

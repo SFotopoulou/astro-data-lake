@@ -110,7 +110,7 @@ To share the sky selection as an IVOA Multi-Order Coverage map (MOC), install
 the `moc` extra and export it:
 
 ```bash
-uv sync --extra moc
+uv sync
 dl-region "$LAKE" --from-area multi_survey_cone \
   --export-moc /scratch/multi_survey_cone.moc.fits --moc-order 8
 ```
