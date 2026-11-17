@@ -99,13 +99,19 @@ dl-region /data/lake --from-area MyCone \
 
 A FITS MOC can be used as a selector again with `dl-region --moc footprint.moc.fits`.
 
-To export the footprint of a survey (its populated tiles from the tile index), use
-`dl-export-moc`. `--moc-order` is required. Omit `-o` to write the canonical lake
-path `shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.fits` (or
-`.moc.json` / `.moc.txt` with `--moc-format`; `<N>` is `--moc-order`). Optional
-`--modality` (`catalog` default, `spectra`, or `cutout`) and at most one clip
-selector (`--from-area`, `--cone`, `--bbox`, `--npix`, or `--moc`). Prefer `-o`
-for clipped exports so you do not overwrite the full-footprint MOC.
+To export the footprint of a survey, use `dl-export-moc`. `--moc-order` is
+required. Omit `-o` to write the canonical lake path
+`shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.fits` (or `.moc.json` /
+`.moc.txt` with `--moc-format`; `<N>` is `--moc-order`). Optional `--modality`
+(`catalog` default, `spectra`, or `cutout`) and at most one clip selector
+(`--from-area`, `--cone`, `--bbox`, `--npix`, or `--moc`). Prefer `-o` for
+clipped exports so you do not overwrite the full-footprint MOC.
+
+**Resolution vs HATS tiling.** If `--moc-order` is **≤** the survey’s catalog
+HATS order, the MOC is built from the **tile index** (fast; whole tiles). If
+`--moc-order` is **finer** (higher) than HATS, the MOC is built from **catalog
+RA/Dec** so coverage follows sources rather than empty subdivided tiles
+(`--modality catalog` only).
 
 ```bash
 # Full footprint → shared/registry/mocs/SDSS_DR17.catalog.Norder5.moc.fits

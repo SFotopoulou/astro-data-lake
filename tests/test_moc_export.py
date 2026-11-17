@@ -21,18 +21,54 @@ from data_lake.discovery.region_cli import cli as region_cli
 from data_lake.ingest.fits_to_parquet import assign_healpix, healpix_dir
 
 
+def _write_tiny_catalog(
+    lake: Path,
+    survey: str,
+    *,
+    ra: float,
+    dec: float,
+    norder: int = 5,
+    source_id: int = 1,
+) -> int:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN
+
+    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+    tile_dir.mkdir(parents=True, exist_ok=True)
+    hp_col = f"_healpix_norder{norder}"
+    pq.write_table(
+        pa.table(
+            {
+                LAKE_JOIN_ID_COLUMN: pa.array([source_id], type=pa.int64()),
+                "ra": pa.array([ra], type=pa.float64()),
+                "dec": pa.array([dec], type=pa.float64()),
+                hp_col: pa.array([npix], type=pa.int64()),
+            }
+        ),
+        tile_dir / f"Npix={npix}.parquet",
+    )
+    (lake / "catalogs" / survey / "catalog_info.json").write_text(
+        json.dumps(
+            {
+                "hats_order": norder,
+                "ra_column": "ra",
+                "dec_column": "dec",
+                "link_id_column": LAKE_JOIN_ID_COLUMN,
+                "total_rows": 1,
+            }
+        )
+    )
+    ti.write_tile_index(lake, survey, "catalog")
+    return npix
+
+
 @pytest.fixture
 def lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
-    ra, dec, norder = 120.0, 45.0, 5
-    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-    tile_dir = lake / "catalogs" / "ALLWISE" / healpix_dir(norder, npix)
-    tile_dir.mkdir(parents=True, exist_ok=True)
-    (tile_dir / f"Npix={npix}.parquet").write_bytes(b"")
-    (lake / "catalogs" / "ALLWISE" / "catalog_info.json").write_text(
-        json.dumps({"hats_order": norder, "total_rows": 1})
-    )
-    ti.write_tile_index(lake, "ALLWISE", "catalog")
+    _write_tiny_catalog(lake, "ALLWISE", ra=120.0, dec=45.0, norder=5)
     return lake
 
 
@@ -82,6 +118,26 @@ class TestMocExport:
         )
         assert result.n_cells >= 1
         assert out.is_file()
+
+    def test_finer_than_hats_uses_catalog_rows(
+        self, lake: Path, tmp_path: Path
+    ) -> None:
+        """moc_order > HATS → source MOC, not subdivided empty tiles."""
+        pytest.importorskip("mocpy")
+        from mocpy import MOC
+
+        # Tile-based upscale of one Norder=5 cell → 4^(8-5) = 64 cells at 8.
+        tile_up = export_survey_moc(
+            lake, "ALLWISE", tmp_path / "tile_eq.fits", moc_order=5, overwrite=True,
+        )
+        assert tile_up.n_cells == 1
+
+        fine = export_survey_moc(
+            lake, "ALLWISE", tmp_path / "fine.fits", moc_order=8, overwrite=True,
+        )
+        assert fine.n_cells == 1  # one source → one leaf cell, not 64
+        moc = MOC.load(str(tmp_path / "fine.fits"), format="fits")
+        assert int(moc.max_order) >= 8 or "8/" in moc.to_string("ascii")
 
     def test_region_cli_export_moc(self, lake: Path, tmp_path: Path) -> None:
         pytest.importorskip("mocpy")
@@ -133,15 +189,7 @@ class TestMocExport:
         from data_lake.lake_registry import refresh_lake_registry
 
         # Second survey so bulk iterates more than one name.
-        ra, dec, norder = 10.0, 0.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        tile_dir = lake / "catalogs" / "DESI_DR1" / healpix_dir(norder, npix)
-        tile_dir.mkdir(parents=True, exist_ok=True)
-        (tile_dir / f"Npix={npix}.parquet").write_bytes(b"")
-        (lake / "catalogs" / "DESI_DR1" / "catalog_info.json").write_text(
-            json.dumps({"hats_order": norder, "total_rows": 1})
-        )
-        ti.write_tile_index(lake, "DESI_DR1", "catalog")
+        _write_tiny_catalog(lake, "DESI_DR1", ra=10.0, dec=0.0, norder=5, source_id=2)
         refresh_lake_registry(lake)
 
         runner = CliRunner()

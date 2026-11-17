@@ -125,7 +125,12 @@ def survey_footprint_npix(
     moc_order: int,
     allow_scan: bool = True,
 ) -> set[int]:
-    """Populated survey tiles, optionally clipped to *region*, at *moc_order*."""
+    """Populated survey tiles, optionally clipped to *region*, at *moc_order*.
+
+    This path only **degrades or keeps** the tile grid (``moc_order <=
+    hats_order``). For a finer MOC than the HATS tiling, use
+    :func:`survey_footprint_moc_from_catalog` instead.
+    """
     npix_native, hats_order = survey_npix(
         lake_root, survey, modality, allow_scan=allow_scan,
     )
@@ -138,12 +143,96 @@ def survey_footprint_npix(
             f"Cannot determine hats_order for {survey!r} {modality!r}; "
             "ingest metadata or refresh the tile index."
         )
+    if moc_order > int(hats_order):
+        raise ValueError(
+            f"moc_order={moc_order} is finer than HATS order={hats_order}; "
+            "build from catalog rows instead of tiles "
+            "(see export_survey_moc)."
+        )
     if region is not None:
         region_npix = region.to_npix(hats_order)
         npix_native &= region_npix
     if moc_order == hats_order:
         return npix_native
     return rescale_npix_nested(npix_native, hats_order, moc_order)
+
+
+def survey_footprint_moc_from_catalog(
+    lake_root: Path | str,
+    survey: str,
+    *,
+    moc_order: int,
+    region: Region | None = None,
+    allow_scan: bool = True,
+):
+    """Build a MOC from catalog RA/Dec (for ``moc_order`` finer than HATS).
+
+    Streams one HATS tile at a time and unions ``MOC.from_lonlat`` pieces so
+    peak memory stays near one tile of sky columns. Optional *region* first
+    prunes tiles at the catalog order (tile-granular clip).
+    """
+    from astropy import units as u
+
+    from data_lake.io.catalog import CatalogAccessor
+
+    lake_root = Path(lake_root)
+    npix_native, hats_order = survey_npix(
+        lake_root, survey, MODALITY_CATALOG, allow_scan=allow_scan,
+    )
+    if not npix_native:
+        raise FileNotFoundError(
+            f"No tiles found for {survey!r} modality {MODALITY_CATALOG!r}"
+        )
+    if hats_order is None:
+        raise ValueError(
+            f"Cannot determine hats_order for {survey!r}; "
+            "ingest metadata or refresh the tile index."
+        )
+    if region is not None:
+        npix_native &= region.to_npix(int(hats_order))
+        if not npix_native:
+            raise FileNotFoundError(
+                f"No {survey!r} tiles overlap the requested region"
+            )
+
+    MOC = _require_mocpy()
+    moc = None
+    n_sources = 0
+    with CatalogAccessor(lake_root, survey) as acc:
+        ra_logical = acc._info.get("ra_column", "ra")
+        dec_logical = acc._info.get("dec_column", "dec")
+        ra_col = acc.resolve_column(str(ra_logical))
+        dec_col = acc.resolve_column(str(dec_logical))
+        for npix in sorted(npix_native):
+            table = acc.sources_in_healpix_pixels(
+                [int(npix)], columns=[ra_col, dec_col], fmt="polars"
+            )
+            if table is None or len(table) == 0:
+                continue
+            ra = np.asarray(table[ra_col].to_numpy(), dtype=np.float64)
+            dec = np.asarray(table[dec_col].to_numpy(), dtype=np.float64)
+            ok = np.isfinite(ra) & np.isfinite(dec)
+            if not np.any(ok):
+                continue
+            ra = ra[ok]
+            dec = dec[ok]
+            n_sources += int(ra.size)
+            part = MOC.from_lonlat(ra * u.deg, dec * u.deg, max_norder=int(moc_order))
+            moc = part if moc is None else moc.union(part)
+
+    if moc is None or moc.empty():
+        raise FileNotFoundError(
+            f"No usable RA/Dec rows for {survey!r} while building a "
+            f"order-{moc_order} MOC from the catalog"
+        )
+    log.info(
+        "Catalog MOC for %s: %s source(s) → order %s (HATS order was %s)",
+        survey,
+        f"{n_sources:,}",
+        moc_order,
+        hats_order,
+    )
+    return moc, int(hats_order), n_sources
 
 
 def write_moc(
@@ -206,10 +295,18 @@ def export_survey_moc(
     fmt: MocFormat = "fits",
     overwrite: bool = False,
 ) -> MocExportResult:
-    """Export populated survey tiles (optionally region-clipped) as a MOC.
+    """Export a survey footprint MOC (optionally region-clipped).
 
     When *output* is ``None``, write to
     :func:`default_survey_moc_path` under ``shared/registry/mocs/``.
+
+    Resolution policy:
+
+    - ``moc_order <=`` catalog HATS order → MOC from the **tile index**
+      (fast; cells are whole HATS tiles, possibly degraded).
+    - ``moc_order >`` HATS order → MOC from **catalog RA/Dec** (source
+      positions). Required so a finer MOC is not just subdivided empty
+      tile squares. Catalog modality only.
     """
     lake_root = Path(lake_root)
     out_path = (
@@ -223,22 +320,68 @@ def export_survey_moc(
         raise FileExistsError(
             f"MOC already exists: {out_path} (pass overwrite=True / --overwrite)"
         )
-    npix = survey_footprint_npix(
-        lake_root, survey, modality, region=region, moc_order=moc_order,
-    )
-    moc = npix_set_to_moc(npix, moc_order)
-    provenance = {
-        "survey": survey,
-        "modality": modality,
-        "source": "data_lake_tile_index",
-    }
+
+    _, hats_order = survey_npix(lake_root, survey, modality, allow_scan=True)
+    if hats_order is None:
+        raise ValueError(
+            f"Cannot determine hats_order for {survey!r} {modality!r}; "
+            "ingest metadata or refresh the tile index."
+        )
+
+    use_catalog = int(moc_order) > int(hats_order)
+    if use_catalog:
+        if modality != MODALITY_CATALOG:
+            raise ValueError(
+                f"moc_order={moc_order} is finer than HATS order={hats_order} "
+                f"for {survey!r} ({modality}); source-level MOCs require "
+                f"--modality {MODALITY_CATALOG} (or choose moc_order <= {hats_order})"
+            )
+        moc, hats_order, n_sources = survey_footprint_moc_from_catalog(
+            lake_root,
+            survey,
+            moc_order=int(moc_order),
+            region=region,
+        )
+        n_cells = int(len(moc.flatten()))
+        provenance = {
+            "survey": survey,
+            "modality": modality,
+            "source": "data_lake_catalog_rows",
+            "hatsord": hats_order,
+            "nsrc": n_sources,
+        }
+        log.info(
+            "Exporting %s MOC from catalog rows (moc_order=%s > HATS=%s)",
+            survey,
+            moc_order,
+            hats_order,
+        )
+    else:
+        npix = survey_footprint_npix(
+            lake_root, survey, modality, region=region, moc_order=moc_order,
+        )
+        moc = npix_set_to_moc(npix, moc_order)
+        n_cells = len(npix)
+        provenance = {
+            "survey": survey,
+            "modality": modality,
+            "source": "data_lake_tile_index",
+            "hatsord": int(hats_order),
+        }
+        log.info(
+            "Exporting %s MOC from tile index (moc_order=%s <= HATS=%s)",
+            survey,
+            moc_order,
+            hats_order,
+        )
+
     keywords = _fits_keywords(provenance, moc_order=moc_order)
     out = write_moc(moc, out_path, fmt=fmt, overwrite=overwrite, fits_keywords=keywords)
     return MocExportResult(
         output=out,
         format=fmt,
         moc_order=moc_order,
-        n_cells=len(npix),
+        n_cells=n_cells,
         max_order=int(moc.max_order),
         survey=survey,
         modality=modality,

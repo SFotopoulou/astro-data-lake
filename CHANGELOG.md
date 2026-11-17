@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`mocpy[plots]` as a core dependency** — MOC export/import and plotting
   extras (`cdshealpix`, matplotlib) install with plain `uv sync`; `--extra moc`
   remains as a no-op alias for older docs/scripts.
+- **`dl-export-moc` finer than HATS** — when `--moc-order` exceeds the survey
+  HATS order, the MOC is built from catalog RA/Dec (streamed per tile) instead
+  of upscaling empty tile squares; coarser/equal orders still use the tile index.
 - **`dl-export-moc` canonical paths + bulk** — omit `-o` to write
   `shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.{fits,json,txt}`
   (`N` = `--moc-order`); `--all-surveys` exports every registry survey for
