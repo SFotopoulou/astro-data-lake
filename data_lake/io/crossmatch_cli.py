@@ -129,6 +129,32 @@ _cli_b_cache_mib = PARTNER_TILE_CACHE_MAX_BYTES // (1024 * 1024)
     ),
 )
 @click.option(
+    "--continue-on-error/--fail-fast",
+    default=True,
+    show_default=True,
+    help=(
+        "In --plan / --from-area mode, continue after a partner failure "
+        "(default) so the end-of-run report lists every error location; "
+        "--fail-fast stops after the first failed partner."
+    ),
+)
+@click.option(
+    "--report",
+    "report_path",
+    type=click.Path(path_type=Path),
+    default=None,
+    help=(
+        "Write plan-run markdown+JSON report here (file or directory). "
+        "Default: <lake>/crossmatch/reports/<base>_<timestamp>_plan_report.md"
+    ),
+)
+@click.option(
+    "--no-report",
+    is_flag=True,
+    default=False,
+    help="Do not write a plan-run report file (stdout summary still prints).",
+)
+@click.option(
     "--radius-arcsec",
     default=1.0,
     show_default=True,
@@ -277,6 +303,9 @@ def cli(
     suggest_exclude: tuple[str, ...],
     suggest_output: Path | None,
     skip_complete_partners: bool,
+    continue_on_error: bool,
+    report_path: Path | None,
+    no_report: bool,
     radius_arcsec: float,
     norder_a: int | None,
     norder_b: int | None,
@@ -480,7 +509,11 @@ def cli(
             )
             # Region-bounded runs never overwrite existing tiles.
             plan_overwrite = False if region is not None else overwrite
-            results = execute_crossmatch_plan(
+            plan_source = (
+                f"area:{from_area}" if from_area is not None else f"plan:{plan_file}"
+            )
+            region_label = from_area if from_area is not None else None
+            report = execute_crossmatch_plan(
                 lake,
                 plan,
                 region=region,
@@ -496,34 +529,28 @@ def cli(
                 memory_budget_bytes=memory_budget_bytes,
                 strips_per_worker=strips_per_worker,
                 skip_complete_partners=skip_complete_partners,
+                continue_on_error=continue_on_error,
+                plan_source=plan_source,
+                region_label=region_label,
             )
         except (ValueError, FileNotFoundError) as exc:
             raise click.ClickException(str(exc))
-        run_rows = sum(r.n_match_rows for r in results)
-        tree_rows = sum(
-            (r.tree_total_rows if r.tree_total_rows is not None else r.n_match_rows)
-            for r in results
-        )
-        click.echo(
-            f"Crossmatch plan: {len(results)} partner tree(s); "
-            f"this run accounted for {run_rows:,} row(s) in scope; "
-            f"on-disk tree total(s) {tree_rows:,} match row(s)"
-        )
-        for r in results:
-            tree_note = ""
-            if r.tree_total_rows is not None:
-                tree_note = (
-                    f" (tree on disk: {r.tree_total_rows:,} row(s) "
-                    f"in {r.tree_n_tiles:,} tile(s))"
+
+        if not no_report:
+            written = report.write(report_path)
+            for path in written:
+                click.echo(f"Plan report → {path}")
+
+        click.echo(report.format_text())
+        if report.n_error:
+            raise click.ClickException(
+                f"Crossmatch plan finished with {report.n_error} partner error(s); "
+                "see report above"
+                + (
+                    f" and {report.report_paths[0]}"
+                    if report.report_paths
+                    else ""
                 )
-            skip_note = ""
-            if r.n_workers == 0 and r.n_match_rows == 0 and r.elapsed_s == 0.0:
-                skip_note = " [skipped, complete]"
-            _echo_crossmatch_result_line(
-                f"  {r.crossmatch_name}: {r.n_match_rows:,} row(s) in "
-                f"{r.n_tiles_written:,} tile(s) this run → {r.output_root}"
-                f"{tree_note}{skip_note}",
-                r,
             )
         return
 

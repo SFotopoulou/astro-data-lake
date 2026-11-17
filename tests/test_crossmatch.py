@@ -672,10 +672,68 @@ class TestCrossmatchNamingAndReuse:
                 {"survey": "ALLWISE", "radius_arcsec": 2.0},
             ],
         }
-        results = execute_crossmatch_plan(lake, plan)
-        assert len(results) == 2
+        report = execute_crossmatch_plan(lake, plan)
+        assert report.n_partners == 2
+        assert report.n_ok == 2
+        assert report.n_error == 0
+        assert len(report) == 2
         assert crossmatch_root(lake, "EUCLID", "DESI_DR1", 1.0).is_dir()
         assert crossmatch_root(lake, "EUCLID", "ALLWISE", 2.0).is_dir()
+        written = report.write()
+        assert written[0].is_file()
+        assert written[1].is_file()
+        text = written[0].read_text(encoding="utf-8")
+        assert "DESI_DR1" in text and "ALLWISE" in text
+        assert "## Errors" in text and "_None._" in text
+
+    def test_plan_continue_on_error(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        from data_lake.io.crossmatch import execute_crossmatch_plan
+
+        lake, ra, dec, npix = self._two_partner_lake(tmp_path)
+        plan = {
+            "base_catalog": "EUCLID",
+            "partners": [
+                {"survey": "DESI_DR1", "radius_arcsec": 1.0},
+                {"survey": "ALLWISE", "radius_arcsec": 2.0},
+            ],
+        }
+
+        real_build = __import__(
+            "data_lake.io.crossmatch", fromlist=["build_crossmatch"]
+        ).build_crossmatch
+
+        def _flaky(lake_root, survey_a, survey_b, **kwargs):
+            if survey_b == "DESI_DR1":
+                raise RuntimeError("simulated partner failure")
+            return real_build(lake_root, survey_a, survey_b, **kwargs)
+
+        with patch(
+            "data_lake.io.crossmatch.build_crossmatch", side_effect=_flaky
+        ):
+            report = execute_crossmatch_plan(
+                lake, plan, skip_complete_partners=False, continue_on_error=True
+            )
+        assert report.n_error == 1
+        assert report.n_ok == 1
+        assert report.errors[0].survey_b == "DESI_DR1"
+        assert "simulated partner failure" in (report.errors[0].error or "")
+        assert crossmatch_root(lake, "EUCLID", "ALLWISE", 2.0).is_dir()
+        md = report.format_markdown()
+        assert "simulated partner failure" in md
+        assert "ALLWISE" in md
+
+        with patch(
+            "data_lake.io.crossmatch.build_crossmatch",
+            side_effect=RuntimeError("stop here"),
+        ):
+            partial = execute_crossmatch_plan(
+                lake, plan, skip_complete_partners=False, continue_on_error=False
+            )
+        assert partial.n_error == 1
+        assert partial.n_partners == 1  # stopped after first failure
+        assert partial.outcomes[0].survey_b == "DESI_DR1"
 
     def test_skip_complete_partners(self, tmp_path: Path) -> None:
         from unittest.mock import patch

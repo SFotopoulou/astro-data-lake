@@ -176,6 +176,17 @@ does not re-start workers for finished pairs; pass
 `--no-skip-complete-partners` to force the full path (tile resume still
 applies inside `build_crossmatch`).
 
+When a partner fails, the default is **`--continue-on-error`**: remaining
+partners still run, and the end-of-run report lists every failure (partner
+name, exception type/message, traceback). Use `--fail-fast` to stop after the
+first error. The CLI exits non-zero if any partner failed.
+
+A markdown + JSON report is written under
+`<lake>/crossmatch/reports/<base>_<timestamp>_plan_report.{md,json}` (override
+with `--report PATH`, or suppress with `--no-report`). The same summary is
+printed on stdout, with the **Errors** section first so a 100-partner bulk run
+makes failures easy to spot.
+
 In plan mode the only positional argument is the lake root. A plan has the same
 shape as the `crossmatch_plan` block of an area (see
 [Regions and areas](regions-and-areas.md)):

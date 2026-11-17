@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Plan-run crossmatch report** — after `--plan` / `--from-area`,
+  `dl-crossmatch` writes markdown+JSON under `crossmatch/reports/` (override
+  with `--report`, suppress with `--no-report`) listing ok / skipped_complete /
+  error per partner. Default `--continue-on-error` keeps going after a partner
+  failure so the report shows every error location; `--fail-fast` stops early.
+  Non-zero exit when any partner failed.
 - **Registry bulk crossmatch plans** — `dl-crossmatch --suggest-plan
   --partners-from-registry` fills partners from `surveys.parquet` (catalog
   modality; `--kind ingested|product|all`, repeatable `--exclude`), ordered by

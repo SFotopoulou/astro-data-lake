@@ -41,10 +41,12 @@ import json
 import logging
 import re
 import time
+import traceback as traceback_mod
 from collections import OrderedDict
 from concurrent.futures import Future, ProcessPoolExecutor, as_completed
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Literal, Sequence
 
@@ -101,6 +103,314 @@ class CrossmatchResult:
     tree_n_tiles: int | None = None
     # Last-run phase timing / B-cache (also in crossmatch_info.json ``perf``).
     perf: dict[str, float | int] | None = None
+
+
+PlanPartnerStatus = Literal["ok", "skipped_complete", "error"]
+
+
+@dataclass(frozen=True)
+class CrossmatchPlanPartnerOutcome:
+    """One partner's outcome inside a multi-partner plan run."""
+
+    index: int
+    n_partners: int
+    survey_b: str
+    status: PlanPartnerStatus
+    match_mode: str
+    radius_arcsec: float | None = None
+    match_col_a: str | None = None
+    match_col_b: str | None = None
+    result: CrossmatchResult | None = None
+    error: str | None = None
+    error_type: str | None = None
+    traceback: str | None = None
+
+    @property
+    def crossmatch_name(self) -> str | None:
+        if self.result is not None:
+            return self.result.crossmatch_name
+        return None
+
+    @property
+    def output_root(self) -> Path | None:
+        if self.result is not None:
+            return self.result.output_root
+        return None
+
+
+@dataclass
+class CrossmatchPlanReport:
+    """End-of-run summary for :func:`execute_crossmatch_plan` (bulk / area plans)."""
+
+    lake_root: Path
+    base_catalog: str
+    outcomes: list[CrossmatchPlanPartnerOutcome]
+    started_at: str
+    finished_at: str
+    continue_on_error: bool = True
+    region_label: str | None = None
+    plan_source: str | None = None
+    report_paths: tuple[Path, ...] = ()
+
+    @property
+    def n_partners(self) -> int:
+        return len(self.outcomes)
+
+    @property
+    def n_ok(self) -> int:
+        return sum(1 for o in self.outcomes if o.status == "ok")
+
+    @property
+    def n_skipped(self) -> int:
+        return sum(1 for o in self.outcomes if o.status == "skipped_complete")
+
+    @property
+    def n_error(self) -> int:
+        return sum(1 for o in self.outcomes if o.status == "error")
+
+    @property
+    def errors(self) -> list[CrossmatchPlanPartnerOutcome]:
+        return [o for o in self.outcomes if o.status == "error"]
+
+    @property
+    def results(self) -> list[CrossmatchResult]:
+        """Non-error partner results (ok + skipped_complete)."""
+        return [o.result for o in self.outcomes if o.result is not None]
+
+    def __len__(self) -> int:
+        """Backward-compatible length: number of non-error results."""
+        return len(self.results)
+
+    def __getitem__(self, index: int) -> CrossmatchResult:
+        """Backward-compatible indexing into non-error results."""
+        return self.results[index]
+
+    def __iter__(self):
+        return iter(self.results)
+
+    def default_report_stem(self) -> str:
+        stamp = self.finished_at.replace(":", "").replace("-", "")
+        if "T" in stamp:
+            stamp = stamp.split("T", 1)[0] + "_" + stamp.split("T", 1)[1][:6]
+        safe_base = re.sub(r"[^\w.\-]+", "_", self.base_catalog)
+        return f"{safe_base}_{stamp}_plan_report"
+
+    def default_report_dir(self) -> Path:
+        return Path(self.lake_root) / "crossmatch" / "reports"
+
+    def to_dict(self) -> dict[str, Any]:
+        partners: list[dict[str, Any]] = []
+        for o in self.outcomes:
+            entry: dict[str, Any] = {
+                "index": o.index,
+                "n_partners": o.n_partners,
+                "survey_b": o.survey_b,
+                "status": o.status,
+                "match_mode": o.match_mode,
+                "radius_arcsec": o.radius_arcsec,
+                "match_col_a": o.match_col_a,
+                "match_col_b": o.match_col_b,
+                "error": o.error,
+                "error_type": o.error_type,
+                "traceback": o.traceback,
+            }
+            if o.result is not None:
+                r = o.result
+                entry["result"] = {
+                    "crossmatch_name": r.crossmatch_name,
+                    "output_root": str(r.output_root),
+                    "n_tiles_written": r.n_tiles_written,
+                    "n_match_rows": r.n_match_rows,
+                    "tree_total_rows": r.tree_total_rows,
+                    "tree_n_tiles": r.tree_n_tiles,
+                    "elapsed_s": r.elapsed_s,
+                    "n_workers": r.n_workers,
+                    "match_backend": r.match_backend,
+                    "match_mode": r.match_mode,
+                    "radius_arcsec": r.radius_arcsec,
+                    "match_col_a": r.match_col_a,
+                    "match_col_b": r.match_col_b,
+                    "perf": r.perf,
+                }
+            partners.append(entry)
+        return {
+            "lake_root": str(self.lake_root),
+            "base_catalog": self.base_catalog,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "continue_on_error": self.continue_on_error,
+            "region_label": self.region_label,
+            "plan_source": self.plan_source,
+            "summary": {
+                "n_partners": self.n_partners,
+                "n_ok": self.n_ok,
+                "n_skipped_complete": self.n_skipped,
+                "n_error": self.n_error,
+            },
+            "partners": partners,
+        }
+
+    def format_text(self) -> str:
+        """Human summary for stdout (errors first)."""
+        lines = [
+            f"Crossmatch plan report: base={self.base_catalog} "
+            f"partners={self.n_partners} "
+            f"ok={self.n_ok} skipped={self.n_skipped} error={self.n_error}",
+        ]
+        if self.plan_source:
+            lines.append(f"  plan source: {self.plan_source}")
+        if self.region_label:
+            lines.append(f"  region: {self.region_label}")
+        lines.append(f"  started: {self.started_at}  finished: {self.finished_at}")
+
+        if self.errors:
+            lines.append("Errors:")
+            for o in self.errors:
+                where = o.crossmatch_name or o.survey_b
+                lines.append(
+                    f"  [{o.index}/{o.n_partners}] {o.survey_b} "
+                    f"({o.match_mode}): {o.error_type}: {o.error}"
+                )
+                lines.append(f"      partner={where}")
+
+        lines.append("Partners:")
+        for o in self.outcomes:
+            if o.status == "error":
+                lines.append(
+                    f"  [{o.index}/{o.n_partners}] {o.survey_b}: ERROR "
+                    f"{o.error_type}: {o.error}"
+                )
+                continue
+            assert o.result is not None
+            r = o.result
+            tree_rows = (
+                r.tree_total_rows if r.tree_total_rows is not None else r.n_match_rows
+            )
+            tree_tiles = (
+                r.tree_n_tiles if r.tree_n_tiles is not None else r.n_tiles_written
+            )
+            flag = "skipped_complete" if o.status == "skipped_complete" else "ok"
+            lines.append(
+                f"  [{o.index}/{o.n_partners}] {o.survey_b}: {flag} "
+                f"{r.crossmatch_name} "
+                f"this_run_rows={r.n_match_rows:,} "
+                f"tree_rows={tree_rows:,} tree_tiles={tree_tiles:,} "
+                f"elapsed_s={r.elapsed_s:.1f} → {r.output_root}"
+            )
+        return "\n".join(lines)
+
+    def format_markdown(self) -> str:
+        """Markdown report emphasizing failures and per-partner location."""
+        lines = [
+            f"# Crossmatch plan report: `{self.base_catalog}`",
+            "",
+            f"- **Lake:** `{self.lake_root}`",
+            f"- **Started:** {self.started_at}",
+            f"- **Finished:** {self.finished_at}",
+            f"- **Partners:** {self.n_partners} "
+            f"(ok={self.n_ok}, skipped_complete={self.n_skipped}, "
+            f"error={self.n_error})",
+            f"- **Continue on error:** {self.continue_on_error}",
+        ]
+        if self.plan_source:
+            lines.append(f"- **Plan source:** `{self.plan_source}`")
+        if self.region_label:
+            lines.append(f"- **Region:** `{self.region_label}`")
+        lines.append("")
+
+        if self.errors:
+            lines.extend(["## Errors", ""])
+            for o in self.errors:
+                lines.append(
+                    f"### [{o.index}/{o.n_partners}] `{o.survey_b}` — "
+                    f"`{o.error_type}`"
+                )
+                lines.append("")
+                lines.append(f"- **Mode:** {o.match_mode}")
+                if o.match_mode == "sky" and o.radius_arcsec is not None:
+                    lines.append(f"- **Radius:** {o.radius_arcsec} arcsec")
+                if o.match_mode == "column":
+                    lines.append(
+                        f"- **Columns:** `{o.match_col_a}` = `{o.match_col_b}`"
+                    )
+                lines.append(f"- **Message:** {o.error}")
+                if o.traceback:
+                    lines.extend(["", "```", o.traceback.rstrip(), "```", ""])
+                else:
+                    lines.append("")
+        else:
+            lines.extend(["## Errors", "", "_None._", ""])
+
+        lines.extend(
+            [
+                "## Partners",
+                "",
+                "| # | Partner | Status | Tree / location | This-run rows | "
+                "Tree rows | Elapsed (s) |",
+                "|---|---------|--------|-----------------|---------------|"
+                "-----------|-------------|",
+            ]
+        )
+        for o in self.outcomes:
+            if o.status == "error":
+                loc = "—"
+                run_rows = "—"
+                tree_rows = "—"
+                elapsed = "—"
+                status = f"ERROR ({o.error_type})"
+            else:
+                assert o.result is not None
+                r = o.result
+                loc = f"`{r.crossmatch_name}` → `{r.output_root}`"
+                run_rows = f"{r.n_match_rows:,}"
+                tr = (
+                    r.tree_total_rows
+                    if r.tree_total_rows is not None
+                    else r.n_match_rows
+                )
+                tree_rows = f"{tr:,}"
+                elapsed = f"{r.elapsed_s:.1f}"
+                status = o.status
+            lines.append(
+                f"| {o.index} | `{o.survey_b}` | {status} | {loc} | "
+                f"{run_rows} | {tree_rows} | {elapsed} |"
+            )
+        lines.append("")
+        return "\n".join(lines)
+
+    def write(
+        self,
+        path: Path | str | None = None,
+        *,
+        also_json: bool = True,
+    ) -> tuple[Path, ...]:
+        """Write markdown (and optional JSON) report; return written paths."""
+        if path is None:
+            out_dir = self.default_report_dir()
+            out_dir.mkdir(parents=True, exist_ok=True)
+            md_path = out_dir / f"{self.default_report_stem()}.md"
+        else:
+            md_path = Path(path)
+            if md_path.suffix.lower() not in {".md", ".markdown", ".txt"}:
+                # Treat as directory or stem without suffix → markdown under it.
+                if md_path.suffix == "":
+                    md_path.mkdir(parents=True, exist_ok=True)
+                    md_path = md_path / f"{self.default_report_stem()}.md"
+                else:
+                    md_path = md_path.with_suffix(".md")
+            md_path.parent.mkdir(parents=True, exist_ok=True)
+
+        md_path.write_text(self.format_markdown(), encoding="utf-8")
+        written: list[Path] = [md_path]
+        if also_json:
+            json_path = md_path.with_suffix(".json")
+            json_path.write_text(
+                json.dumps(self.to_dict(), indent=2, sort_keys=False) + "\n",
+                encoding="utf-8",
+            )
+            written.append(json_path)
+        self.report_paths = tuple(written)
+        return self.report_paths
 
 
 @dataclass(frozen=True)
@@ -3172,7 +3482,10 @@ def execute_crossmatch_plan(
     memory_budget_bytes: int | None = None,
     strips_per_worker: int = 4,
     skip_complete_partners: bool = True,
-) -> list[CrossmatchResult]:
+    continue_on_error: bool = True,
+    plan_source: str | None = None,
+    region_label: str | None = None,
+) -> CrossmatchPlanReport:
     """Execute a crossmatch plan (base catalog x N partners), optionally region-bounded.
 
     The plan mirrors the ``crossmatch_plan`` block of an area.  Partners may be
@@ -3197,6 +3510,11 @@ def execute_crossmatch_plan(
     off: existing tiles outside or inside the area are never rebuilt; only
     missing tiles in the area are computed. ``crossmatch_info.json`` always
     stores full on-disk tree totals after the run.
+
+    Partner failures are captured in the returned :class:`CrossmatchPlanReport`
+    instead of aborting the whole plan when *continue_on_error* is true
+    (default). Set it false to stop after the first partner error (still
+    returns a partial report covering partners attempted so far).
     """
     from data_lake.discovery.area_plan import (
         partner_match_mode,
@@ -3221,20 +3539,29 @@ def execute_crossmatch_plan(
         restrict_npix = region.to_npix(base_norder)  # type: ignore[attr-defined]
 
     n_partners = len(partners)
-    results: list[CrossmatchResult] = []
+    outcomes: list[CrossmatchPlanPartnerOutcome] = []
+    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def _finish() -> CrossmatchPlanReport:
+        return CrossmatchPlanReport(
+            lake_root=lake_root,
+            base_catalog=str(base),
+            outcomes=list(outcomes),
+            started_at=started_at,
+            finished_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            continue_on_error=continue_on_error,
+            region_label=region_label,
+            plan_source=plan_source,
+        )
+
     for idx, partner in enumerate(partners, start=1):
         survey_b = partner.get("survey")
         if not survey_b:
             raise ValueError("crossmatch_plan partner missing 'survey'")
         mode = partner_match_mode(partner)
-        log.info(
-            "Crossmatch plan partner %d/%d: base=%s partner=%s mode=%s",
-            idx,
-            n_partners,
-            base,
-            survey_b,
-            mode,
-        )
+        radius_val: float | None = None
+        match_col_a: str | None = None
+        match_col_b: str | None = None
         if mode == "column":
             match_col_a = partner.get("match_col_a")
             match_col_b = partner.get("match_col_b")
@@ -3243,90 +3570,151 @@ def execute_crossmatch_plan(
                     f"crossmatch_plan column partner {survey_b!r} requires "
                     "match_col_a and match_col_b"
                 )
-            if skip_complete_partners:
-                skipped = try_skip_complete_partner(
-                    lake_root,
-                    base,
-                    survey_b,
-                    match_mode="column",
-                    match_col_a=str(match_col_a),
-                    match_col_b=str(match_col_b),
-                    overwrite=overwrite,
-                    restrict_npix=restrict_npix,
-                )
-                if skipped is not None:
-                    log.info(
-                        "Skipping complete partner %s (%s); "
-                        "tree on disk has %s tile(s)",
-                        survey_b,
-                        skipped.crossmatch_name,
-                        skipped.tree_n_tiles,
-                    )
-                    results.append(skipped)
-                    continue
-            result = build_column_crossmatch(
-                lake_root,
-                base,
-                survey_b,
-                str(match_col_a),
-                str(match_col_b),
-                overwrite=overwrite,
-                n_workers=n_workers,
-                tiles_per_worker=tiles_per_worker,
-                show_progress=show_progress,
-                restrict_npix=restrict_npix,
-                b_cache=b_cache,
-                b_cache_max_tiles=b_cache_max_tiles,
-                b_cache_max_mib=b_cache_max_mib,
-                memory_budget_bytes=memory_budget_bytes,
-                strips_per_worker=strips_per_worker,
-            )
+            match_col_a = str(match_col_a)
+            match_col_b = str(match_col_b)
         else:
             radius = partner.get("radius_arcsec")
             if radius is None:
                 raise ValueError(
                     f"crossmatch_plan partner {survey_b!r} missing 'radius_arcsec'"
                 )
-            if skip_complete_partners:
-                skipped = try_skip_complete_partner(
-                    lake_root,
-                    base,
-                    survey_b,
-                    match_mode="sky",
-                    radius_arcsec=float(radius),
-                    overwrite=overwrite,
-                    restrict_npix=restrict_npix,
-                )
-                if skipped is not None:
-                    log.info(
-                        "Skipping complete partner %s (%s); "
-                        "tree on disk has %s tile(s)",
+            radius_val = float(radius)
+
+        log.info(
+            "Crossmatch plan partner %d/%d: base=%s partner=%s mode=%s",
+            idx,
+            n_partners,
+            base,
+            survey_b,
+            mode,
+        )
+
+        try:
+            status: PlanPartnerStatus = "ok"
+            result: CrossmatchResult | None = None
+            if mode == "column":
+                assert match_col_a is not None and match_col_b is not None
+                if skip_complete_partners:
+                    skipped = try_skip_complete_partner(
+                        lake_root,
+                        base,
                         survey_b,
-                        skipped.crossmatch_name,
-                        skipped.tree_n_tiles,
+                        match_mode="column",
+                        match_col_a=match_col_a,
+                        match_col_b=match_col_b,
+                        overwrite=overwrite,
+                        restrict_npix=restrict_npix,
                     )
-                    results.append(skipped)
-                    continue
-            result = build_crossmatch(
-                lake_root,
+                    if skipped is not None:
+                        log.info(
+                            "Skipping complete partner %s (%s); "
+                            "tree on disk has %s tile(s)",
+                            survey_b,
+                            skipped.crossmatch_name,
+                            skipped.tree_n_tiles,
+                        )
+                        status = "skipped_complete"
+                        result = skipped
+                if result is None:
+                    result = build_column_crossmatch(
+                        lake_root,
+                        base,
+                        survey_b,
+                        match_col_a,
+                        match_col_b,
+                        overwrite=overwrite,
+                        n_workers=n_workers,
+                        tiles_per_worker=tiles_per_worker,
+                        show_progress=show_progress,
+                        restrict_npix=restrict_npix,
+                        b_cache=b_cache,
+                        b_cache_max_tiles=b_cache_max_tiles,
+                        b_cache_max_mib=b_cache_max_mib,
+                        memory_budget_bytes=memory_budget_bytes,
+                        strips_per_worker=strips_per_worker,
+                    )
+            else:
+                assert radius_val is not None
+                if skip_complete_partners:
+                    skipped = try_skip_complete_partner(
+                        lake_root,
+                        base,
+                        survey_b,
+                        match_mode="sky",
+                        radius_arcsec=radius_val,
+                        overwrite=overwrite,
+                        restrict_npix=restrict_npix,
+                    )
+                    if skipped is not None:
+                        log.info(
+                            "Skipping complete partner %s (%s); "
+                            "tree on disk has %s tile(s)",
+                            survey_b,
+                            skipped.crossmatch_name,
+                            skipped.tree_n_tiles,
+                        )
+                        status = "skipped_complete"
+                        result = skipped
+                if result is None:
+                    result = build_crossmatch(
+                        lake_root,
+                        base,
+                        survey_b,
+                        radius_arcsec=radius_val,
+                        overwrite=overwrite,
+                        n_workers=n_workers,
+                        tiles_per_worker=tiles_per_worker,
+                        match_backend=match_backend,
+                        gpu_id=gpu_id,
+                        show_progress=show_progress,
+                        restrict_npix=restrict_npix,
+                        b_cache=b_cache,
+                        b_cache_max_tiles=b_cache_max_tiles,
+                        b_cache_max_mib=b_cache_max_mib,
+                        memory_budget_bytes=memory_budget_bytes,
+                        strips_per_worker=strips_per_worker,
+                    )
+            outcomes.append(
+                CrossmatchPlanPartnerOutcome(
+                    index=idx,
+                    n_partners=n_partners,
+                    survey_b=str(survey_b),
+                    status=status,
+                    match_mode=mode,
+                    radius_arcsec=radius_val,
+                    match_col_a=match_col_a,
+                    match_col_b=match_col_b,
+                    result=result,
+                )
+            )
+        except Exception as exc:
+            tb = traceback_mod.format_exc()
+            log.exception(
+                "Crossmatch plan partner %d/%d failed: base=%s partner=%s",
+                idx,
+                n_partners,
                 base,
                 survey_b,
-                radius_arcsec=float(radius),
-                overwrite=overwrite,
-                n_workers=n_workers,
-                tiles_per_worker=tiles_per_worker,
-                match_backend=match_backend,
-                gpu_id=gpu_id,
-                show_progress=show_progress,
-                restrict_npix=restrict_npix,
-                b_cache=b_cache,
-                b_cache_max_tiles=b_cache_max_tiles,
-                b_cache_max_mib=b_cache_max_mib,
-                memory_budget_bytes=memory_budget_bytes,
-                strips_per_worker=strips_per_worker,
             )
-        results.append(result)
-    return results
+            outcomes.append(
+                CrossmatchPlanPartnerOutcome(
+                    index=idx,
+                    n_partners=n_partners,
+                    survey_b=str(survey_b),
+                    status="error",
+                    match_mode=mode,
+                    radius_arcsec=radius_val,
+                    match_col_a=match_col_a,
+                    match_col_b=match_col_b,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    traceback=tb,
+                )
+            )
+            if not continue_on_error:
+                return _finish()
+
+    return _finish()
 
 
 def load_crossmatch_plan(
