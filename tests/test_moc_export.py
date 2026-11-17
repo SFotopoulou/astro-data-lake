@@ -111,3 +111,44 @@ class TestMocExport:
         )
         assert r.exit_code == 0, r.output
         assert out.is_file()
+
+    def test_export_moc_cli_default_path(self, lake: Path) -> None:
+        pytest.importorskip("mocpy")
+        from data_lake.discovery.moc_export import default_survey_moc_path
+
+        runner = CliRunner()
+        r = runner.invoke(
+            export_moc_cli,
+            [str(lake), "--survey", "ALLWISE", "--moc-order", "5", "--overwrite"],
+        )
+        assert r.exit_code == 0, r.output
+        out = default_survey_moc_path(lake, "ALLWISE", "catalog")
+        assert out.is_file()
+        assert "shared/registry/mocs" in str(out)
+
+    def test_export_moc_all_surveys(self, lake: Path) -> None:
+        pytest.importorskip("mocpy")
+        from data_lake.discovery.moc_export import default_survey_moc_path
+        from data_lake.lake_registry import refresh_lake_registry
+
+        # Second survey so bulk iterates more than one name.
+        ra, dec, norder = 10.0, 0.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        tile_dir = lake / "catalogs" / "DESI_DR1" / healpix_dir(norder, npix)
+        tile_dir.mkdir(parents=True, exist_ok=True)
+        (tile_dir / f"Npix={npix}.parquet").write_bytes(b"")
+        (lake / "catalogs" / "DESI_DR1" / "catalog_info.json").write_text(
+            json.dumps({"hats_order": norder, "total_rows": 1})
+        )
+        ti.write_tile_index(lake, "DESI_DR1", "catalog")
+        refresh_lake_registry(lake)
+
+        runner = CliRunner()
+        r = runner.invoke(
+            export_moc_cli,
+            [str(lake), "--all-surveys", "--moc-order", "5", "--overwrite"],
+        )
+        assert r.exit_code == 0, r.output
+        assert default_survey_moc_path(lake, "ALLWISE").is_file()
+        assert default_survey_moc_path(lake, "DESI_DR1").is_file()
+        assert "ok=" in r.output

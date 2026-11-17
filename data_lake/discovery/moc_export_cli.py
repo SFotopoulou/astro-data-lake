@@ -5,7 +5,12 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from data_lake.discovery.moc_export import MocFormat, export_survey_moc
+from data_lake.discovery.moc_export import (
+    MocFormat,
+    default_survey_moc_path,
+    export_survey_moc,
+    export_survey_mocs_from_registry,
+)
 from data_lake.discovery.region_cli import _region_from_args
 from data_lake.schema_registry import MODALITY_CATALOG, MODALITY_CUTOUT, MODALITY_SPECTRA
 
@@ -30,16 +35,46 @@ try:
     @click.command("dl-export-moc")
     @click.argument("output_root", type=click.Path(path_type=Path), required=False)
     @config_option
-    @click.option("--survey", required=True, help="Survey name (tile index / layer).")
+    @click.option(
+        "--survey",
+        default=None,
+        help="Survey name (tile index / layer). Required unless --all-surveys.",
+    )
+    @click.option(
+        "--all-surveys",
+        is_flag=True,
+        default=False,
+        help=(
+            "Export a MOC for every registry survey of --modality / --kind "
+            "into shared/registry/mocs/ (canonical paths; -o not allowed)."
+        ),
+    )
+    @click.option(
+        "--kind",
+        "registry_kind",
+        type=click.Choice(["ingested", "product", "all"], case_sensitive=False),
+        default="ingested",
+        show_default=True,
+        help="[all-surveys] Registry kind filter.",
+    )
     @click.option(
         "--modality", default=MODALITY_CATALOG, show_default=True,
         type=click.Choice(_ALL_MODALITIES),
     )
     @click.option("--moc-order", type=int, required=True,
                   help="HEALPix order for the exported MOC (NESTED).")
-    @click.option("-o", "--output", "output_path", required=True,
-                  type=click.Path(path_type=Path),
-                  help="Output file (.fits, .json, or .txt for ascii).")
+    @click.option(
+        "-o",
+        "--output",
+        "output_path",
+        required=False,
+        default=None,
+        type=click.Path(path_type=Path),
+        help=(
+            "Output file (.fits, .json, or .txt). Default: "
+            "shared/registry/mocs/<survey>.<modality>.moc.<ext>"
+        ),
+    )
     @click.option(
         "--moc-format", "moc_format",
         type=click.Choice(["fits", "json", "ascii"]),
@@ -55,14 +90,22 @@ try:
     @click.option("--moc", "moc_path", type=click.Path(path_type=Path), default=None,
                   help="Clip to an input MOC file.")
     @click.option("--overwrite", is_flag=True, help="Replace an existing output file.")
+    @click.option(
+        "--continue-on-error/--fail-fast",
+        default=True,
+        show_default=True,
+        help="[all-surveys] Continue after a per-survey failure (default).",
+    )
     @logging_options
     def cli(
         output_root: Path | None,
         config_path: Path | None,
-        survey: str,
+        survey: str | None,
+        all_surveys: bool,
+        registry_kind: str,
         modality: str,
         moc_order: int,
-        output_path: Path,
+        output_path: Path | None,
         moc_format: MocFormat,
         from_area: str | None,
         cone: tuple[float, float] | None,
@@ -72,15 +115,21 @@ try:
         norder: int | None,
         moc_path: Path | None,
         overwrite: bool,
+        continue_on_error: bool,
         log_file: Path | None,
         quiet: bool,
         verbose: bool,
     ) -> None:
         """Export populated survey tiles as an IVOA MOC (optional region clip).
 
-        Examples:
+        Default output (when ``-o`` is omitted)::
 
-            dl-export-moc --survey SDSS_DR17 --moc-order 5 -o sdss_footprint.fits
+            <lake>/shared/registry/mocs/<survey>.<modality>.moc.fits
+
+        Examples::
+
+            dl-export-moc --survey SDSS_DR17 --moc-order 5
+            dl-export-moc --all-surveys --moc-order 8
             dl-export-moc --survey DESI_DR1 --modality spectra \\
                 --from-area MyCone --moc-order 8 -o desi_cone.moc.fits
         """
@@ -96,14 +145,65 @@ try:
         )
         lake = require_output_root(output_root, cfg)
 
-        region = None
+        if all_surveys and survey:
+            raise click.ClickException("Use only one of --survey or --all-surveys.")
+        if not all_surveys and not survey:
+            raise click.ClickException("Provide --survey or --all-surveys.")
+
         clip_selectors = [from_area, cone, bbox, npix, moc_path]
-        if sum(x is not None for x in clip_selectors) > 1:
+        n_clips = sum(x is not None for x in clip_selectors)
+        if n_clips > 1:
             raise click.ClickException(
                 "Use at most one region clip selector "
                 "(--from-area | --cone | --bbox | --npix | --moc)"
             )
-        if any(x is not None for x in clip_selectors):
+
+        if all_surveys:
+            if output_path is not None:
+                raise click.ClickException(
+                    "--all-surveys writes canonical paths under "
+                    "shared/registry/mocs/; do not pass -o / --output"
+                )
+            if n_clips:
+                raise click.ClickException(
+                    "--all-surveys exports full survey footprints; "
+                    "region clips are not supported (use --survey + -o)"
+                )
+            try:
+                bulk = export_survey_mocs_from_registry(
+                    lake,
+                    moc_order=moc_order,
+                    modality=modality,
+                    kind=registry_kind,
+                    fmt=moc_format,
+                    overwrite=overwrite,
+                    continue_on_error=continue_on_error,
+                )
+            except (ImportError, FileNotFoundError, ValueError) as exc:
+                raise click.ClickException(str(exc)) from exc
+
+            for r in bulk.results:
+                if r.skipped:
+                    click.echo(f"skip {r.survey}: exists → {r.output}")
+                else:
+                    click.echo(
+                        f"ok {r.survey}: {r.n_cells:,} cells "
+                        f"(order={r.moc_order}) → {r.output}"
+                    )
+            for survey_b, mod, msg in bulk.errors:
+                click.echo(f"error {survey_b} ({mod}): {msg}", err=True)
+            click.echo(
+                f"Done. ok={bulk.n_ok} skip={bulk.n_skipped} "
+                f"error={bulk.n_error} modality={modality} kind={registry_kind}"
+            )
+            if bulk.n_error:
+                raise click.ClickException(
+                    f"{bulk.n_error} MOC export(s) failed; see messages above"
+                )
+            return
+
+        region = None
+        if n_clips:
             try:
                 region, _ = _region_from_args(
                     from_area=from_area, npix=npix, norder=norder, cone=cone,
@@ -112,17 +212,30 @@ try:
                 )
             except (ValueError, FileNotFoundError) as exc:
                 raise click.ClickException(str(exc)) from exc
+            if output_path is None:
+                click.echo(
+                    "Note: clipped MOC writing to canonical path; "
+                    "prefer -o for a distinct filename.",
+                    err=True,
+                )
 
+        resolved = (
+            output_path
+            if output_path is not None
+            else default_survey_moc_path(
+                lake, survey, modality, fmt=moc_format  # type: ignore[arg-type]
+            )
+        )
         try:
             result = export_survey_moc(
-                lake, survey, output_path,
+                lake, survey, resolved,  # type: ignore[arg-type]
                 modality=modality,
                 moc_order=moc_order,
                 region=region,
                 fmt=moc_format,
                 overwrite=overwrite,
             )
-        except (ImportError, ValueError, FileNotFoundError, OSError) as exc:
+        except (ImportError, ValueError, FileNotFoundError, OSError, FileExistsError) as exc:
             raise click.ClickException(str(exc)) from exc
 
         click.echo(

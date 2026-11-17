@@ -100,17 +100,33 @@ dl-region /data/lake --from-area MyCone \
 A FITS MOC can be used as a selector again with `dl-region --moc footprint.moc.fits`.
 
 To export the footprint of a survey (its populated tiles from the tile index), use
-`dl-export-moc`. It takes `--survey`, `--moc-order`, and `-o` (all required), an optional
-`--modality` (`catalog` default, `spectra`, or `cutout`), and at most one clip selector
-(`--from-area`, `--cone`, `--bbox`, `--npix`, or `--moc`):
+`dl-export-moc`. `--moc-order` is required. Omit `-o` to write the canonical lake
+path `shared/registry/mocs/<survey>.<modality>.moc.fits` (or `.moc.json` /
+`.moc.txt` with `--moc-format`). Optional `--modality` (`catalog` default,
+`spectra`, or `cutout`) and at most one clip selector (`--from-area`, `--cone`,
+`--bbox`, `--npix`, or `--moc`). Prefer `-o` for clipped exports so you do not
+overwrite the full-footprint MOC.
 
 ```bash
+# Full footprint → shared/registry/mocs/SDSS_DR17.catalog.moc.fits
+dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 5
+
+# Explicit path still works
 dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 5 -o sdss_footprint.fits
 
-# Clip to an area
+# Every ingested catalog (from the lake registry) into shared/registry/mocs/
+dl-export-moc /data/lake --all-surveys --moc-order 8
+dl-export-moc /data/lake --all-surveys --modality spectra --kind ingested --moc-order 8
+
+# Clip to an area (use -o for a distinct name)
 dl-export-moc --survey DESI_DR1 --modality spectra \
   --from-area MyCone --moc-order 8 -o desi_in_cone.moc.fits
 ```
+
+`--all-surveys` does not take `-o` or region clips; it continues after per-survey
+errors by default (`--fail-fast` to stop). Existing files are skipped unless
+`--overwrite`. Refresh the registry first if surveys are missing:
+`dl-refresh-lake-registry`.
 
 MOC import and export need the optional `moc` extra: `uv sync --extra moc` (installs `mocpy`).
 
