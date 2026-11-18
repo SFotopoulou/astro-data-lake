@@ -29,7 +29,7 @@ The community standard for partitioning catalogs into HEALPix-indexed Parquet ti
 See [hats.readthedocs.io](https://hats.readthedocs.io/en/stable/).
 
 **LSDB**
-The Python library for querying and crossmatching HATS catalogs. This lake does not use LSDB or the `hats` package; it reads and writes its own Parquet tiles in a HATS-style layout.
+The Python library for querying and crossmatching HATS catalogs. This lake does not use LSDB; it reads and writes its own Parquet tiles in a HATS-style layout.
 See [lsdb.readthedocs.io](https://lsdb.readthedocs.io/en/stable/).
 
 **HEALPix / norder**

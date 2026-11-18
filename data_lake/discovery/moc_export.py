@@ -17,6 +17,10 @@ from data_lake.schema_registry import MODALITY_CATALOG
 log = logging.getLogger(__name__)
 
 MocFormat = Literal["fits", "json", "ascii"]
+# How a survey MOC is built: populated tiles (fast, tile-granular) or catalog
+# RA/Dec rows (source-level, catalog modality only).
+MocSource = Literal["tiles", "rows"]
+MOC_SOURCES: tuple[MocSource, ...] = ("tiles", "rows")
 
 MOCS_DIRNAME = "mocs"
 
@@ -128,8 +132,8 @@ def survey_footprint_npix(
     """Populated survey tiles, optionally clipped to *region*, at *moc_order*.
 
     This path only **degrades or keeps** the tile grid (``moc_order <=
-    hats_order``). For a finer MOC than the HATS tiling, use
-    :func:`survey_footprint_moc_from_catalog` instead.
+    hats_order``). For a finer MOC than the HATS tiling, build from catalog
+    rows (:func:`survey_footprint_moc_from_catalog`; ``--from-rows``).
     """
     npix_native, hats_order = survey_npix(
         lake_root, survey, modality, allow_scan=allow_scan,
@@ -146,8 +150,9 @@ def survey_footprint_npix(
     if moc_order > int(hats_order):
         raise ValueError(
             f"moc_order={moc_order} is finer than HATS order={hats_order}; "
-            "build from catalog rows instead of tiles "
-            "(see export_survey_moc)."
+            "tiles cannot resolve finer than the tiling. Build from catalog "
+            "rows instead (--from-rows / source='rows', catalog modality), "
+            f"or choose moc_order <= {hats_order}."
         )
     if region is not None:
         region_npix = region.to_npix(hats_order)
@@ -165,7 +170,10 @@ def survey_footprint_moc_from_catalog(
     region: Region | None = None,
     allow_scan: bool = True,
 ):
-    """Build a MOC from catalog RA/Dec (for ``moc_order`` finer than HATS).
+    """Build a MOC from catalog RA/Dec (``--from-rows``; any ``moc_order``).
+
+    Required for a ``moc_order`` finer than the HATS tiling; also valid at or
+    below it, where coverage follows sources instead of whole tiles.
 
     Streams one HATS tile at a time and unions ``MOC.from_lonlat`` pieces so
     peak memory stays near one tile of sky columns. Optional *region* first
@@ -294,20 +302,32 @@ def export_survey_moc(
     region: Region | None = None,
     fmt: MocFormat = "fits",
     overwrite: bool = False,
+    source: MocSource = "tiles",
 ) -> MocExportResult:
     """Export a survey footprint MOC (optionally region-clipped).
 
     When *output* is ``None``, write to
     :func:`default_survey_moc_path` under ``shared/registry/mocs/``.
 
-    Resolution policy:
+    *source* chooses how the MOC is built (never decided automatically):
 
-    - ``moc_order <=`` catalog HATS order → MOC from the **tile index**
-      (fast; cells are whole HATS tiles, possibly degraded).
-    - ``moc_order >`` HATS order → MOC from **catalog RA/Dec** (source
-      positions). Required so a finer MOC is not just subdivided empty
-      tile squares. Catalog modality only.
+    - ``"tiles"`` (default; CLI ``--from-tiles``) → from the **tile index**
+      (fast; cells are whole HATS tiles, possibly degraded). Requires
+      ``moc_order <=`` the survey HATS order, otherwise ``ValueError``.
+    - ``"rows"`` (CLI ``--from-rows``) → from **catalog RA/Dec** (source
+      positions), streamed per tile. Works at any ``moc_order``, including
+      finer than HATS. Catalog modality only.
     """
+    if source not in MOC_SOURCES:
+        raise ValueError(
+            f"unsupported MOC source {source!r}; expected one of {MOC_SOURCES}"
+        )
+    if source == "rows" and modality != MODALITY_CATALOG:
+        raise ValueError(
+            f"--from-rows needs catalog RA/Dec rows; {survey!r} modality "
+            f"{modality!r} is not supported. Use --modality "
+            f"{MODALITY_CATALOG} or --from-tiles."
+        )
     lake_root = Path(lake_root)
     out_path = (
         Path(output)
@@ -328,14 +348,7 @@ def export_survey_moc(
             "ingest metadata or refresh the tile index."
         )
 
-    use_catalog = int(moc_order) > int(hats_order)
-    if use_catalog:
-        if modality != MODALITY_CATALOG:
-            raise ValueError(
-                f"moc_order={moc_order} is finer than HATS order={hats_order} "
-                f"for {survey!r} ({modality}); source-level MOCs require "
-                f"--modality {MODALITY_CATALOG} (or choose moc_order <= {hats_order})"
-            )
+    if source == "rows":
         moc, hats_order, n_sources = survey_footprint_moc_from_catalog(
             lake_root,
             survey,
@@ -351,7 +364,7 @@ def export_survey_moc(
             "nsrc": n_sources,
         }
         log.info(
-            "Exporting %s MOC from catalog rows (moc_order=%s > HATS=%s)",
+            "Exporting %s MOC from catalog rows (moc_order=%s, HATS=%s)",
             survey,
             moc_order,
             hats_order,
@@ -369,7 +382,7 @@ def export_survey_moc(
             "hatsord": int(hats_order),
         }
         log.info(
-            "Exporting %s MOC from tile index (moc_order=%s <= HATS=%s)",
+            "Exporting %s MOC from tiles (moc_order=%s <= HATS=%s)",
             survey,
             moc_order,
             hats_order,
@@ -422,12 +435,23 @@ def export_survey_mocs_from_registry(
     overwrite: bool = False,
     continue_on_error: bool = True,
     surveys: Sequence[str] | None = None,
+    source: MocSource = "tiles",
 ) -> MocBulkExportResult:
     """Write canonical MOCs for registry surveys (default: ingested × modality).
 
+    *source* is forwarded to :func:`export_survey_moc` (``"tiles"`` default).
     Skips existing files when *overwrite* is false. Partner failures are
     recorded in ``errors``; with *continue_on_error* the rest still run.
     """
+    if source not in MOC_SOURCES:
+        raise ValueError(
+            f"unsupported MOC source {source!r}; expected one of {MOC_SOURCES}"
+        )
+    if source == "rows" and modality != MODALITY_CATALOG:
+        raise ValueError(
+            f"--from-rows needs catalog RA/Dec rows; modality {modality!r} is "
+            f"not supported. Use --modality {MODALITY_CATALOG} or --from-tiles."
+        )
     lake_root = Path(lake_root)
     if surveys is None:
         targets = list_registry_surveys_for_moc(
@@ -466,6 +490,7 @@ def export_survey_mocs_from_registry(
                     moc_order=moc_order,
                     fmt=fmt,
                     overwrite=overwrite,
+                    source=source,
                 )
             )
         except Exception as exc:

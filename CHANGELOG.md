@@ -18,9 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`mocpy[plots]` as a core dependency** — MOC export/import and plotting
   extras (`cdshealpix`, matplotlib) install with plain `uv sync`; `--extra moc`
   remains as a no-op alias for older docs/scripts.
-- **`dl-export-moc` finer than HATS** — when `--moc-order` exceeds the survey
-  HATS order, the MOC is built from catalog RA/Dec (streamed per tile) instead
-  of upscaling empty tile squares; coarser/equal orders still use the tile index.
+- **`dl-export-moc --from-tiles` / `--from-rows`** — the build method is chosen
+  explicitly instead of switching on `--moc-order`. `--from-tiles` (default)
+  uses the populated tiles and errors when `--moc-order` is finer than the
+  survey HATS order; `--from-rows` builds from catalog RA/Dec (streamed per
+  tile) at any order, catalog modality only. Works with `--all-surveys`.
+  Python: `export_survey_moc(..., source="tiles"|"rows")` and the same
+  `source` on `export_survey_mocs_from_registry`.
 - **`dl-export-moc` canonical paths + bulk** — omit `-o` to write
   `shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.{fits,json,txt}`
   (`N` = `--moc-order`); `--all-surveys` exports every registry survey for

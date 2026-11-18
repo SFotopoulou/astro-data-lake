@@ -107,15 +107,26 @@ required. Omit `-o` to write the canonical lake path
 (`--from-area`, `--cone`, `--bbox`, `--npix`, or `--moc`). Prefer `-o` for
 clipped exports so you do not overwrite the full-footprint MOC.
 
-**Resolution vs HATS tiling.** If `--moc-order` is **≤** the survey’s catalog
-HATS order, the MOC is built from the **tile index** (fast; whole tiles). If
-`--moc-order` is **finer** (higher) than HATS, the MOC is built from **catalog
-RA/Dec** so coverage follows sources rather than empty subdivided tiles
-(`--modality catalog` only).
+**How the MOC is built.** You choose explicitly; nothing is decided on the fly.
+
+| Flag | Builds from | `--moc-order` | Modality |
+|---|---|---|---|
+| `--from-tiles` (default) | populated HATS tiles (fast; whole tiles, degraded if coarser) | must be **≤** the survey's HATS order, otherwise an error | any |
+| `--from-rows` | catalog RA/Dec, streamed one tile at a time | any, including **finer** than HATS | `catalog` only |
+
+Use `--from-rows` when you need a footprint finer than the tiling, so coverage
+follows sources instead of empty subdivided tiles. It reads every catalog row's
+position, so it is slower than `--from-tiles`. The canonical file name does not
+include the method; the method is recorded in the FITS header (`SOURCE`). With
+`--all-surveys` the chosen flag applies to every survey; a survey whose HATS order
+is below `--moc-order` fails under `--from-tiles` and is reported at the end.
 
 ```bash
 # Full footprint → shared/registry/mocs/SDSS_DR17.catalog.Norder5.moc.fits
 dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 5
+
+# Finer than the HATS tiling: build from catalog rows
+dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 9 --from-rows
 
 # Explicit path still works
 dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 5 -o sdss_footprint.fits

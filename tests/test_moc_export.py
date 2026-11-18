@@ -119,25 +119,65 @@ class TestMocExport:
         assert result.n_cells >= 1
         assert out.is_file()
 
-    def test_finer_than_hats_uses_catalog_rows(
+    def test_from_rows_finer_than_hats(
         self, lake: Path, tmp_path: Path
     ) -> None:
-        """moc_order > HATS → source MOC, not subdivided empty tiles."""
+        """source='rows' at moc_order > HATS → source MOC, not subdivided tiles."""
         pytest.importorskip("mocpy")
         from mocpy import MOC
 
-        # Tile-based upscale of one Norder=5 cell → 4^(8-5) = 64 cells at 8.
-        tile_up = export_survey_moc(
+        tile_eq = export_survey_moc(
             lake, "ALLWISE", tmp_path / "tile_eq.fits", moc_order=5, overwrite=True,
         )
-        assert tile_up.n_cells == 1
+        assert tile_eq.n_cells == 1
 
         fine = export_survey_moc(
-            lake, "ALLWISE", tmp_path / "fine.fits", moc_order=8, overwrite=True,
+            lake, "ALLWISE", tmp_path / "fine.fits", moc_order=8,
+            overwrite=True, source="rows",
         )
         assert fine.n_cells == 1  # one source → one leaf cell, not 64
         moc = MOC.load(str(tmp_path / "fine.fits"), format="fits")
         assert int(moc.max_order) >= 8 or "8/" in moc.to_string("ascii")
+
+    def test_from_tiles_finer_than_hats_raises(
+        self, lake: Path, tmp_path: Path
+    ) -> None:
+        """Default source='tiles' never silently switches to catalog rows."""
+        pytest.importorskip("mocpy")
+        out = tmp_path / "fine_tiles.fits"
+        with pytest.raises(ValueError, match="--from-rows"):
+            export_survey_moc(lake, "ALLWISE", out, moc_order=8, overwrite=True)
+        assert not out.exists()
+
+    def test_from_rows_at_or_below_hats_order(
+        self, lake: Path, tmp_path: Path
+    ) -> None:
+        """source='rows' also works at moc_order <= HATS."""
+        pytest.importorskip("mocpy")
+        result = export_survey_moc(
+            lake, "ALLWISE", tmp_path / "rows5.fits", moc_order=5,
+            overwrite=True, source="rows",
+        )
+        assert result.n_cells == 1
+        assert (tmp_path / "rows5.fits").is_file()
+
+    def test_from_rows_requires_catalog_modality(
+        self, lake: Path, tmp_path: Path
+    ) -> None:
+        pytest.importorskip("mocpy")
+        with pytest.raises(ValueError, match="--from-rows"):
+            export_survey_moc(
+                lake, "ALLWISE", tmp_path / "x.fits", modality="spectra",
+                moc_order=5, overwrite=True, source="rows",
+            )
+
+    def test_invalid_source_raises(self, lake: Path, tmp_path: Path) -> None:
+        pytest.importorskip("mocpy")
+        with pytest.raises(ValueError, match="unsupported MOC source"):
+            export_survey_moc(
+                lake, "ALLWISE", tmp_path / "x.fits", moc_order=5,
+                source="bogus",  # type: ignore[arg-type]
+            )
 
     def test_region_cli_export_moc(self, lake: Path, tmp_path: Path) -> None:
         pytest.importorskip("mocpy")
@@ -167,6 +207,84 @@ class TestMocExport:
         )
         assert r.exit_code == 0, r.output
         assert out.is_file()
+
+    def test_export_moc_cli_from_rows_finer(
+        self, lake: Path, tmp_path: Path
+    ) -> None:
+        pytest.importorskip("mocpy")
+        out = tmp_path / "fine_cli.moc.fits"
+        runner = CliRunner()
+        r = runner.invoke(
+            export_moc_cli,
+            [
+                str(lake), "--survey", "ALLWISE", "--moc-order", "8",
+                "--from-rows", "-o", str(out), "--overwrite",
+            ],
+        )
+        assert r.exit_code == 0, r.output
+        assert out.is_file()
+
+    def test_export_moc_cli_default_is_from_tiles(
+        self, lake: Path, tmp_path: Path
+    ) -> None:
+        """No flag → tiles → finer than HATS is a clear error, not a switch."""
+        pytest.importorskip("mocpy")
+        out = tmp_path / "fine_default.moc.fits"
+        runner = CliRunner()
+        r = runner.invoke(
+            export_moc_cli,
+            [
+                str(lake), "--survey", "ALLWISE", "--moc-order", "8",
+                "-o", str(out), "--overwrite",
+            ],
+        )
+        assert r.exit_code != 0
+        assert "--from-rows" in r.output
+        assert not out.exists()
+
+        # Explicit --from-tiles behaves the same as the default.
+        r2 = runner.invoke(
+            export_moc_cli,
+            [
+                str(lake), "--survey", "ALLWISE", "--moc-order", "8",
+                "--from-tiles", "-o", str(out), "--overwrite",
+            ],
+        )
+        assert r2.exit_code != 0
+        assert "--from-rows" in r2.output
+
+    def test_export_moc_cli_from_rows_rejects_non_catalog(
+        self, lake: Path, tmp_path: Path
+    ) -> None:
+        pytest.importorskip("mocpy")
+        runner = CliRunner()
+        r = runner.invoke(
+            export_moc_cli,
+            [
+                str(lake), "--survey", "ALLWISE", "--modality", "spectra",
+                "--moc-order", "5", "--from-rows",
+                "-o", str(tmp_path / "x.fits"),
+            ],
+        )
+        assert r.exit_code != 0
+        assert "--from-rows" in r.output
+
+    def test_export_moc_all_surveys_from_rows(self, lake: Path) -> None:
+        pytest.importorskip("mocpy")
+        from data_lake.discovery.moc_export import default_survey_moc_path
+        from data_lake.lake_registry import refresh_lake_registry
+
+        refresh_lake_registry(lake)
+        runner = CliRunner()
+        r = runner.invoke(
+            export_moc_cli,
+            [
+                str(lake), "--all-surveys", "--moc-order", "8",
+                "--from-rows", "--overwrite",
+            ],
+        )
+        assert r.exit_code == 0, r.output
+        assert default_survey_moc_path(lake, "ALLWISE", moc_order=8).is_file()
 
     def test_export_moc_cli_default_path(self, lake: Path) -> None:
         pytest.importorskip("mocpy")

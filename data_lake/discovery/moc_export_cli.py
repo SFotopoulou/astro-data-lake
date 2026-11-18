@@ -1,4 +1,4 @@
-"""``dl-export-moc`` – export a survey tile footprint as a MOC."""
+"""``dl-export-moc`` – export a survey footprint (tiles or catalog rows) as a MOC."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from pathlib import Path
 
 from data_lake.discovery.moc_export import (
     MocFormat,
+    MocSource,
     default_survey_moc_path,
     export_survey_moc,
     export_survey_mocs_from_registry,
@@ -65,6 +66,18 @@ try:
     @click.option("--moc-order", type=int, required=True,
                   help="HEALPix order for the exported MOC (NESTED).")
     @click.option(
+        "--from-tiles/--from-rows",
+        "from_tiles",
+        default=True,
+        show_default=True,
+        help=(
+            "How to build the MOC. --from-tiles (default): populated HATS "
+            "tiles (fast; needs --moc-order <= the survey HATS order). "
+            "--from-rows: catalog RA/Dec streamed per tile (any --moc-order, "
+            "including finer than HATS; catalog modality only)."
+        ),
+    )
+    @click.option(
         "-o",
         "--output",
         "output_path",
@@ -106,6 +119,7 @@ try:
         registry_kind: str,
         modality: str,
         moc_order: int,
+        from_tiles: bool,
         output_path: Path | None,
         moc_format: MocFormat,
         from_area: str | None,
@@ -121,7 +135,11 @@ try:
         quiet: bool,
         verbose: bool,
     ) -> None:
-        """Export populated survey tiles as an IVOA MOC (optional region clip).
+        """Export a survey footprint as an IVOA MOC (optional region clip).
+
+        The build method is explicit: --from-tiles (default) uses populated
+        HATS tiles and needs --moc-order <= the survey HATS order;
+        --from-rows uses catalog RA/Dec and works at any order.
 
         Default output (when ``-o`` is omitted)::
 
@@ -131,6 +149,7 @@ try:
 
             dl-export-moc --survey SDSS_DR17 --moc-order 5
             # → …/SDSS_DR17.catalog.Norder5.moc.fits
+            dl-export-moc --survey SDSS_DR17 --moc-order 9 --from-rows
             dl-export-moc --all-surveys --moc-order 8
             dl-export-moc --survey DESI_DR1 --modality spectra \\
                 --from-area MyCone --moc-order 8 -o desi_cone.moc.fits
@@ -151,6 +170,14 @@ try:
             raise click.ClickException("Use only one of --survey or --all-surveys.")
         if not all_surveys and not survey:
             raise click.ClickException("Provide --survey or --all-surveys.")
+
+        source: MocSource = "tiles" if from_tiles else "rows"
+        if source == "rows" and modality != MODALITY_CATALOG:
+            raise click.ClickException(
+                f"--from-rows needs catalog RA/Dec rows; --modality {modality} "
+                f"is not supported (use --modality {MODALITY_CATALOG} or "
+                "--from-tiles)"
+            )
 
         clip_selectors = [from_area, cone, bbox, npix, moc_path]
         n_clips = sum(x is not None for x in clip_selectors)
@@ -180,6 +207,7 @@ try:
                     fmt=moc_format,
                     overwrite=overwrite,
                     continue_on_error=continue_on_error,
+                    source=source,
                 )
             except (ImportError, FileNotFoundError, ValueError) as exc:
                 raise click.ClickException(str(exc)) from exc
@@ -240,6 +268,7 @@ try:
                 region=region,
                 fmt=moc_format,
                 overwrite=overwrite,
+                source=source,
             )
         except (ImportError, ValueError, FileNotFoundError, OSError, FileExistsError) as exc:
             raise click.ClickException(str(exc)) from exc
