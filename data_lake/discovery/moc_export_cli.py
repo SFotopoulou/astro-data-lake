@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import logging
 from pathlib import Path
 
@@ -99,8 +100,8 @@ try:
                   help="Clip to cone: RA DEC (deg); needs --radius-arcsec.")
     @click.option("--radius-arcsec", type=float, default=None)
     @click.option("--bbox", nargs=4, type=float, default=None)
-    @click.option("--npix", default=None, help="Clip to npix list (needs --norder).")
-    @click.option("--norder", type=int, default=None)
+    @click.option("--npix", default=None, help="Clip to npix list (needs --healpix-order).")
+    @healpix_order_option(type=int, default=None)
     @click.option("--moc", "moc_path", type=click.Path(path_type=Path), default=None,
                   help="Clip to an input MOC file.")
     @click.option("--overwrite", is_flag=True, help="Replace an existing output file.")

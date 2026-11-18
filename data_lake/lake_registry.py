@@ -17,6 +17,7 @@ from typing import Any, Iterator
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.schema_registry import (
     CATALOG_KIND_INGESTED,
     MANIFEST_FILENAME,
@@ -242,13 +243,13 @@ def _filesystem_registry_fields(
     }
 
 
-def _annotate_hats_order_match(rows: list[dict[str, Any]]) -> None:
-    """Set ``hats_order_match`` on catalog/spectra rows when both layers exist."""
+def _annotate_healpix_order_match(rows: list[dict[str, Any]]) -> None:
+    """Set ``healpix_order_match`` on catalog/spectra rows when both layers exist."""
     orders_by_survey: dict[str, dict[str, int | None]] = {}
     for row in rows:
         survey = str(row["survey"])
         modality = str(row["modality"])
-        hats = row.get("hats_order")
+        hats = row.get("healpix_order")
         orders_by_survey.setdefault(survey, {})[modality] = (
             int(hats) if hats is not None else None
         )
@@ -256,15 +257,15 @@ def _annotate_hats_order_match(rows: list[dict[str, Any]]) -> None:
     for row in rows:
         modality = str(row["modality"])
         if modality not in (MODALITY_CATALOG, MODALITY_SPECTRA):
-            row["hats_order_match"] = None
+            row["healpix_order_match"] = None
             continue
         orders = orders_by_survey.get(str(row["survey"]), {})
         cat_order = orders.get(MODALITY_CATALOG)
         spec_order = orders.get(MODALITY_SPECTRA)
         if cat_order is None or spec_order is None:
-            row["hats_order_match"] = None
+            row["healpix_order_match"] = None
         else:
-            row["hats_order_match"] = cat_order == spec_order
+            row["healpix_order_match"] = cat_order == spec_order
 
 
 def _format_sky_columns(row: dict[str, Any]) -> str:
@@ -369,7 +370,7 @@ def _load_catalog_manifest_or_none(catalog_root: Path, survey: str) -> dict[str,
         write_catalog_schema_manifest(
             catalog_root,
             survey,
-            hats_order=int(info.get("hats_order", 5)),
+            healpix_order=int(read_healpix_order(info, 5)),
             ra_column=str(info.get("ra_column", "ra")),
             dec_column=str(info.get("dec_column", "dec")),
             link_id_mode=str(info.get("link_id_mode", "sequential")),
@@ -520,7 +521,7 @@ def _catalog_registry_row(
         "finalized": info.get("finalized"),
         "source_area": info.get("source_area"),
         "path": str(survey_root.relative_to(lake_root)),
-        "hats_order": info.get("hats_order"),
+        "healpix_order": read_healpix_order(info),
         "link_id_column": manifest.get("link_id_column") or info.get("link_id_column"),
         "ra_column": manifest.get("ra_column") or info.get("ra_column"),
         "dec_column": manifest.get("dec_column") or info.get("dec_column"),
@@ -604,7 +605,7 @@ def _info_registry_row(
         "kind": info.get("kind") or CATALOG_KIND_INGESTED,
         "product_subtype": info.get("product_subtype"),
         "path": str(survey_root.relative_to(lake_root)),
-        "hats_order": info.get("hats_order"),
+        "healpix_order": read_healpix_order(info),
         "link_id_column": source_id,
         "ra_column": info.get("ra_column"),
         "dec_column": info.get("dec_column"),
@@ -693,7 +694,7 @@ def _crossmatch_registry_rows(lake_root: Path) -> list[dict[str, Any]]:
             "modality": MODALITY_CROSSMATCH,
             "kind": "crossmatch",
             "path": str(root.relative_to(lake_root)),
-            "hats_order": info.get("hats_order"),
+            "healpix_order": read_healpix_order(info),
             "survey_a": info.get("survey_a", survey_a),
             "survey_b": info.get("survey_b", survey_b),
             "match_mode": info.get("match_mode", match_mode),
@@ -745,7 +746,7 @@ def sum_crossmatch_rows_in_npix(
     Thin re-export of :func:`data_lake.discovery.engine.sum_crossmatch_rows_in_npix`
     so existing lake-registry callers keep working. Prefer
     :func:`data_lake.discovery.engine.sum_parquet_rows_in_npix` when
-    ``hats_order`` is known.
+    ``healpix_order`` is known.
     """
     from data_lake.discovery.engine import sum_crossmatch_rows_in_npix as _sum
 
@@ -799,7 +800,7 @@ def build_lake_registry_table(lake_root: Path | str) -> pa.Table:
 
     if rows:
         generated = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        _annotate_hats_order_match(rows)
+        _annotate_healpix_order_match(rows)
         for row in rows:
             row["registry_generated_utc"] = generated
 
@@ -1014,23 +1015,23 @@ def _pairing_summary_from_table(table: pa.Table) -> list[dict[str, Any]]:
         out.append(
             {
                 "survey": survey,
-                "catalog_hats_order": cat.get("hats_order"),
-                "spectra_hats_order": spec.get("hats_order"),
-                "hats_order_match": cat.get("hats_order_match"),
+                "catalog_healpix_order": cat.get("healpix_order"),
+                "spectra_healpix_order": spec.get("healpix_order"),
+                "healpix_order_match": cat.get("healpix_order_match"),
             }
         )
     return out
 
 
 def format_registry_pair_footer(table: pa.Table) -> str:
-    """Catalog vs spectra ``hats_order`` for surveys present in both layers."""
+    """Catalog vs spectra ``healpix_order`` for surveys present in both layers."""
     by_survey: dict[str, dict[str, Any]] = {}
     for row in table.to_pylist():
         survey = str(row["survey"])
         modality = str(row["modality"])
         by_survey.setdefault(survey, {})[modality] = row
 
-    lines = ["", "Catalog + spectra pairing (hats_order):"]
+    lines = ["", "Catalog + spectra pairing (healpix_order):"]
     any_pairs = False
     for survey in sorted(by_survey):
         layers = by_survey[survey]
@@ -1039,9 +1040,9 @@ def format_registry_pair_footer(table: pa.Table) -> str:
         if cat is None or spec is None:
             continue
         any_pairs = True
-        cat_order = cat.get("hats_order")
-        spec_order = spec.get("hats_order")
-        match = cat.get("hats_order_match")
+        cat_order = cat.get("healpix_order")
+        spec_order = spec.get("healpix_order")
+        match = cat.get("healpix_order_match")
         if match is True:
             status = "match"
         elif match is False:
@@ -1077,7 +1078,7 @@ def format_lake_registry_table(
         lines.extend([header, "-" * len(header)])
         for row in df.iter_rows(named=True):
             rows_s = f"{row['total_rows']:,}" if row.get("total_rows") is not None else "—"
-            hats_s = str(row["hats_order"]) if row.get("hats_order") is not None else "—"
+            hats_s = str(row["healpix_order"]) if row.get("healpix_order") is not None else "—"
             tiles_s = str(row["n_tiles"]) if row.get("n_tiles") is not None else "—"
             ckpt = "Y" if row.get("has_ingest_checkpoint") else "."
             infl = "Y" if row.get("has_ingest_inflight") else "."
@@ -1120,7 +1121,7 @@ def format_lake_registry_table(
         for row in df.iter_rows(named=True):
             rows_s = f"{row['total_rows']:,}" if row.get("total_rows") is not None else "—"
             cols_s = str(row["n_columns"]) if row.get("n_columns") is not None else "—"
-            hats_s = str(row["hats_order"]) if row.get("hats_order") is not None else "—"
+            hats_s = str(row["healpix_order"]) if row.get("healpix_order") is not None else "—"
             manifest = "Y" if row.get("has_schema_manifest") else "."
             lines.append(
                 f"{row['survey']:<{survey_w}} {row['modality']:<10} {hats_s:>4} {cols_s:>6} "
@@ -1286,7 +1287,7 @@ try:
     @click.option(
         "--pair-surveys",
         is_flag=True,
-        help="Footer: catalog vs spectra hats_order per survey name.",
+        help="Footer: catalog vs spectra healpix_order per survey name.",
     )
     @log_file_option
     @quiet_option

@@ -45,7 +45,7 @@ def test_load_minimal_config(tmp_path: Path) -> None:
 
     assert cfg.lake.name == "test_lake"
     assert cfg.lake.root == (tmp_path / "data").resolve()
-    assert cfg.partitioning.hats_order == 5
+    assert cfg.partitioning.healpix_order == 5
     assert cfg.defaults.wavelength_mode == "shared"
     assert cfg.defaults.with_resolution is False
     assert cfg.paths.spectra == "spectra"
@@ -209,7 +209,7 @@ def test_write_then_load_roundtrip(tmp_path: Path) -> None:
     cfg2 = LakeConfig.load(out_path)
     assert cfg2.lake.name == cfg.lake.name
     assert cfg2.lake.root == cfg.lake.root
-    assert cfg2.partitioning.hats_order == cfg.partitioning.hats_order
+    assert cfg2.partitioning.healpix_order == cfg.partitioning.healpix_order
     assert cfg2.defaults.wavelength_mode == cfg.defaults.wavelength_mode
     assert cfg2.paths.spectra == cfg.paths.spectra
     assert cfg2.ingest.num_workers == cfg.ingest.num_workers

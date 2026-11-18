@@ -81,7 +81,7 @@ Common `dl-ingest-spectra` options:
 | `--fmt` | auto-detect | Force a reader (see the table below) |
 | `--link-id-col` | reader-specific | Object-ID keyword(s); ignored by readers that derive the ID themselves |
 | `--ra-col` / `--dec-col` | `RA` / `DEC` | Sky keywords or columns for readers that honour them |
-| `--norder` | config, else 5 | HEALPix order of the tiles |
+| `--healpix-order` | config, else 5 | HEALPix order of the tiles |
 | `--wavelength-mode` | config, else `shared` | `shared` (one grid per tile) or `per_source` |
 | `--on-length-mismatch` | `error` | `error`, `pad` or `truncate` when a spectrum's pixel count differs from the tile's |
 | `--on-duplicate` | `skip` | `skip`, `error` or `append` when a `_source_id` already exists in a tile |
@@ -706,7 +706,7 @@ What the command does for you:
 
 Other options: `--max-in-flight` (default `n_workers + 2`), `--max-open-tiles` (default 64),
 `--files-per-worker` (default 1; try 8–32 for small files), `--on-duplicate` (default `skip`)
-and `--norder`.
+and `--healpix-order`.
 
 Rough timing on a single workstation for 10 000 DESI coadd files (about 500 spectra each,
 no resolution matrix):

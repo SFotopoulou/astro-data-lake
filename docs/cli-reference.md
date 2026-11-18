@@ -2,6 +2,8 @@
 
 Every `dl-*` command in one table. Pass `--help` to any command for full flag docs.
 
+The HEALPix order flag is `--healpix-order`. The older `--norder` still works as a hidden alias.
+
 All commands that read from or write to a lake honour `--config PATH` (or `$DATA_LAKE_CONFIG`) to supply the lake root and defaults without repeating flags. Free-form DuckDB predicates (`--where`, `--where-joined`) are trusted-operator input; see [security.md](security.md).
 
 **Deploy**
@@ -23,7 +25,7 @@ All commands that read from or write to a lake honour `--config PATH` (or `$DATA
 | `dl-ingest-from-shard` | Map-reduce catalog ingest for many files that share lake tiles (bricks, RA/Dec patches, unsorted run folders); choose via [Choosing a catalog ingest command](ingest/catalog.md#choosing-a-catalog-ingest-command). `--phase map` decodes FITS → immutable per-HEALPix Parquet parts; `--phase reduce` concatenates parts → lake tiles; see [batch-and-checkpoints.md](ingest/batch-and-checkpoints.md#two-phase-map-reduce-ingest-dl-ingest-from-shard) |
 | `dl-finalize-catalog` | Rebuild `catalog_info.json`, `_common_metadata` and `_metadata` from the tiles (no re-ingest); also adds `_common_metadata` to older catalogs |
 | `dl-repair-catalog-metadata` | Repair/rebuild link IDs, `--check-only`, `--rebuild-link-id` |
-| `dl-recommend-catalog-norder` | Sample a catalog to suggest a good `--norder` |
+| `dl-recommend-catalog-norder` | Sample a catalog to suggest a good `--healpix-order` |
 | `dl-check-fits-table-format` | Header-only FITS layout probe (standard vs packed-vector; est. source count) |
 
 **Spectra ingest**

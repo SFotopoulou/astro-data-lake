@@ -18,7 +18,7 @@ Schema (lake_config.toml)
     created_utc = "2026-05-13T11:43:00Z"   # ISO-8601
 
     [partitioning]
-    hats_order       = 5                   # default HEALPix order
+    healpix_order    = 5                   # default HEALPix order
     chunks_per_shard = 512                 # Zarr shard size in rows
 
     [defaults]
@@ -58,7 +58,7 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
-from data_lake.knobs import DEFAULT_CHUNKS_PER_SHARD, DEFAULT_HATS_ORDER
+from data_lake.knobs import DEFAULT_CHUNKS_PER_SHARD, DEFAULT_HEALPIX_ORDER
 
 CONFIG_FILENAME = "lake_config.toml"
 ENV_VAR = "DATA_LAKE_CONFIG"
@@ -83,7 +83,7 @@ class LakeConfigInvalid(LakeConfigError, ValueError):
 
 _DEFAULTS: dict[str, dict[str, Any]] = {
     "partitioning": {
-        "hats_order": DEFAULT_HATS_ORDER,
+        "healpix_order": DEFAULT_HEALPIX_ORDER,
         "chunks_per_shard": DEFAULT_CHUNKS_PER_SHARD,
     },
     "defaults": {
@@ -122,7 +122,7 @@ class _Lake:
 
 @dataclass(slots=True)
 class _Partitioning:
-    hats_order: int = DEFAULT_HATS_ORDER
+    healpix_order: int = DEFAULT_HEALPIX_ORDER
     chunks_per_shard: int = DEFAULT_CHUNKS_PER_SHARD
 
 
@@ -295,6 +295,14 @@ class LakeConfig:
             valid = {f.name for f in fields(dc_cls)}
             return dc_cls(**{k: v for k, v in d.items() if k in valid})
 
+        # Unknown keys are otherwise dropped silently by _merge, so a leftover
+        # pre-rename key would quietly fall back to the default order.
+        if "hats_order" in data.get("partitioning", {}):
+            raise LakeConfigInvalid(
+                f"{source_path}: [partitioning] key 'hats_order' was renamed to "
+                "'healpix_order'; update lake_config.toml."
+            )
+
         try:
             partitioning = _merge("partitioning", _Partitioning)
             defaults     = _merge("defaults",     _Defaults)
@@ -335,7 +343,7 @@ class LakeConfig:
             f'created_utc = {_q(self.lake.created_utc)}',
             "",
             "[partitioning]",
-            f"hats_order       = {self.partitioning.hats_order}",
+            f"healpix_order    = {self.partitioning.healpix_order}",
             f"chunks_per_shard = {self.partitioning.chunks_per_shard}",
             "",
             "[defaults]",

@@ -41,6 +41,7 @@ Example
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 import shutil
@@ -55,6 +56,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.ingest.fits_to_parquet import (
     _read_source_table,
     _ZSTD_LEVEL,
@@ -854,7 +856,7 @@ def _lake_norder(catalog_root: Path, norder: int | None) -> int:
     info_path = catalog_root / "catalog_info.json"
     if info_path.is_file():
         with open(info_path) as fh:
-            return int(json.load(fh).get("hats_order", 5))
+            return int(read_healpix_order(json.load(fh), 5))
     return 5
 
 
@@ -2316,7 +2318,7 @@ from data_lake.cli_utils import config_option, load_optional_config, progress_op
     is_flag=True,
     help="Do not write extract_provenance.json / sidecar for homogenized exports.",
 )
-@click.option("--norder", type=int, default=None, help="HEALPix order (default: catalog_info.json).")
+@healpix_order_option(type=int, default=None, help="HEALPix order (default: catalog_info.json).")
 @click.option(
     "--engine",
     type=click.Choice(["auto", "tiles", "duckdb"], case_sensitive=False),
@@ -2396,7 +2398,7 @@ from data_lake.cli_utils import config_option, load_optional_config, progress_op
 )
 @click.option("--radius-arcsec", type=float, default=None)
 @click.option("--bbox", nargs=4, type=float, default=None)
-@click.option("--npix", default=None, help="Clip to npix list (needs --norder).")
+@click.option("--npix", default=None, help="Clip to npix list (needs --healpix-order).")
 @click.option(
     "--moc",
     "moc_path",

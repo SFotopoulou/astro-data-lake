@@ -205,7 +205,7 @@ def cli() -> None:
     help="Text file with one FITS path per line (used if no fits_paths)",
 )
 @click.option("--count", type=int, default=None, help="Max files to run")
-@click.option("--norder", type=int, default=5, show_default=True)
+@click.option("--healpix-order", type=int, default=5, show_default=True)
 @click.option("-o", "--output", default="worker.prof", show_default=True)
 @click.option("--lines", type=int, default=30, show_default=True)
 @click.option(
@@ -238,7 +238,7 @@ def worker_cmd(
 @click.option("--n-workers", type=int, default=2, show_default=True)
 @click.option("--max-in-flight", type=int, default=None)
 @click.option("--max-open-tiles", type=int, default=64, show_default=True)
-@click.option("--norder", type=int, default=5, show_default=True)
+@click.option("--healpix-order", type=int, default=5, show_default=True)
 @click.option("-o", "--profile-output", default="batch.prof", show_default=True)
 @click.option("--lines", type=int, default=30, show_default=True)
 @click.option(

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **HEALPix order renamed `hats_order` → `healpix_order`** (breaking; reingest or
+  rewrite existing lakes). The stored key in `catalog_info.json`,
+  `spectrum_info.json`, `cutout_info.json`, `crossmatch_info.json`, tile
+  indexes, schema manifests, and the registry column is now `healpix_order`.
+  Readers no longer accept the old `hats_order` key. The `[partitioning]`
+  key in `lake_config.toml` is now `healpix_order`; a leftover `hats_order`
+  raises `LakeConfigInvalid`. The Python constant `DEFAULT_HATS_ORDER` is now
+  `DEFAULT_HEALPIX_ORDER`.
+- **CLI `--norder` → `--healpix-order`** on every command that took
+  `--norder`. `--norder` still works as a hidden alias. `--norder-b` is
+  unchanged.
+
 ### Fixed
 
 - **`dl-export-moc` / `dl-region --export-moc` ASCII and JSON** — no longer pass

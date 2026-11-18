@@ -65,7 +65,7 @@ If the `--ra-col` / `--dec-col` keywords are missing, ingest falls back to
 | `--band-axis` | axis 0 for 3-D data | Band axis of a 3-D image |
 | `--on-duplicate` | `skip` | `skip`, `error` or `append` when a `_source_id` is already in the tile |
 | `--update-catalog / --no-update-catalog` | on | Patch `_cutout_index` in the catalog after ingest |
-| `--norder` | config, else 5 | HEALPix order |
+| `--healpix-order` | config, else 5 | HEALPix order |
 | `--n-workers N` | `1` | `dl-ingest-cutouts-from-list` only: decode files in `N` processes with one Zarr writer; `--files-per-worker` and `--max-in-flight` tune batching |
 | `--fits-memmap` | `auto` | FITS read policy; see [FITS I/O tuning](batch-and-checkpoints.md#fits-io-tuning-memmap-and-workers) |
 

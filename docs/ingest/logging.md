@@ -85,7 +85,7 @@ dl-ingest-spectra-from-list gama.txt /data/lake \
 ```bash
 dl-ingest-from-shard --phase map --file-list "$CHUNK" \
     --survey Legacy_DR11_north --shard-root "$SCRATCH/shards" \
-    --link-id-col ls_id_dr11 --norder 7 --n-workers 8 \
+    --link-id-col ls_id_dr11 --healpix-order 7 --n-workers 8 \
     --no-progress -q \
     --log-file "logs/map_${SLURM_ARRAY_TASK_ID}.log" \
     --failures-log "logs/map_${SLURM_ARRAY_TASK_ID}_failures.jsonl"

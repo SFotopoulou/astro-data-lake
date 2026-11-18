@@ -37,7 +37,7 @@ Crossmatch trees live under `<lake>/crossmatch/<A>_x_<B>__r<radius>/`, next to
 name, so runs at different radii are separate trees and never collide.
 
 Each tree has a `crossmatch_info.json` sidecar recording the radius, the
-survey-A and survey-B `hats_order`, the match backend and, for GPU runs, the
+survey-A and survey-B `healpix_order`, the match backend and, for GPU runs, the
 `gpu_id`. When you re-run into an existing tree, a mismatch in survey order or
 backend is rejected unless you pass `--overwrite`.
 
@@ -62,7 +62,7 @@ By default each survey's RA/Dec columns and HEALPix order come from its
 
 ```bash
 dl-crossmatch SURVEY_A SURVEY_B /data/lake \
-  --ra-col RA --dec-col DEC --norder 5 \
+  --ra-col RA --dec-col DEC --healpix-order 5 \
   --ra-col-b RAJ2000 --dec-col-b DEJ2000 --norder-b 6
 ```
 
@@ -463,7 +463,7 @@ A typical workflow:
    policy, error circles and output columns for both tables.
 3. Convert the STILTS output to Parquet to create the association file (see
    below). Add `healpix_npix` and `norder` if they are missing, computed with
-   the same `assign_healpix` and `hats_order` as the lake so tile paths stay
+   the same `assign_healpix` and `healpix_order` as the lake so tile paths stay
    consistent.
 4. Join in DuckDB or Polars: filter the primary catalog, join it to the
    association file on `source_id`, and optionally join partner catalogs or open
@@ -503,7 +503,7 @@ Shape it for how you query (DuckDB, Polars, ADQL). Typical columns:
 | Partner IDs | e.g. `desi_targetid`, `euclid_source_id` — whatever the other survey stores |
 | `sep_arcsec` | Sky separation from the matcher (optional but good for QA) |
 | `match_rank` / `find` flag | Disambiguates when the matcher returns multiple neighbours |
-| `healpix_npix`, `norder` | Same nested HEALPix index and order as the lake tiles (must match ingest `hats_order` / `--norder`) |
+| `healpix_npix`, `norder` | Same nested HEALPix index and order as the lake tiles (must match ingest `healpix_order` / `--healpix-order`) |
 | Zarr row indices | Optional, after ingest: `desi_spectrum_row`, `euclid_cutout_row` — tile-local indices aligned with `_spectrum_index` / `_cutout_index` |
 
 Tile paths in the lake follow `healpix_dir(norder, npix)` from

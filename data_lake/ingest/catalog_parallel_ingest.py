@@ -10,6 +10,7 @@ Does **not** support ``--streaming`` (use sequential ``dl-ingest-catalog-from-li
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 import shutil
@@ -625,7 +626,7 @@ try:
     @click.option("--survey", "survey_name", required=True)
     @click.option("--ra-col", default="ra", show_default=True)
     @click.option("--dec-col", default="dec", show_default=True)
-    @click.option("--norder", default=None, type=int)
+    @healpix_order_option(default=None, type=int)
     @click.option(
         "--link-id-col",
         required=True,
@@ -725,7 +726,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="catalogs")
-        n = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
         col_list = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
         default_ck = lake / "catalogs" / survey_name / ".ingest_checkpoint.json"
 

@@ -21,7 +21,7 @@
   crossmatch/                ← top-level modality (was catalogs/crossmatch/)
     <surveyA>_x_<surveyB>__r<radius>/   ← match radius is part of the name
       Norder=5/Dir=0/Npix=0.parquet
-      crossmatch_info.json   ← radius, survey-A/B hats_order, backend
+      crossmatch_info.json   ← radius, survey-A/B healpix_order, backend
   areas/                     ← metadata-only logical groupings (no tile data)
     <area_id>.json           ← region + optional crossmatch_plan / gather blocks
   shared/
@@ -56,11 +56,11 @@ Each catalog row carries:
 - native survey ID columns (e.g. `TARGETID`, `SOURCE_ID`) when ``link_id_mode`` is ``column:…`` or ``label:…``
 - `_healpix_norder{N}` — HEALPix tile pixel at the **catalog** partition order (partitioning key only)
 - `_cutout_index` — local row offset inside the Zarr cutout tile identified by `_cutout_npix` (-1 = not ingested)
-- `_cutout_npix` — HEALPix pixel at the **cutout** `hats_order` that identifies the Zarr tile (-1 = not ingested)
+- `_cutout_npix` — HEALPix pixel at the **cutout** `healpix_order` that identifies the Zarr tile (-1 = not ingested)
 - `_spectrum_index` — local row offset inside the Zarr spectrum tile identified by `_spectrum_npix` (-1 = not ingested)
-- `_spectrum_npix` — HEALPix pixel at the **spectrum** `hats_order` that identifies the Zarr tile (-1 = not ingested)
+- `_spectrum_npix` — HEALPix pixel at the **spectrum** `healpix_order` that identifies the Zarr tile (-1 = not ingested)
 
-The catalog and spectrum/cutout layers may use **different** `hats_order` values and different sky coordinates; linkage is via `_source_id` + the modality-specific npix column.
+The catalog and spectrum/cutout layers may use **different** `healpix_order` values and different sky coordinates; linkage is via `_source_id` + the modality-specific npix column.
 
 ## Derived products and areas
 

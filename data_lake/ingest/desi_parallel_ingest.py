@@ -44,6 +44,7 @@ Anti-patterns that do *not* work
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 from data_lake.knobs import WRITE_MAX_OPEN_TILES
 
 import json
@@ -1069,7 +1070,7 @@ try:
         type=int,
         help="FITS files decoded per worker task (amortizes IPC; try 8–32 for small files).",
     )
-    @click.option("--norder", default=None, type=int,
+    @healpix_order_option(default=None, type=int,
                   help="HEALPix order (overrides config; default 5).")
     @click.option(
         "--checkpoint", "checkpoint_path",
@@ -1160,7 +1161,7 @@ try:
         require_ingest_permission(cfg, ingest_token)
         resolved_output = require_output_root(output_root, cfg, kind="spectra")
         resolved_norder = pick(
-            norder, cfg.partitioning.hats_order if cfg else None, 5,
+            norder, cfg.partitioning.healpix_order if cfg else None, 5,
         )
 
         # Build file list (relative paths are anchored to the list file, not cwd)

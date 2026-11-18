@@ -24,7 +24,7 @@ dl-ingest-catalog survey_catalog.fits /data/lake --survey des_dr2 \
   --ra-col RA --dec-col DEC --link-id-col COADD_OBJECT_ID
 ```
 
-Flags given on the command line (`--norder` and so on) override config defaults.
+Flags given on the command line (`--healpix-order` and so on) override config defaults.
 
 Supported inputs, chosen by file suffix:
 
@@ -50,7 +50,7 @@ the end of every ingest (unless you pass `--defer-finalize`), the finalize step 
 |------|----------|
 | `_common_metadata` | Schema only (a few KiB). Readers use it for column names and types |
 | `_metadata` | Aggregate Parquet footer covering every tile |
-| `catalog_info.json` | Survey description, including `total_rows`, `hats_order`, `link_id_mode` |
+| `catalog_info.json` | Survey description, including `total_rows`, `healpix_order`, `link_id_mode` |
 | `schema_manifest.json` | Column manifest |
 
 You can run the same step on its own with `dl-finalize-catalog --survey <name>`. Do this
@@ -150,7 +150,7 @@ whatever *k* is. Break-even is at *k* ≈ 3; above that, map-reduce wins by a ma
 grows linearly with *k*.
 
 To estimate *k* for spatially organised files, divide the tile area by the file area
-(tile areas are in [Choosing HEALPix order](#choosing-healpix-order---norder--hats_order)). For unsorted files,
+(tile areas are in [Choosing HEALPix order](#choosing-healpix-order---healpix-order--healpix_order)). For unsorted files,
 *k* is roughly the number of files, since each file touches most tiles.
 
 | Example | File area | norder 4 (13.4 deg²) | norder 5 (3.36 deg²) | norder 7 (0.21 deg²) |
@@ -209,7 +209,7 @@ If any file is `packed-vector`, expect long ingest times and high RAM per worker
 makes parallel whole-file ingest a poor fit. Re-export it as row-normal FITS (STILTS
 `col=false`) or Parquet first. See [Performance tuning](../performance.md).
 
-## Choosing HEALPix order (`--norder` / `hats_order`)
+## Choosing HEALPix order (`--healpix-order` / `healpix_order`)
 
 Catalogs, cutouts and spectra are partitioned on HEALPix nested pixels. Each non-empty
 pixel becomes one file (`Norder=<N>/Dir=<D>/Npix=<P>.parquet`, or `.zarr` for cutouts and
@@ -220,7 +220,7 @@ source FITS. The default order is 5.
 Mean tile area on the full sphere (equal-area pixels, same convention as
 `healpy.order2nside`):
 
-| `--norder` | `nside` | Max tiles (full sky) | Mean tile area |
+| `--healpix-order` | `nside` | Max tiles (full sky) | Mean tile area |
 |------------|---------|----------------------|----------------|
 | 0 | 1 | 12 | 3438 deg² |
 | 1 | 2 | 48 | 859 deg² |
@@ -242,7 +242,7 @@ Aim for roughly 10⁴–10⁵ rows per non-empty tile. Too many tiny files add m
 filesystem overhead (a 2 MB FITS can become many MB on disk); too few huge tiles make
 appends slow and need a lot of RAM per tile. In practice:
 
-| Catalog type | Typical `--norder` | Why |
+| Catalog type | Typical `--healpix-order` | Why |
 |--------------|-------------------|-----|
 | Sparse all-sky (10⁶–10⁷ rows, full sphere) | 3–4 | Fewer, larger tiles and fewer inodes |
 | Dense survey footprint (DESI, deep fields) | 5 (default) | About 3.4 deg² tiles; comparable to common HATS (HEALPix Adaptive Tiling Scheme) and Rubin/LSST LSDB catalog tile sizes |
@@ -252,7 +252,7 @@ Base the choice on source density, not on the survey's name. Override the defaul
 run:
 
 ```bash
-dl-ingest-catalog sparse_allsky.fits --survey my_sparse --norder 4 \
+dl-ingest-catalog sparse_allsky.fits --survey my_sparse --healpix-order 4 \
   --ra-col RA --dec-col DEC --link-id-col ID --streaming
 ```
 

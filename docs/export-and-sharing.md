@@ -25,7 +25,7 @@ dl-extract-catalog --survey DESI_DR1 \
   --from-area MyCone -c _source_id,TARGET_RA,TARGET_DEC,Z \
   -o /scratch/desi_cone.parquet
 
-# or ad-hoc: --cone RA DEC --radius-arcsec R, --bbox, --npix + --norder, --moc
+# or ad-hoc: --cone RA DEC --radius-arcsec R, --bbox, --npix + --healpix-order, --moc
 ```
 
 ## Send to TOPCAT via SAMP
@@ -374,7 +374,7 @@ dl-rebuild-catalog-indices --survey DESI_DR1 --kind cutout   # if cutouts exist
 uv run python -m data_lake.ingest.update_catalog_indices --survey DESI_DR1 --kind spectrum
 ```
 
-`--norder` defaults to `hats_order` in `catalogs/<survey>/catalog_info.json`;
+`--healpix-order` defaults to `healpix_order` in `catalogs/<survey>/catalog_info.json`;
 pass it only to override that value. See
 [Validate and repair](validate-and-repair.md) for checking the result.
 
@@ -388,7 +388,7 @@ update_index_column(lake_root="/data/lake", survey_name="SDSS_DR17",
 ```
 
 `update_index_column` also takes `norder` (default 5) and `link_id_col`; pass
-`norder` explicitly if the catalog uses a different `hats_order`.
+`norder` explicitly if the catalog uses a different `healpix_order`.
 
 ## Pack a tile for sharing
 
@@ -397,12 +397,12 @@ Parquet plus, by default, spectrum and cutout Zarr stores and their info JSON
 files) into a `.tar` archive in the output directory.
 
 ```bash
-dl-pack-tile /data/lake /data/share --norder 5 --npix 1234 --survey des_dr2 --manifest
+dl-pack-tile /data/lake /data/share --healpix-order 5 --npix 1234 --survey des_dr2 --manifest
 # Exclude spectra if not needed:
-dl-pack-tile /data/lake /data/share --norder 5 --npix 1234 --survey des_dr2 --no-spectra
+dl-pack-tile /data/lake /data/share --healpix-order 5 --npix 1234 --survey des_dr2 --no-spectra
 ```
 
 `--survey` can be repeated. Without `--npix`, every tile is packed into its own
 archive. `--no-cutouts` excludes cutouts, `--manifest` (re)generates
 `MANIFEST.json` (tile, surveys, sizes and SHA-256 checksums for each archive),
-and `--norder` defaults to 5.
+and `--healpix-order` defaults to 5.

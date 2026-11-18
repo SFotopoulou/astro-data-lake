@@ -515,7 +515,7 @@ def _write_product_info(
         "catalog_name": name,
         "kind": CATALOG_KIND_PRODUCT,
         "modality": MODALITY_CATALOG,
-        "hats_order": base_order,
+        "healpix_order": base_order,
         "link_id_mode": "column:" + LAKE_JOIN_ID_COLUMN,
         "link_id_column": LAKE_JOIN_ID_COLUMN,
         "ra_column": base_info.get("ra_column"),

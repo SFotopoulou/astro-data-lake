@@ -64,7 +64,7 @@ def test_shard_recommendation_commands_and_scripts() -> None:
         layout="spatial", norder=7,
     )
     assert "--phase map" in rec.command and "--phase reduce" in rec.command
-    assert "--norder 7" in rec.command
+    assert "--healpix-order 7" in rec.command
     assert "--file-list bricks.txt" in rec.command
     map_script = rec.slurm_script
     reduce_script = rec.extra_slurm_scripts["reduce"]

@@ -332,7 +332,7 @@ class TestRoundTrip:
         info_path = catalog_root / "catalog_info.json"
         assert info_path.exists()
         info = json.loads(info_path.read_text())
-        assert info.get("hats_order") == _NORDER
+        assert info.get("healpix_order") == _NORDER
 
 
 # ---------------------------------------------------------------------------
@@ -514,7 +514,7 @@ class TestGuards:
         self, catalog_fits_files, lake_root, tmp_path
     ):
         _map_reduce(catalog_fits_files, tmp_path / "s1", lake_root, norder=_NORDER)
-        with pytest.raises(ValueError, match="hats_order"):
+        with pytest.raises(ValueError, match="healpix_order"):
             _map_reduce(catalog_fits_files, tmp_path / "s2", lake_root, norder=_NORDER + 1)
 
     def test_reduce_link_id_mismatch_with_lake(
@@ -730,7 +730,7 @@ class TestCLI:
         catalog_root = lake / "catalogs" / _SURVEY
         n_input = sum(len(_make_catalog_table(*b)) for b in _RA_BANDS)
         assert _n_rows(catalog_root) == n_input
-        assert json.loads((catalog_root / "catalog_info.json").read_text())["hats_order"] == _NORDER
+        assert json.loads((catalog_root / "catalog_info.json").read_text())["healpix_order"] == _NORDER
 
     def test_reduce_defaults_to_config_lake_and_shard_norder(
         self, deployment, catalog_fits_files, tmp_path

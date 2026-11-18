@@ -29,7 +29,7 @@ def _write_catalog_tile(lake: Path, survey: str, norder: int, npix: int, n_rows:
 
 def _write_info(lake: Path, survey: str, norder: int, total_rows: int) -> None:
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
-        json.dumps({"hats_order": norder, "total_rows": total_rows})
+        json.dumps({"healpix_order": norder, "total_rows": total_rows})
     )
 
 
@@ -56,7 +56,7 @@ def _write_crossmatch_info(lake: Path, tree: str, norder: int, total_rows: int) 
             "survey_a": "A",
             "survey_b": "B",
             "match_radius_arcsec": 1.0,
-            "hats_order": norder,
+            "healpix_order": norder,
             "total_rows": total_rows,
             "n_match_rows": total_rows,
             "schema_version": "1",
@@ -88,7 +88,7 @@ def _write_spectrum_info(
     total_rows: int | None = None,
     total_spectra: int | None = None,
 ) -> None:
-    info: dict = {"hats_order": norder, "n_pix": 8, "wavelength_mode": "shared"}
+    info: dict = {"healpix_order": norder, "n_pix": 8, "wavelength_mode": "shared"}
     if total_rows is not None:
         info["total_rows"] = total_rows
     if total_spectra is not None:

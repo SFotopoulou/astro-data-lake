@@ -371,7 +371,7 @@ def _write_product_info(
         "kind": CATALOG_KIND_PRODUCT,
         "product_subtype": PRODUCT_SUBTYPE_HOMOGENIZED,
         "modality": MODALITY_CATALOG,
-        "hats_order": norder,
+        "healpix_order": norder,
         "ra_column": ra,
         "dec_column": dec,
         "link_id_mode": source_info.get("link_id_mode", f"column:{LAKE_JOIN_ID_COLUMN}"),

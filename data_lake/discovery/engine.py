@@ -2,7 +2,7 @@
 
 ``resolve_region`` is registry/index-driven (no filesystem walk in the common
 path): for each survey and modality it intersects the region (resolved to that
-modality's ``hats_order``) with the cached populated-npix index.
+modality's ``healpix_order``) with the cached populated-npix index.
 
 Row counts:
 
@@ -51,7 +51,7 @@ _NPIX_PARQUET_RE = re.compile(r"Npix=(\d+)\.parquet$")
 class DiscoveryRow:
     survey: str
     modality: str
-    hats_order: int | None
+    healpix_order: int | None
     n_tiles_overlap: int
     est_rows: int
     exact_rows: int | None
@@ -134,7 +134,7 @@ def _estimate_rows(total_rows: int | None, n_tiles_total: int, n_overlap: int) -
 
 def sum_parquet_rows_in_npix(
     survey_root: Path | str,
-    hats_order: int,
+    healpix_order: int,
     overlap_npix: Sequence[int],
     *,
     n_workers: int = 8,
@@ -147,7 +147,7 @@ def sum_parquet_rows_in_npix(
     survey_root = Path(survey_root)
 
     def _rows(npix: int) -> int:
-        tile = survey_root / healpix_dir(hats_order, npix) / f"Npix={npix}.parquet"
+        tile = survey_root / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
         if not tile.is_file():
             return 0
         try:
@@ -167,7 +167,7 @@ def sum_parquet_rows_in_npix(
 
 def sum_zarr_sources_in_npix(
     survey_root: Path | str,
-    hats_order: int,
+    healpix_order: int,
     overlap_npix: Sequence[int],
     *,
     n_workers: int = 8,
@@ -182,7 +182,7 @@ def sum_zarr_sources_in_npix(
     survey_root = Path(survey_root)
 
     def _rows(npix: int) -> int:
-        tile = survey_root / healpix_dir(hats_order, npix) / f"Npix={npix}.zarr"
+        tile = survey_root / healpix_dir(healpix_order, npix) / f"Npix={npix}.zarr"
         if not tile.is_dir():
             return 0
         n = _zarr_tile_n_sources(tile)
@@ -209,7 +209,7 @@ def sum_crossmatch_rows_in_npix(
     """Sum match rows / tiles whose ``Npix=`` is in *npix* (survey-A partition).
 
     Returns ``(total_rows, n_tiles)``. Prefer :func:`sum_parquet_rows_in_npix`
-    when ``hats_order`` is known (direct path, no ``rglob``). This helper remains
+    when ``healpix_order`` is known (direct path, no ``rglob``). This helper remains
     for callers that only have an npix set (e.g. lake registry area scoping).
     """
     catalog_root = Path(catalog_root)
@@ -261,12 +261,12 @@ def resolve_region(
             survey_names = list(surveys)  # type: ignore[arg-type]
 
         for survey in survey_names:
-            npix_set, hats_order = ti.survey_npix(
+            npix_set, healpix_order = ti.survey_npix(
                 lake_root, survey, modality, allow_scan=allow_scan
             )
-            if hats_order is None or not npix_set:
+            if healpix_order is None or not npix_set:
                 continue
-            region_npix = region.to_npix(hats_order)
+            region_npix = region.to_npix(healpix_order)
             overlap = sorted(region_npix & npix_set)
             if not overlap:
                 continue
@@ -278,18 +278,18 @@ def resolve_region(
             exact: int | None = None
             if count and modality in _PARQUET_COUNT_MODALITIES:
                 exact = sum_parquet_rows_in_npix(
-                    survey_root, hats_order, overlap, n_workers=n_workers
+                    survey_root, healpix_order, overlap, n_workers=n_workers
                 )
             elif count and modality in _ZARR_COUNT_MODALITIES:
                 exact = sum_zarr_sources_in_npix(
-                    survey_root, hats_order, overlap, n_workers=n_workers
+                    survey_root, healpix_order, overlap, n_workers=n_workers
                 )
 
             rows.append(
                 DiscoveryRow(
                     survey=survey,
                     modality=modality,
-                    hats_order=hats_order,
+                    healpix_order=healpix_order,
                     n_tiles_overlap=len(overlap),
                     est_rows=est,
                     exact_rows=exact,

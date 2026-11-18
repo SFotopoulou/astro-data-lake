@@ -167,7 +167,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "TEST_SURVEY" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 2}',
         )
         out = tmp_path / "export.parquet"
@@ -198,7 +198,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "STARS" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 4}',
         )
         return lake
@@ -283,7 +283,7 @@ class TestExtractFromLake:
                 tile_dir / f"Npix={npix}.parquet",
             )
         (survey / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "column:TARGETID", "total_rows": 4}',
         )
         return lake
@@ -380,7 +380,7 @@ class TestExtractFromLake:
                 tile_dir / f"Npix={npix}.parquet",
             )
         (leg / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 3}',
         )
         xm = lake / "crossmatch" / "IDS_x_LEG__r1.0"
@@ -396,7 +396,7 @@ class TestExtractFromLake:
         )
         (xm / "crossmatch_info.json").write_text(
             '{"survey_a": "IDS", "survey_b": "LEG", "match_radius_arcsec": 1.0, '
-            '"hats_order": 5}',
+            '"healpix_order": 5}',
         )
         return lake
 
@@ -602,7 +602,7 @@ class TestExtractFromLake:
         )
         (lake / "catalogs" / "PROD_AB" / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": 5,
+                "healpix_order": 5,
                 "ra_column": "ra",
                 "dec_column": "dec",
                 "kind": "product",
@@ -634,7 +634,7 @@ class TestExtractFromLake:
         native_root = lake / "catalogs" / "NATIVE"
         native_root.mkdir(parents=True)
         (native_root / "catalog_info.json").write_text(
-            '{"hats_order": 5, "kind": "ingested"}'
+            '{"healpix_order": 5, "kind": "ingested"}'
         )
         (native_root / "Norder=5" / "Dir=0").mkdir(parents=True)
         pq.write_table(
@@ -665,7 +665,7 @@ class TestExtractFromLake:
                 tile_dir / f"Npix={npix}.parquet",
             )
         (lake / "catalogs" / "BIG" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 2}',
         )
         out_dir = tmp_path / "tiles"
@@ -697,7 +697,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=42.parquet",
         )
         (lake / "catalogs" / "PART" / "catalog_info.json").write_text(
-            '{"hats_order": 1, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 1, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 2}',
         )
         out = tmp_path / "idx.parquet"
@@ -725,7 +725,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "S" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 1}',
         )
         out = tmp_path / "out.csv"
@@ -754,7 +754,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "S" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 1}',
         )
         out = tmp_path / "out.fits"
@@ -787,7 +787,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "S" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 2}',
         )
         out = tmp_path / "class.fits"
@@ -832,7 +832,7 @@ class TestExtractFromLake:
             d1 / "Npix=10500.parquet",
         )
         (root / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 2}',
         )
         out = tmp_path / "mixed.fits"
@@ -864,7 +864,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "PROD" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 1}',
         )
         out = tmp_path / "all.parquet"
@@ -893,7 +893,7 @@ class TestExtractFromLake:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "PROD" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 1}',
         )
         out = tmp_path / "all.fits"
@@ -924,7 +924,7 @@ class TestExtractFromLake:
                 cols["PARTNER_z"] = pa.array(z_vals, type=pa.float64())
             pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
         (lake / "catalogs" / "PROD" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 2}',
         )
         out = tmp_path / "merged.fits"
@@ -954,7 +954,7 @@ class TestExtractCatalogCli:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "S" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 1}',
         )
         out = tmp_path / "out.parquet"
@@ -997,7 +997,7 @@ class TestExtractCatalogCli:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "S" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 1}',
         )
         out = tmp_path / "out.parquet"
@@ -1083,7 +1083,7 @@ class TestExtractCatalogCli:
             tile_dir / "Npix=1.parquet",
         )
         (lake_data / "catalogs" / "S" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+            '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
             '"link_id_mode": "sequential", "total_rows": 1}',
         )
         cfg_path = tmp_path / CONFIG_FILENAME

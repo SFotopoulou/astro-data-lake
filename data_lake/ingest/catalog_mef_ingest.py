@@ -7,6 +7,7 @@ horizontally and written with the catalog tile path.
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import sys
 from pathlib import Path
 
@@ -51,8 +52,7 @@ try:
     @click.option("--survey", "survey_name", required=True, help="Short survey name.")
     @click.option("--ra-col", default="ra", show_default=True)
     @click.option("--dec-col", default="dec", show_default=True)
-    @click.option(
-        "--norder", default=None, type=int,
+    @healpix_order_option(default=None, type=int,
         help="HEALPix order (overrides config; default 5).",
     )
     @click.option(
@@ -180,7 +180,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="catalogs")
-        n = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
         col_list = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
         keys = [c.strip() for c in key_cols.split(",") if c.strip()] if key_cols else None
 

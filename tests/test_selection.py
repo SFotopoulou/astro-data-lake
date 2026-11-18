@@ -49,7 +49,7 @@ def _write_base(lake: Path, survey: str, norder: int) -> dict[int, int]:
         )
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",

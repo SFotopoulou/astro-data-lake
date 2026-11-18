@@ -36,6 +36,7 @@ use ``dl-ingest-spectra-from-list`` with the existing slow path if needed.
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 from data_lake.knobs import WRITE_MAX_OPEN_TILES
 
 import logging
@@ -598,9 +599,7 @@ try:
         type=int,
         help="Max HEALPix tile Zarr groups open in the writer; 0 = unlimited.",
     )
-    @click.option(
-        "--norder",
-        default=None,
+    @healpix_order_option(default=None,
         type=int,
         help="HEALPix order (overrides config; default 5).",
     )
@@ -752,7 +751,7 @@ try:
         cfg = load_optional_config(config_path)
         require_ingest_permission(cfg, ingest_token)
         resolved_output = require_output_root(output_root, cfg, kind="spectra")
-        resolved_norder = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        resolved_norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
 
         if file_list is not None:
             paths: list[Path] = _paths_from_file_list_file(file_list)

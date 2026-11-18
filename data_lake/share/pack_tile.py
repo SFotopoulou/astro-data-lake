@@ -34,6 +34,7 @@ Usage
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import hashlib
 import json
 import logging
@@ -376,7 +377,7 @@ try:
     @click.command("dl-pack-tile")
     @click.argument("lake_root", type=click.Path(exists=True, path_type=Path))
     @click.argument("output_dir", type=click.Path(path_type=Path))
-    @click.option("--norder", default=5, type=int, show_default=True)
+    @healpix_order_option(default=5, type=int, show_default=True)
     @click.option("--npix", type=int, default=None, help="Single tile to pack.")
     @click.option("--survey", "surveys", multiple=True, required=True, help="Survey name(s) to include.")
     @click.option("--no-cutouts", "include_cutouts", is_flag=True, default=True,

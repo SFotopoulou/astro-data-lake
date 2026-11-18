@@ -6,6 +6,7 @@ the ``OUTPUT_ROOT`` positional argument may be omitted (defaults to ``lake.root`
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 from pathlib import Path
@@ -87,7 +88,7 @@ def _resolve_selection(
         )
     if npix is not None:
         if npix_norder is None:
-            raise ValueError("--npix requires --norder")
+            raise ValueError("--npix requires --healpix-order")
         return selection_from_region(
             lake, survey,
             Region.from_npix(parse_npix_arg(npix), npix_norder),
@@ -144,7 +145,7 @@ try:
     @click.option("--radius-arcsec", type=float, default=None)
     @click.option("--bbox", nargs=4, type=float, default=None)
     @click.option("--npix", default=None)
-    @click.option("--norder", "npix_norder", type=int, default=None)
+    @healpix_order_option(dest="npix_norder", type=int, default=None)
     @click.option(
         "--from-product", default=None,
         help="Homogenize a gathered catalog product (catalog modality) or bound npix (spectra/cutout).",

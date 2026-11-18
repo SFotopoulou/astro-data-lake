@@ -132,7 +132,7 @@ def test_build_and_format_manifest(tmp_path: Path) -> None:
     manifest = build_catalog_schema_manifest(
         root,
         "fmt_test",
-        hats_order=5,
+        healpix_order=5,
         ra_column="TARGET_RA",
         dec_column="TARGET_DEC",
         link_id_mode="column:TARGETID",
@@ -144,7 +144,7 @@ def test_build_and_format_manifest(tmp_path: Path) -> None:
     write_catalog_schema_manifest(
         root,
         "fmt_test",
-        hats_order=5,
+        healpix_order=5,
         ra_column="TARGET_RA",
         dec_column="TARGET_DEC",
         link_id_mode="column:TARGETID",
@@ -163,7 +163,7 @@ def test_spectra_schema_manifest(tmp_path: Path) -> None:
     spectra_root.mkdir(parents=True)
     info = {
         "survey_name": "DESI_TEST",
-        "hats_order": 5,
+        "healpix_order": 5,
         "n_pix": 100,
         "wavelength_mode": "shared",
         "meta_fields": ["z", "z_err"],
@@ -190,7 +190,7 @@ def test_spectra_schema_manifest_sky_meta_fields(tmp_path: Path) -> None:
     spectra_root.mkdir(parents=True)
     info = {
         "survey_name": "VVDS_TEST",
-        "hats_order": 5,
+        "healpix_order": 5,
         "n_pix": 557,
         "wavelength_mode": "shared",
         "meta_fields": list(_META_DTYPE.names),

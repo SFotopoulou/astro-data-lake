@@ -40,7 +40,7 @@ def _write_index_catalog(lake: Path, lookup: dict[int, tuple[int, int]], kind: s
         out.mkdir(parents=True, exist_ok=True)
         pq.write_table(sub, out / f"Npix={npix}.parquet")
     (root / "catalog_info.json").write_text(
-        f'{{"hats_order": {NORDER}, "link_id_column": "_source_id"}}'
+        f'{{"healpix_order": {NORDER}, "link_id_column": "_source_id"}}'
     )
 
 

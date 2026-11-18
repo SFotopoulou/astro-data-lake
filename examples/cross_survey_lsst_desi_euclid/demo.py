@@ -55,7 +55,7 @@ def _catalog_info(path: Path, survey: str, norder: int, n_rows: int, n_cols: int
     info = {
         "catalog_name": survey,
         "catalog_type": "object",
-        "hats_order": norder,
+        "healpix_order": norder,
         "total_rows": n_rows,
         "total_columns": n_cols,
         "schema_version": "1",

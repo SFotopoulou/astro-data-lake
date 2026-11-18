@@ -28,7 +28,7 @@ def lake(tmp_path: Path) -> Path:
         tile_dir / f"Npix={npix}.parquet",
     )
     (lake / "catalogs" / "ALLWISE" / "catalog_info.json").write_text(
-        json.dumps({"hats_order": norder, "total_rows": 100})
+        json.dumps({"healpix_order": norder, "total_rows": 100})
     )
     ti.write_tile_index(lake, "ALLWISE", "catalog")
     return lake
@@ -76,7 +76,7 @@ class TestRegionCli:
         runner = CliRunner()
         result = runner.invoke(cli, [str(lake), "--npix", "1,2,3"])
         assert result.exit_code != 0
-        assert "norder" in result.output.lower()
+        assert "healpix-order" in result.output.lower()
 
     def test_from_area_crossmatch_modality(self, lake: Path) -> None:
         """CLI smoke: --from-area + --modalities crossmatch discovers XM trees."""
@@ -90,7 +90,7 @@ class TestRegionCli:
             xm_dir / f"Npix={npix}.parquet",
         )
         (lake / "crossmatch" / tree / "crossmatch_info.json").write_text(
-            json.dumps({"hats_order": norder, "total_rows": 3})
+            json.dumps({"healpix_order": norder, "total_rows": 3})
         )
         ti.write_tile_index(lake, tree, "crossmatch")
 

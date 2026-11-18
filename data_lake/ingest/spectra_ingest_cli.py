@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import logging
 from pathlib import Path
 
@@ -46,7 +47,7 @@ log = logging.getLogger(__name__)
         "IDs internally."
     ),
 )
-@click.option("--norder", default=None, type=int,
+@healpix_order_option(default=None, type=int,
               help="HEALPix order (overrides config; default 5).")
 @click.option("--wavelength-mode",
               type=click.Choice(["shared", "per_source"]),
@@ -172,7 +173,7 @@ def cli(
     )
     require_ingest_permission(cfg, ingest_token)
     resolved_output = require_output_root(output_root, cfg, kind="spectra")
-    resolved_norder = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+    resolved_norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
 
     index_map = ingest_spectra_from_fits(
         source_path=source_path,

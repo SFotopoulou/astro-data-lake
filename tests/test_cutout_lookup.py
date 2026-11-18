@@ -32,7 +32,7 @@ def _make_cutout_tile(lake_root: Path, npix: int, source_ids: list[int]) -> None
     root.create_array("wcs", shape=(n,), dtype="S100")
     root["wcs"][:] = [b""] * n
     (lake_root / "cutouts" / SURVEY / "cutout_info.json").write_text(
-        f'{{"hats_order": {NORDER}, "band_names": ["r"]}}'
+        f'{{"healpix_order": {NORDER}, "band_names": ["r"]}}'
     )
 
 

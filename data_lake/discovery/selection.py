@@ -64,17 +64,17 @@ def selection_from_region(
     The base npix are the region resolved at the base catalog order intersected
     with populated tiles. ``source_ids`` is ``None`` (downstream filters by tile).
     """
-    npix_set, hats_order = ti.survey_npix(
+    npix_set, healpix_order = ti.survey_npix(
         lake_root, base_survey, modality, allow_scan=allow_scan
     )
-    if hats_order is None:
+    if healpix_order is None:
         # Fall back to the accessor's order if the index lacks it.
         with CatalogAccessor(lake_root, base_survey) as acc:
-            hats_order = acc.norder
-    overlap = region.to_npix(hats_order) & npix_set
+            healpix_order = acc.norder
+    overlap = region.to_npix(healpix_order) & npix_set
     return BaseSelection(
         base_survey=base_survey,
-        norder=hats_order,
+        norder=healpix_order,
         npix=set(overlap),
         source_ids=None,
     )
@@ -144,15 +144,15 @@ def selection_from_all_tiles(
     modality: str = MODALITY_CATALOG,
 ) -> BaseSelection:
     """Select every populated tile in a catalog (used for full-product homogenize)."""
-    npix_set, hats_order = ti.survey_npix(
+    npix_set, healpix_order = ti.survey_npix(
         lake_root, base_survey, modality, allow_scan=allow_scan,
     )
-    if hats_order is None:
+    if healpix_order is None:
         with CatalogAccessor(lake_root, base_survey) as acc:
-            hats_order = acc.norder
+            healpix_order = acc.norder
     return BaseSelection(
         base_survey=base_survey,
-        norder=hats_order,
+        norder=healpix_order,
         npix=set(npix_set),
         source_ids=None,
     )

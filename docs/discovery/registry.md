@@ -25,7 +25,7 @@ dl-describe-lake --kind product           # derived products (gather, homogenize
 dl-describe-lake --kind crossmatch        # crossmatch trees
 dl-describe-lake --count-total            # footer with per-modality totals and grand total
 dl-describe-lake --modality catalog --count-total
-dl-describe-lake --pair-surveys           # footer: catalog vs spectra hats_order per survey
+dl-describe-lake --pair-surveys           # footer: catalog vs spectra healpix_order per survey
 dl-describe-lake --areas                  # append the list of saved areas
 dl-describe-lake --verbose                # wide table columns (not DEBUG logging)
 dl-describe-lake --refresh                # rebuild the registry from disk first, then print
@@ -75,14 +75,14 @@ Besides survey, modality, HEALPix order, column count, and rows, the default tab
 - **mf:** `Y` if a `schema_manifest.json` exists, `.` otherwise.
 
 All registry fields (including `link_id_mode`, `native_id_column`, `n_tiles`, ingest
-checkpoint flags, `hats_order_match`, and `created_utc`) are in
+checkpoint flags, `healpix_order_match`, and `created_utc`) are in
 `shared/registry/surveys.parquet` and in `--json` output.
 
 | Question | Registry field | Also see |
 |----------|----------------|----------|
 | How are catalog IDs defined? | `link_id_mode`, `native_id_column` | `catalog_info.json`, `dl-describe-survey` |
 | Sky columns for joins / crossmatch | `ra_column`, `dec_column` | `dl-extract-catalog`, STILTS |
-| Catalog vs spectra HEALPix order | `hats_order_match`, `--pair-surveys` | `dl-validate-catalog-spectra-link` |
+| Catalog vs spectra HEALPix order | `healpix_order_match`, `--pair-surveys` | `dl-validate-catalog-spectra-link` |
 | Spectrum pixel width / wavelength layout | `n_pix`, `wavelength_mode` | `spectrum_info.json` |
 | Per-spectrum Zarr metadata (redshift, sky provenance, …) | `meta_fields`, `spectrum_sky_meta_fields`, `has_spectrum_sky_meta` | `dl-describe-lake --verbose`; `dl-describe-survey NAME --modality spectra` |
 | Is an ingest still running? | `has_ingest_checkpoint`, `has_ingest_inflight` | the survey's `.ingest_checkpoint.json` / `.ingest_inflight.json` |

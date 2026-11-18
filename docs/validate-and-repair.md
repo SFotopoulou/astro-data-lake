@@ -58,7 +58,7 @@ Zarr row exists) or stale indices, rebuild the index from the Zarr tiles on
 disk; no FITS re-ingestion is needed:
 
 ```bash
-# --norder defaults to catalog_info.json hats_order (not always 5)
+# --healpix-order defaults to catalog_info.json healpix_order (not always 5)
 dl-rebuild-catalog-indices --survey zCOSMOS_DR3 --kind spectrum
 dl-validate-catalog-spectra-link --survey zCOSMOS_DR3
 ```
@@ -77,8 +77,8 @@ catalog tile in a single pass. Parallelise the catalog patch with
 dl-rebuild-catalog-indices --survey SDSS_DR17 --kind spectrum --n-workers 8
 ```
 
-Override the partitioning only when needed: `--norder 1` (must match the
-catalog's `hats_order`).
+Override the partitioning only when needed: `--healpix-order 1` (must match the
+catalog's `healpix_order`).
 
 ### Linkage validator options
 
@@ -89,7 +89,7 @@ catalog's `hats_order`).
 | `--strict` | Treat orphan Zarr rows and unpatched-catalog warnings as errors |
 | `-q` / `--quiet` | Print summary counts only, without a `WARNING` line per row; useful when a survey has many orphan spectra |
 | `--n-workers N` | Parallel worker processes for Zarr tiles (default 1) |
-| `--norder`, `--link-id-col` | Override the HEALPix order or catalog join column |
+| `--healpix-order`, `--link-id-col` | Override the HEALPix order or catalog join column |
 
 ### Performance at survey scale
 

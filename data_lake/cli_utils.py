@@ -28,6 +28,26 @@ INGEST_TOKEN_HASH_FILENAME = ".ingest_token_hash"
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+HEALPIX_ORDER_FLAG = "--healpix-order"
+LEGACY_NORDER_FLAG = "--norder"
+
+
+def healpix_order_option(*, dest: str = "norder", **kwargs: Any) -> Callable[[F], F]:
+    """Declare the HEALPix order flag: ``--healpix-order`` plus hidden ``--norder``.
+
+    Both flags write to the same parameter *dest* and take identical *kwargs*
+    (default, type, help). The hidden ``--norder`` alias keeps existing scripts
+    working without appearing in ``--help``.
+    """
+
+    def decorator(f: F) -> F:
+        f = click.option(LEGACY_NORDER_FLAG, dest, hidden=True, **kwargs)(f)
+        f = click.option(HEALPIX_ORDER_FLAG, dest, **kwargs)(f)
+        return f
+
+    return decorator
+
+
 def config_option(f: F) -> F:
     """Add ``--config`` (also reads ``$DATA_LAKE_CONFIG``) to a click command."""
     return click.option(
@@ -239,7 +259,7 @@ def pick(cli_value: Any, cfg_value: Any, fallback: Any) -> Any:
     Use ``None`` as the click default for any option you want the config
     to be able to override.  Then in the body call:
 
-        norder = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
     """
     if cli_value is not None:
         return cli_value

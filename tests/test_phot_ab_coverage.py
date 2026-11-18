@@ -27,7 +27,7 @@ def test_coverage_warns_other_photometry_surveys(tmp_path: Path) -> None:
     cat = lake / "catalogs" / "GALEX_GR67"
     cat.mkdir(parents=True)
     (cat / "catalog_info.json").write_text(
-        '{"hats_order": 1, "kind": "ingested", "ra_column": "ra", "dec_column": "dec"}'
+        '{"healpix_order": 1, "kind": "ingested", "ra_column": "ra", "dec_column": "dec"}'
     )
     (lake / "shared" / "registry").mkdir(parents=True)
     # minimal registry parquet via refresh

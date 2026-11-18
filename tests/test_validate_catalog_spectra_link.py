@@ -27,7 +27,7 @@ SURVEY = "LINK_TEST"
 def _write_spectrum_info(survey_root: Path) -> None:
     survey_root.mkdir(parents=True, exist_ok=True)
     (survey_root / "spectrum_info.json").write_text(
-        '{"n_pix": 8, "hats_order": 5, "wavelength_mode": "shared", "wcs": {}}'
+        '{"n_pix": 8, "healpix_order": 5, "wavelength_mode": "shared", "wcs": {}}'
     )
 
 
@@ -119,7 +119,7 @@ def _make_lake(tmp_path: Path, npix: int = 42) -> Path:
         npix=npix,
     )
     (cat_root / "catalog_info.json").write_text(
-        '{"hats_order": 5, "link_id_mode": "sequential", '
+        '{"healpix_order": 5, "link_id_mode": "sequential", '
         '"link_id_column": "_source_id", "ra_column": "ra", "dec_column": "dec"}'
     )
     return lake
@@ -261,7 +261,7 @@ class TestValidateCatalogSpectraLink:
 
         (lake / "catalogs" / "CAT_ONLY").mkdir(parents=True)
         (lake / "catalogs" / "CAT_ONLY" / "catalog_info.json").write_text(
-            '{"hats_order": 5}'
+            '{"healpix_order": 5}'
         )
         assert "CAT_ONLY" not in discover_surveys_for_spectra_link_validation(lake)
 
@@ -328,7 +328,7 @@ class TestValidateCatalogSpectraLink:
         spec_root = lake / "spectra" / SURVEY
         spec_root.mkdir(parents=True, exist_ok=True)
         (spec_root / "spectrum_info.json").write_text(json.dumps({
-            "n_pix": N_PIX, "hats_order": spec_order, "wavelength_mode": "shared", "wcs": {}
+            "n_pix": N_PIX, "healpix_order": spec_order, "wavelength_mode": "shared", "wcs": {}
         }))
         zarr_path = spec_root / healpix_dir(spec_order, spec_npix) / f"Npix={spec_npix}.zarr"
         _write_min_zarr(zarr_path, source_ids=[201, 202])
@@ -347,7 +347,7 @@ class TestValidateCatalogSpectraLink:
             cat_path,
         )
         (cat_root / "catalog_info.json").write_text(json.dumps({
-            "hats_order": cat_order, "link_id_mode": "sequential",
+            "healpix_order": cat_order, "link_id_mode": "sequential",
             "link_id_column": "_source_id", "ra_column": "ra", "dec_column": "dec",
         }))
 
@@ -357,7 +357,7 @@ class TestValidateCatalogSpectraLink:
         assert rep.stats.n_linked == 2
         assert rep.stats.n_orphan_zarr == 0
         # Confirm the warning is about order difference, not a linkage error.
-        assert any("hats_order differs" in w for w in rep.warnings)
+        assert any("healpix_order differs" in w for w in rep.warnings)
 
     def test_legacy_mode_same_order(self, tmp_path: Path) -> None:
         """No _spectrum_npix column — legacy path using same-Npix pairing."""
@@ -383,7 +383,7 @@ def _make_indexed_lake(tmp_path: Path) -> tuple[Path, int]:
     spec_root = lake / "spectra" / SURVEY
     spec_root.mkdir(parents=True, exist_ok=True)
     (spec_root / "spectrum_info.json").write_text(
-        json.dumps({"n_pix": N_PIX, "hats_order": NORDER, "wavelength_mode": "shared", "wcs": {}})
+        json.dumps({"n_pix": N_PIX, "healpix_order": NORDER, "wavelength_mode": "shared", "wcs": {}})
     )
 
     for spec_npix, ids in [(10, [1, 2, 3]), (20, [4, 5])]:
@@ -395,7 +395,7 @@ def _make_indexed_lake(tmp_path: Path) -> tuple[Path, int]:
     cat_root = lake / "catalogs" / SURVEY
     cat_root.mkdir(parents=True, exist_ok=True)
     (cat_root / "catalog_info.json").write_text(json.dumps({
-        "hats_order": NORDER,
+        "healpix_order": NORDER,
         "link_id_mode": "sequential",
         "link_id_column": "_source_id",
         "ra_column": "ra",
@@ -480,7 +480,7 @@ class TestIndexedPathRegression:
         spec_root = lake / "spectra" / SURVEY
         spec_root.mkdir(parents=True, exist_ok=True)
         (spec_root / "spectrum_info.json").write_text(
-            json.dumps({"n_pix": N_PIX, "hats_order": NORDER, "wavelength_mode": "shared", "wcs": {}})
+            json.dumps({"n_pix": N_PIX, "healpix_order": NORDER, "wavelength_mode": "shared", "wcs": {}})
         )
         total_spectra = n_cat_tiles * n_rows_each
         _write_min_zarr(
@@ -491,7 +491,7 @@ class TestIndexedPathRegression:
         cat_root = lake / "catalogs" / SURVEY
         cat_root.mkdir(parents=True, exist_ok=True)
         (cat_root / "catalog_info.json").write_text(json.dumps({
-            "hats_order": NORDER,
+            "healpix_order": NORDER,
             "link_id_mode": "sequential",
             "link_id_column": "_source_id",
             "ra_column": "ra",

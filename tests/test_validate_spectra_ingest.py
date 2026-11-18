@@ -110,7 +110,7 @@ def test_narrower_tile_than_survey_n_pix_warns(tmp_path: Path) -> None:
     (survey_root / "spectrum_info.json").write_text(
         json.dumps({
             "n_pix": survey_n,
-            "hats_order": 5,
+            "healpix_order": 5,
             "wavelength_mode": "shared",
             "wcs": {},
         })

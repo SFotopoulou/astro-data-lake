@@ -5,7 +5,7 @@ per modality). This module persists a small JSON index per survey/modality at
 ``shared/registry/tile_index/<survey>.<modality>.json`` so that region overlap
 becomes an in-memory set intersection.
 
-The index records the modality's ``hats_order`` (needed to resolve a region to
+The index records the modality's ``healpix_order`` (needed to resolve a region to
 this modality's pixel order) and the sorted populated ``npix`` list. When an
 index is missing, callers may fall back to a one-off filesystem scan.
 """
@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Iterator
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.schema_registry import (
     CATALOGS_LAYER,
     MODALITY_CATALOG,
@@ -65,14 +66,14 @@ def tile_index_path(lake_root: Path | str, survey: str, modality: str) -> Path:
     return tile_index_dir(lake_root) / f"{survey}.{modality}.json"
 
 
-def _read_hats_order(survey_root: Path, modality: str) -> int | None:
+def _read_healpix_order(survey_root: Path, modality: str) -> int | None:
     info_name = _MODALITY_CONFIG[modality][1]
     info_path = survey_root / info_name
     if not info_path.is_file():
         return None
     try:
         with open(info_path) as fh:
-            return int(json.load(fh).get("hats_order"))
+            return read_healpix_order(json.load(fh))
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return None
 
@@ -96,7 +97,7 @@ def build_tile_index(lake_root: Path | str, survey: str, modality: str) -> dict:
     return {
         "survey": survey,
         "modality": modality,
-        "hats_order": _read_hats_order(survey_root, modality),
+        "healpix_order": _read_healpix_order(survey_root, modality),
         "n_tiles": len(npix),
         "npix": npix,
         "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -131,18 +132,18 @@ def survey_npix(
     *,
     allow_scan: bool = True,
 ) -> tuple[set[int], int | None]:
-    """Return ``(npix_set, hats_order)`` for a survey/modality.
+    """Return ``(npix_set, healpix_order)`` for a survey/modality.
 
     Prefers the persisted tile index; falls back to a one-off scan when the
     index is absent and ``allow_scan`` is True.
     """
     index = load_tile_index(lake_root, survey, modality)
     if index is not None:
-        return {int(p) for p in index.get("npix", [])}, index.get("hats_order")
+        return {int(p) for p in index.get("npix", [])}, read_healpix_order(index)
     if not allow_scan:
         return set(), None
     survey_root = survey_root_for(lake_root, survey, modality)
-    return set(_scan_npix(survey_root, modality)), _read_hats_order(survey_root, modality)
+    return set(_scan_npix(survey_root, modality)), _read_healpix_order(survey_root, modality)
 
 
 def iter_surveys_in_modality(lake_root: Path | str, modality: str) -> Iterator[str]:

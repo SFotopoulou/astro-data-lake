@@ -15,7 +15,7 @@ root        = "/abs/path/to/data"   # where catalogs/spectra/cutouts live
 created_utc = "2026-05-13T11:43:00Z"
 
 [partitioning]
-hats_order       = 5                # default HEALPix order (~3.36 deg²/tile at 5)
+healpix_order    = 5                # default HEALPix order (~3.36 deg²/tile at 5)
 chunks_per_shard = 512              # rows per spectrum Zarr shard
 
 [defaults]
@@ -43,8 +43,8 @@ the default shown above. A relative `root` is resolved against the directory
 that contains the config file. `schema_version` must be `"1"`; any other value
 is rejected.
 
-- `hats_order`: see
-  [Choosing HEALPix order](ingest/catalog.md#choosing-healpix-order---norder--hats_order)
+- `healpix_order`: see
+  [Choosing HEALPix order](ingest/catalog.md#choosing-healpix-order---healpix-order--healpix_order)
   in the catalog ingest guide.
 - `chunks_per_shard`: matches `data_lake.knobs.SPECTRA_CHUNKS_PER_SHARD`.
   Cutout ingest uses `CUTOUT_CHUNKS_PER_SHARD` (1024) instead.

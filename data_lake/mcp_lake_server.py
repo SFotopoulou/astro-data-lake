@@ -79,7 +79,7 @@ def _discovery_rows_to_dict(rows: list[DiscoveryRow], *, exact: bool) -> list[di
         out.append({
             "survey": r.survey,
             "modality": r.modality,
-            "hats_order": r.hats_order,
+            "healpix_order": r.healpix_order,
             "n_tiles_overlap": r.n_tiles_overlap,
             "rows": rows_display,
             "rows_display": (

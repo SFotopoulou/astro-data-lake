@@ -82,7 +82,7 @@ thread merges their rows into the HEALPix tiles, so overlapping tiles are combin
 
 ```bash
 dl-ingest-catalog-batch gaia_files.txt --survey GAIA_DR3_source \
-  --ra-col ra --dec-col dec --link-id-col source_id --norder 5 \
+  --ra-col ra --dec-col dec --link-id-col source_id --healpix-order 5 \
   --tile-mode append --on-duplicate-id skip --n-workers 8 --files-per-worker 4
 ```
 
@@ -142,7 +142,7 @@ The command exits with status 1 if any file failed.
 
 `dl-ingest-catalog-batch` and `dl-ingest-catalog-from-list` have a single writer that, for
 every source file, reads the existing tile, removes duplicates, concatenates the new rows
-and rewrites the tile. At `--norder 4` one HEALPix pixel (about 3.7°) is shared by hundreds
+and rewrites the tile. At `--healpix-order 4` one HEALPix pixel (about 3.7°) is shared by hundreds
 of bricks, so later files rewrite ever-larger tiles. That costs about 20 s per file, or
 about 2,000 CPU-hours for 400,000 files. Do not concatenate 400,000 FITS files into one
 large file first either: the merge step alone needs TB-scale memory.
@@ -167,7 +167,7 @@ succeed, reduce finalizes the catalog (see [Finalize](#parallel-catalog-batch-la
 ### Choosing norder
 
 Run `dl-recommend-catalog-norder` on a few sample files with `--norder-max 8`. For
-tractor-format bricks (Legacy Survey), `--norder 6` or `7` is usually best: smaller tiles
+tractor-format bricks (Legacy Survey), `--healpix-order 6` or `7` is usually best: smaller tiles
 mean smaller concatenations in reduce and more parallel reduce tasks. If an existing
 `norder=4` tree must be kept, ingest under a new survey name.
 
@@ -193,7 +193,7 @@ dl-ingest-from-shard --phase map \
   --survey Legacy_DR11_north \
   --shard-root $SCRATCH/shards \
   --ra-col ra --dec-col dec --link-id-col ls_id_dr11 \
-  --norder 7 --n-workers 8 \
+  --healpix-order 7 --n-workers 8 \
   --no-progress -q \
   --log-file "logs/map_${SLURM_ARRAY_TASK_ID}.log" \
   --failures-log "logs/map_${SLURM_ARRAY_TASK_ID}_failures.jsonl"
@@ -222,7 +222,7 @@ skipped through the checkpoint, so re-running a whole task is also safe.
 ```bash
 cat logs/map_*_failures.jsonl | jq -r .path | sort -u > retry.txt
 dl-ingest-from-shard --phase map --file-list retry.txt --survey Legacy_DR11_north \
-  --shard-root $SCRATCH/shards --link-id-col ls_id_dr11 --norder 7
+  --shard-root $SCRATCH/shards --link-id-col ls_id_dr11 --healpix-order 7
 ```
 
 Run reduce only after map has no failures. If any tile fails, reduce skips finalize; fix
@@ -240,9 +240,9 @@ Map the new files into a fresh `--shard-root` and reduce with the default
 `--tile-mode append`. Each touched tile is read once, merged with the new rows, and
 rewritten once. Map records `norder` and `link_id_mode` in
 `<shard-root>/<survey>/shard_info.json`. Reduce aborts before writing anything if those
-disagree with `--norder` or with the existing survey's `catalog_info.json`, and map aborts
-if a later task uses another `--link-id-col` or `--norder` on the same shard tree. Reduce
-takes `--norder` from `shard_info.json` when you omit it.
+disagree with `--healpix-order` or with the existing survey's `catalog_info.json`, and map aborts
+if a later task uses another `--link-id-col` or `--healpix-order` on the same shard tree. Reduce
+takes `--healpix-order` from `shard_info.json` when you omit it.
 
 ### Small local SSD
 
@@ -266,7 +266,7 @@ flight.
 | `--survey` | both | required | Survey name (also used as lake sub-directory) |
 | `--ra-col` / `--dec-col` | both | `ra` / `dec` | Sky coordinate columns |
 | `--link-id-col` | map | required | ID column or composite spec (e.g. `objid,brickname`) |
-| `--norder` | both | shard tree, then config `hats_order`, then 5 | HEALPix order; must match between map and reduce |
+| `--healpix-order` | both | shard tree, then config `healpix_order`, then 5 | HEALPix order; must match between map and reduce |
 | `--columns` | map | all | Comma-separated subset of columns to keep |
 | `--allow-incomplete-link-id` | map | off | Null `_source_id` for rows with missing composite parts |
 | `--fits-memmap` | map | `auto` | FITS read policy (`$DATA_LAKE_FITS_MEMMAP`) |
@@ -376,7 +376,7 @@ crossmatch at scale:
    one tile, and a single `dl-finalize-catalog` run adds it. `dl-validate-catalog-ingest`
    warns when `_metadata` is missing.
 3. **HEALPix order.** Use `dl-recommend-catalog-norder` on a sample file when unsure.
-   `--norder` must match `hats_order` in `catalog_info.json` for retrieval and crossmatch
+   `--healpix-order` must match `healpix_order` in `catalog_info.json` for retrieval and crossmatch
    tile paths.
 4. **Storage locality.** Keep the lake root on local SSD when possible; on NFS or Lustre use
    fewer parallel workers (see [FITS I/O tuning](#fits-io-tuning-memmap-and-workers)).

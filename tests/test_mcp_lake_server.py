@@ -57,7 +57,7 @@ def _write_catalog_tile(
         tile_dir / f"Npix={npix}.parquet",
     )
     info: dict = {
-        "hats_order": norder,
+        "healpix_order": norder,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -105,7 +105,7 @@ def product_lake(tmp_path: Path) -> Path:
             cols["z"] = pa.array(z, type=pa.float64())
         pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
         (lake / "catalogs" / survey / "catalog_info.json").write_text(json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,

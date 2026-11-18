@@ -28,7 +28,7 @@ def _write_catalog_survey(lake: Path, name: str) -> None:
     root.mkdir(parents=True)
     (root / "catalog_info.json").write_text(
         json.dumps({
-            "hats_order": NORDER,
+            "healpix_order": NORDER,
             "total_rows": 1,
             "total_columns": 3,
             "ra_column": "ra",
@@ -49,7 +49,7 @@ def _write_spectra_survey(lake: Path, name: str) -> None:
     (root / "spectrum_info.json").write_text(
         json.dumps({
             "n_pix": N_PIX,
-            "hats_order": NORDER,
+            "healpix_order": NORDER,
             "wavelength_mode": "shared",
             "wcs": {},
         })
@@ -82,7 +82,7 @@ def _write_cutout_survey(lake: Path, name: str) -> None:
     root.mkdir(parents=True)
     (root / "cutout_info.json").write_text(
         json.dumps({
-            "hats_order": NORDER,
+            "healpix_order": NORDER,
             "n_bands": 1,
             "height": 4,
             "width": 4,
@@ -113,7 +113,7 @@ class TestDiscoverSurveys:
         assert discover_catalog_spectra_link_surveys(lake) == [SURVEY_A, SURVEY_B]
         (lake / "catalogs" / "CAT_ONLY").mkdir()
         (lake / "catalogs" / "CAT_ONLY" / "catalog_info.json").write_text(
-            '{"hats_order": 5, "total_rows": 0, "total_columns": 1, '
+            '{"healpix_order": 5, "total_rows": 0, "total_columns": 1, '
             '"ra_column": "ra", "dec_column": "dec"}'
         )
         assert "CAT_ONLY" not in discover_catalog_spectra_link_surveys(lake)

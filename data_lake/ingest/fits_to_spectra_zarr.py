@@ -3891,7 +3891,7 @@ def _write_spectrum_info(
 ) -> None:
     info = {
         "survey_name": survey_name,
-        "hats_order": norder,
+        "healpix_order": norder,
         "n_pix": n_pix,
         "wavelength_mode": wavelength_mode,
         "flux_dtype": "float32",

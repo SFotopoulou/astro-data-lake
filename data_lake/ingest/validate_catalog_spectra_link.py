@@ -20,6 +20,7 @@ from hours to a few minutes (dominated by sequential Zarr shard reads).  Use
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 import random
@@ -34,6 +35,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.ingest.fits_to_parquet import (
     LAKE_JOIN_ID_COLUMN,
     healpix_dir,
@@ -137,17 +139,17 @@ def _resolve_norders(
 
     cat_info = catalog_root / "catalog_info.json"
     if cat_info.is_file():
-        cat_order = int(_load_json(cat_info).get("hats_order", cat_order or 5))
+        cat_order = int(read_healpix_order(_load_json(cat_info), cat_order or 5))
     spec_info = spectra_root / "spectrum_info.json"
     if spec_info.is_file():
-        spec_order = int(_load_json(spec_info).get("hats_order", spec_order or 5))
+        spec_order = int(read_healpix_order(_load_json(spec_info), spec_order or 5))
 
     cat_order = cat_order or 5
     spec_order = spec_order or 5
 
     if cat_order != spec_order:
         rep.warnings.append(
-            f"hats_order differs: catalog {cat_order} vs spectra {spec_order} "
+            f"healpix_order differs: catalog {cat_order} vs spectra {spec_order} "
             f"(OK when _spectrum_npix linkage is present)"
         )
     return cat_order, spec_order
@@ -1041,7 +1043,7 @@ def _report_validation(
     if st.n_unpatched_catalog > 0:
         click.echo(
             f"Hint: run dl-rebuild-catalog-indices --survey {survey_name!r} "
-            f"--kind spectrum (uses hats_order from catalog_info.json unless --norder is set)"
+            f"--kind spectrum (uses healpix_order from catalog_info.json unless --healpix-order is set)"
         )
 
     if rep.ok(strict=strict):
@@ -1090,7 +1092,7 @@ try:
     @click.argument("output_root", type=click.Path(path_type=Path), required=False)
     @config_option
     @validation_survey_options
-    @click.option("--norder", type=int, default=None, help="HEALPix order (default: info JSON).")
+    @healpix_order_option(type=int, default=None, help="HEALPix order (default: info JSON).")
     @click.option(
         "--link-id-col",
         default=None,

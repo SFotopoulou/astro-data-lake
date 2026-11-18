@@ -9,6 +9,7 @@ JSONL failure log.
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 import os
@@ -172,7 +173,7 @@ try:
     @click.option("--survey", "survey_name", required=True)
     @click.option("--ra-col", default="ra", show_default=True)
     @click.option("--dec-col", default="dec", show_default=True)
-    @click.option("--norder", default=None, type=int)
+    @healpix_order_option(default=None, type=int)
     @click.option(
         "--link-id-col",
         required=True,
@@ -294,7 +295,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="catalogs")
-        n = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
         default_ck = lake / "catalogs" / survey_name / ".ingest_checkpoint.json"
         col_list = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
 
@@ -391,7 +392,7 @@ try:
     )
     @click.option("--image-hdu", "image_hdu_index", default=0, type=int, show_default=True)
     @click.option("--band-axis", default=None, type=int)
-    @click.option("--norder", default=None, type=int)
+    @healpix_order_option(default=None, type=int)
     @click.option(
         "--band-names",
         default=None,
@@ -495,7 +496,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="cutouts")
-        n = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
         bn = [x.strip() for x in band_names.split(",")] if band_names else None
         default_ck = lake / "cutouts" / survey_name / ".ingest_checkpoint.json"
 
@@ -621,7 +622,7 @@ try:
     @click.option("--ra-col", default="RA", show_default=True)
     @click.option("--dec-col", default="DEC", show_default=True)
     @click.option("--link-id-col", default=None)
-    @click.option("--norder", default=None, type=int)
+    @healpix_order_option(default=None, type=int)
     @click.option(
         "--fmt",
         default=None,
@@ -779,7 +780,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="spectra")
-        n = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
         default_ck = lake / "spectra" / survey_name / ".ingest_checkpoint.json"
         resolved_wavelength = pick(
             wavelength_mode,

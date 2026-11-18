@@ -34,6 +34,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from astropy.table import Table
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.knobs import ZSTD_COMPACT, ZSTD_INGEST
 
 log = logging.getLogger(__name__)
@@ -2656,14 +2657,14 @@ def finalize_catalog_survey(
 ) -> bool:
     """Refresh ``catalog_info.json``, ``_metadata``, and ``schema_manifest.json`` from tiles.
 
-    Merges ``ra``/``dec``/``link_id_mode``/``hats_order`` from existing
+    Merges ``ra``/``dec``/``link_id_mode``/``healpix_order`` from existing
     ``catalog_info.json`` when present.  Returns False when there are no valid tiles.
     """
     catalog_root = Path(catalog_root)
     ra = ra_col
     dec = dec_col
     sid = link_id_mode if link_id_mode is not None else "sequential"
-    hats_order = norder
+    healpix_order = norder
     stream = streaming
     allow_incomplete = allow_incomplete_link_id
     info_path = catalog_root / "catalog_info.json"
@@ -2674,7 +2675,7 @@ def finalize_catalog_survey(
         dec = info.get("dec_column", dec)
         if link_id_mode is None:
             sid = info.get("link_id_mode", sid)
-        hats_order = int(info.get("hats_order", hats_order))
+        healpix_order = int(read_healpix_order(info, healpix_order))
         stream = bool(info.get("ingest_streaming", stream))
         if allow_incomplete is None:
             allow_incomplete = bool(info.get("allow_incomplete_link_id", False))
@@ -2686,7 +2687,7 @@ def finalize_catalog_survey(
     _finalize_catalog_writes(
         catalog_root,
         survey_name,
-        hats_order,
+        healpix_order,
         ra_col=ra,
         dec_col=dec,
         link_id_mode=sid,
@@ -2778,7 +2779,7 @@ def _finalize_catalog_writes(
             info = json.load(fh)
         info["total_rows"] = total_rows
         info["total_columns"] = n_cols
-        info["hats_order"] = norder
+        info["healpix_order"] = norder
         info["link_id_column"] = join_col
         info["link_id_mode"] = link_id_mode
         if native_col:
@@ -2828,7 +2829,7 @@ def _finalize_catalog_writes(
         write_catalog_schema_manifest(
             catalog_root,
             survey_name,
-            hats_order=norder,
+            healpix_order=norder,
             ra_column=ra_col,
             dec_column=dec_col,
             link_id_mode=link_id_mode,
@@ -3843,7 +3844,7 @@ def _write_catalog_info(
     info = {
         "catalog_name": survey_name,
         "catalog_type": "object",
-        "hats_order": norder,
+        "healpix_order": norder,
         "total_rows": n_rows,
         "total_columns": n_cols,
         "schema_version": "1",

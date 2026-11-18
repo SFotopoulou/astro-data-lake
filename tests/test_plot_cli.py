@@ -39,7 +39,7 @@ def _write_minimal_product_catalog(lake_root: Path, survey: str, source_id: int)
 
     info = {
         "survey": survey,
-        "hats_order": 5,
+        "healpix_order": 5,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_mode": "source_id",

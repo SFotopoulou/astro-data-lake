@@ -21,6 +21,7 @@ are handled correctly without any manual configuration.
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -32,6 +33,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.ingest.fits_to_parquet import (
     LAKE_JOIN_ID_COLUMN,
     _ZSTD_LEVEL,
@@ -74,12 +76,11 @@ def _resolve_catalog_norder(
     if info_path.is_file():
         with open(info_path) as fh:
             info = json.load(fh)
-        if "hats_order" in info:
-            cat_order = int(info["hats_order"])
+        cat_order = read_healpix_order(info)
 
     if cat_order is None:
         log.warning(
-            "catalog_info.json missing hats_order under %s; defaulting to norder=5",
+            "catalog_info.json missing healpix_order under %s; defaulting to norder=5",
             catalog_root,
         )
         return 5
@@ -89,10 +90,10 @@ def _resolve_catalog_norder(
         if mod_info_path.is_file():
             with open(mod_info_path) as fh:
                 mod_info = json.load(fh)
-            mod_order = mod_info.get("hats_order")
+            mod_order = read_healpix_order(mod_info)
             if mod_order is not None and int(mod_order) != cat_order:
                 log.warning(
-                    "hats_order mismatch: catalog %d vs %s %d (using catalog order)",
+                    "healpix_order mismatch: catalog %d vs %s %d (using catalog order)",
                     cat_order,
                     mod_info_path.name,
                     int(mod_order),
@@ -440,7 +441,7 @@ def update_index_column_from_zarr_tiles(
         catalog_root, zarr_root, kind=kind, override=norder,
     )
     log.info(
-        "Rebuilding %s/%s using catalog hats_order=%d (id_col=%r)",
+        "Rebuilding %s/%s using catalog healpix_order=%d (id_col=%r)",
         index_col, npix_col, resolved_cat_norder, sid_col,
     )
 
@@ -722,11 +723,9 @@ try:
         show_default=True,
         help="Which index column to rebuild.",
     )
-    @click.option(
-        "--norder",
-        default=None,
+    @healpix_order_option(default=None,
         type=int,
-        help="HEALPix order for catalog tile paths (default: hats_order from catalog_info.json).",
+        help="HEALPix order for catalog tile paths (default: healpix_order from catalog_info.json).",
     )
     @click.option(
         "--link-id-col",

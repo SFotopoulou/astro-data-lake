@@ -17,6 +17,8 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
+
 log = logging.getLogger(__name__)
 
 MANIFEST_FILENAME = "schema_manifest.json"
@@ -217,7 +219,7 @@ def build_catalog_schema_manifest(
     catalog_root: Path | str,
     survey_name: str,
     *,
-    hats_order: int,
+    healpix_order: int,
     ra_column: str,
     dec_column: str,
     link_id_mode: str,
@@ -267,7 +269,7 @@ def build_catalog_schema_manifest(
         "manifest_version": MANIFEST_VERSION,
         "survey": survey_name,
         "modality": "catalog",
-        "hats_order": hats_order,
+        "healpix_order": healpix_order,
         "link_id_column": link_id_column,
         "ra_column": ra_column,
         "dec_column": dec_column,
@@ -286,7 +288,7 @@ def write_catalog_schema_manifest(
     catalog_root: Path | str,
     survey_name: str,
     *,
-    hats_order: int,
+    healpix_order: int,
     ra_column: str,
     dec_column: str,
     link_id_mode: str,
@@ -298,7 +300,7 @@ def write_catalog_schema_manifest(
     manifest = build_catalog_schema_manifest(
         catalog_root,
         survey_name,
-        hats_order=hats_order,
+        healpix_order=healpix_order,
         ra_column=ra_column,
         dec_column=dec_column,
         link_id_mode=link_id_mode,
@@ -501,7 +503,7 @@ def build_spectra_schema_manifest(spectra_root: Path | str, survey_name: str) ->
         "manifest_version": MANIFEST_VERSION,
         "survey": survey_name,
         "modality": MODALITY_SPECTRA,
-        "hats_order": info.get("hats_order"),
+        "healpix_order": read_healpix_order(info),
         "link_id_column": LAKE_JOIN_ID_COLUMN,
         "ra_column": None,
         "dec_column": None,
@@ -586,7 +588,7 @@ def build_cutout_schema_manifest(cutout_root: Path | str, survey_name: str) -> d
         "manifest_version": MANIFEST_VERSION,
         "survey": survey_name,
         "modality": MODALITY_CUTOUT,
-        "hats_order": info.get("hats_order"),
+        "healpix_order": read_healpix_order(info),
         "link_id_column": LAKE_JOIN_ID_COLUMN,
         "ra_column": None,
         "dec_column": None,
@@ -624,7 +626,7 @@ def rebuild_schema_manifest(
         write_catalog_schema_manifest(
             root,
             survey,
-            hats_order=int(info.get("hats_order", 5)),
+            healpix_order=int(read_healpix_order(info, 5)),
             ra_column=str(info.get("ra_column", "ra")),
             dec_column=str(info.get("dec_column", "dec")),
             link_id_mode=str(info.get("link_id_mode", "sequential")),
@@ -670,7 +672,7 @@ def format_manifest_table(
     modality = manifest.get("modality", MODALITY_CATALOG)
     lines = [
         f"Survey: {manifest.get('survey')}  modality: {modality}",
-        f"HEALPix order: {manifest.get('hats_order')}  columns: {manifest.get('n_columns')}",
+        f"HEALPix order: {read_healpix_order(manifest)}  columns: {manifest.get('n_columns')}",
     ]
     if modality == MODALITY_CATALOG:
         link_id_mode = manifest.get("link_id_mode") or ""

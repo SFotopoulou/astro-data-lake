@@ -16,6 +16,7 @@ there is **no** separate ``index.parquet`` sidecar on disk.
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 import time
@@ -413,7 +414,7 @@ def _write_cutout_info(
 ) -> None:
     info = {
         "survey_name": survey_name,
-        "hats_order": norder,
+        "healpix_order": norder,
         "n_bands": n_bands,
         "height": height,
         "width": width,
@@ -478,7 +479,7 @@ try:
     )
     @click.option("--image-hdu", "image_hdu_index", default=0, type=int, show_default=True)
     @click.option("--band-axis", default=None, type=int)
-    @click.option("--norder", default=None, type=int,
+    @healpix_order_option(default=None, type=int,
                   help="HEALPix order (overrides config; default 5).")
     @click.option(
         "--band-names",
@@ -544,7 +545,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         resolved_output = require_output_root(output_root, cfg, kind="cutouts")
-        resolved_norder = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+        resolved_norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
 
         bn = [x.strip() for x in band_names.split(",")] if band_names else None
 

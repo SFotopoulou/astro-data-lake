@@ -10,6 +10,7 @@ Console entry point: ``dl-repair-catalog-metadata``.
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 from dataclasses import dataclass, field
@@ -17,6 +18,7 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.ingest.fits_to_parquet import (
     LAKE_JOIN_ID_COLUMN,
     _iter_valid_parquet_tiles,
@@ -156,7 +158,7 @@ def repair_catalog_metadata(
     """Rebuild metadata sidecars for one ingested catalog from its Parquet tiles."""
     catalog_root = Path(catalog_root)
     before = _read_catalog_info(catalog_root)
-    hats_order = int(norder if norder is not None else before.get("hats_order", 5))
+    healpix_order = int(norder if norder is not None else read_healpix_order(before, 5))
     ra = ra_col or str(before.get("ra_column", "ra"))
     dec = dec_col or str(before.get("dec_column", "dec"))
     n_rebuilt = 0
@@ -180,7 +182,7 @@ def repair_catalog_metadata(
         ok = finalize_catalog_survey(
             catalog_root,
             survey_name,
-            hats_order,
+            healpix_order,
             ra_col=ra,
             dec_col=dec,
             link_id_mode=rebuilt_mode,
@@ -385,9 +387,7 @@ try:
         is_flag=True,
         help="Repair every catalog under catalogs/.",
     )
-    @click.option(
-        "--norder",
-        default=None,
+    @healpix_order_option(default=None,
         type=int,
         help="HEALPix order override when catalog_info.json is missing.",
     )

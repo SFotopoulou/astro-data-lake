@@ -125,5 +125,5 @@ def extract_tile_workers(*, force_serial: bool = False) -> int:
 CROSSMATCH_DENSE_TILE_WARN: int = 1_500_000
 """Warn when a survey-A tile has at least this many sources."""
 
-DEFAULT_HATS_ORDER: int = 5
+DEFAULT_HEALPIX_ORDER: int = 5
 """Fallback HEALPix order when catalog/spectrum info is missing."""

@@ -54,7 +54,7 @@ def test_init_lake_writes_valid_loadable_config(tmp_path: Path) -> None:
     assert cfg.lake.name == "lake_alpha"
     assert cfg.lake.description == "hello"
     assert cfg.lake.root == (deployment / "data").resolve()
-    assert cfg.partitioning.hats_order == 7
+    assert cfg.partitioning.healpix_order == 7
     assert cfg.defaults.with_resolution is True
     require_ingest_permission(cfg, _TEST_TOKEN)
 
@@ -114,7 +114,7 @@ def test_cli_creates_deployment(tmp_path: Path) -> None:
 
     cfg = LakeConfig.load(tmp_path / "my_lake" / "lake_config.toml")
     assert cfg.lake.name == "my_lake"
-    assert cfg.partitioning.hats_order == 6
+    assert cfg.partitioning.healpix_order == 6
 
 
 def test_cli_requires_ingest_token(tmp_path: Path) -> None:

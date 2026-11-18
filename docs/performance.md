@@ -26,7 +26,7 @@ environment variable, or by editing the module.
 | `MAX_PARALLEL_WORKERS_CAP` | 64 | Homogenize / extract worker-pool ceiling |
 | `EXTRACT_TILE_WORKERS` | 4 | Parallel tile workers for `dl-extract-catalog --output-dir` and multi-tile spectra/cutout extracts |
 | `CROSSMATCH_DENSE_TILE_WARN` | 50 000 | `dl-crossmatch` warns when one survey-A tile has more sources than this |
-| `DEFAULT_HATS_ORDER` | 5 | Fallback HEALPix order when catalog/spectrum info lacks one |
+| `DEFAULT_HEALPIX_ORDER` | 5 | Fallback HEALPix order when catalog/spectrum info lacks one |
 
 Environment variables read at run time:
 
@@ -124,7 +124,7 @@ share its DuckDB connection.
 IDs that are not found are reported in one warning at construction; accessing
 such a sample raises `KeyError`, so drop them first (`ds.tile_npix < 0` marks
 them). Both datasets default to `norder=5`; pass `norder=` if the survey uses a
-different `hats_order`.
+different `healpix_order`.
 
 `TileSequentialSampler` (for `CutoutDataset` or `SpectrumDataset`) yields
 samples grouped by tile, shuffling the tile order by default, so consecutive

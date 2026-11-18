@@ -146,7 +146,7 @@ Every tool that reads the lake finds it through `DATA_LAKE_CONFIG`. Pass `lake_r
 |------|---------|
 | `validate_survey` | Run ingest validation on a sample of tiles. Arguments: `survey`, `modality` (`catalog`, `spectra`, `cutout`), `max_tiles` (default 5). |
 | `lake_health` | Registry entry counts by kind and modality, live surveys that are not finalized, surveys missing a tile index, and a hint when the registry is more than 24 hours old. |
-| `recommend_norder` | Suggest `--norder` for a catalog ingest from sample files (`paths` or `file_list`; `ra_col`/`dec_col` default to `ra`/`dec`). |
+| `recommend_norder` | Suggest `--healpix-order` for a catalog ingest from sample files (`paths` or `file_list`; `ra_col`/`dec_col` default to `ra`/`dec`). |
 | `estimate_operation_cost` | Order-of-magnitude runtime for `operation` = `crossmatch`, `gather` or `ingest` over a region, based on the number of overlapping catalog tiles. |
 | `recommend_ingest` | Recommend a `dl-*` ingest command and Slurm script for a survey. |
 

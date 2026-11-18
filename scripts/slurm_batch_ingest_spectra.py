@@ -49,6 +49,6 @@ exec dl-ingest-spectra-batch-desi-coadds \
   --n-workers "$N_WORKERS" \
   --max-in-flight $((N_WORKERS + 2)) \
   --max-open-tiles 64 \
-  --norder 5 \
+  --healpix-order 5 \
   --on-duplicate skip \
   --update-catalog

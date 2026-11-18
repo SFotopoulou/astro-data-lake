@@ -13,6 +13,7 @@ discovery).
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import logging
 from pathlib import Path
 
@@ -63,7 +64,7 @@ def _region_from_args(
         return area.region, area
     if npix is not None:
         if norder is None:
-            raise ValueError("--npix requires --norder (the source HEALPix order)")
+            raise ValueError("--npix requires --healpix-order (the source HEALPix order)")
         return Region.from_npix(parse_npix_arg(npix), norder), None
     if cone is not None:
         if radius_arcsec is None:
@@ -87,7 +88,7 @@ def _format_rows(rows: list[DiscoveryRow], *, exact: bool) -> str:
         else:
             rows_str = round_count(r.est_rows)
         lines.append(
-            f"{r.survey:<24} {r.modality:<10} {str(r.hats_order):>5} "
+            f"{r.survey:<24} {r.modality:<10} {str(r.healpix_order):>5} "
             f"{r.n_tiles_overlap:>8,} {rows_str:>14}"
         )
     return "\n".join(lines)
@@ -110,8 +111,8 @@ try:
     @click.argument("output_root", type=click.Path(path_type=Path), required=False)
     @config_option
     @click.option("--from-area", default=None, help="Use a saved area's region (areas/<id>.json).")
-    @click.option("--npix", default=None, help="Comma-separated npix and a-b ranges (needs --norder).")
-    @click.option("--norder", type=int, default=None, help="Source HEALPix order for --npix.")
+    @click.option("--npix", default=None, help="Comma-separated npix and a-b ranges (needs --healpix-order).")
+    @healpix_order_option(type=int, default=None, help="Source HEALPix order for --npix.")
     @click.option("--cone", nargs=2, type=float, default=None,
                   help="Cone centre: RA DEC (deg); needs --radius-arcsec.")
     @click.option("--radius-arcsec", type=float, default=None, help="Cone radius in arcsec.")
@@ -171,7 +172,7 @@ try:
             dl-region --from-area Wide_Field_47
             dl-region --cone 150.1 2.2 --radius-arcsec 600 --modalities catalog,spectra
             dl-region --from-area Wide_Field_47 --modalities catalog,spectra,crossmatch --count
-            dl-region --npix 1002198,1002199 --norder 5 --save-as Wide_Field_47
+            dl-region --npix 1002198,1002199 --healpix-order 5 --save-as Wide_Field_47
             dl-region --bbox 149.5 150.5 1.8 2.6 --count
             dl-region --cone 150.1 2.2 --radius-arcsec 600 \\
                 --export-moc /scratch/cone.moc.fits --moc-order 8

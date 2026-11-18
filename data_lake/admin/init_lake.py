@@ -10,7 +10,7 @@ Example
 -------
     dl-init mylake ~/projects \
         --root ~/projects/mylake/data \
-        --norder 5 \
+        --healpix-order 5 \
         --description "Personal multi-survey lake"
 
 Creates::
@@ -27,6 +27,7 @@ Creates::
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import datetime as _dt
 from pathlib import Path
 
@@ -50,7 +51,7 @@ from ..config import (
     _Partitioning,
     _Paths,
 )
-from ..knobs import DEFAULT_CHUNKS_PER_SHARD, DEFAULT_HATS_ORDER
+from ..knobs import DEFAULT_CHUNKS_PER_SHARD, DEFAULT_HEALPIX_ORDER
 
 # ---------------------------------------------------------------------------
 # Templates (kept tiny on purpose – users will customise)
@@ -130,7 +131,7 @@ def init_lake(
     *,
     root: Path | None = None,
     description: str = "",
-    norder: int = DEFAULT_HATS_ORDER,
+    norder: int = DEFAULT_HEALPIX_ORDER,
     chunks_per_shard: int = DEFAULT_CHUNKS_PER_SHARD,
     wavelength_mode: str = "shared",
     mask_dtype: str = "uint8",
@@ -208,7 +209,7 @@ def init_lake(
             created_utc=_dt.datetime.now(tz=_dt.timezone.utc)
                 .strftime("%Y-%m-%dT%H:%M:%SZ"),
         ),
-        partitioning=_Partitioning(hats_order=norder, chunks_per_shard=chunks_per_shard),
+        partitioning=_Partitioning(healpix_order=norder, chunks_per_shard=chunks_per_shard),
         defaults=_Defaults(
             wavelength_mode=wavelength_mode,
             mask_dtype=mask_dtype,
@@ -255,7 +256,7 @@ def init_lake(
     default="",
     help="Free-text description of this lake.",
 )
-@click.option("--norder", default=DEFAULT_HATS_ORDER, show_default=True, type=int,
+@healpix_order_option(default=DEFAULT_HEALPIX_ORDER, show_default=True, type=int,
               help="Default HEALPix order for HATS partitioning.")
 @click.option("--chunks-per-shard", default=DEFAULT_CHUNKS_PER_SHARD, show_default=True, type=int,
               help="Rows per Zarr shard.")

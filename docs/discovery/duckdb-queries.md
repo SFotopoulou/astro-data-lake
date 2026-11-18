@@ -3,7 +3,7 @@
 Catalog tiles are plain Parquet, so you can query them with DuckDB from Python or SQL. Use this
 page when you have a list of object IDs and want columns from one or more survey catalogs.
 Retrieval is keyed on native object IDs, not on HEALPix pixels, so it works even when partner
-catalogs use different `--norder` values (crossmatching itself is by sky position).
+catalogs use different `--healpix-order` values (crossmatching itself is by sky position).
 
 ## Quick start: one survey, many IDs
 
@@ -23,7 +23,7 @@ IDs are values of the catalog's `link_id_column`. Duplicates are ignored.
 
 `CatalogAccessor(lake_root, survey, norder=None, *, metadata_cache=None)` opens an in-memory
 DuckDB connection with a `catalog` view over `Norder=<norder>/**/*.parquet`. `norder` defaults
-to `hats_order` from `catalog_info.json`.
+to `healpix_order` from `catalog_info.json`.
 
 | Method | Returns | How IDs are passed |
 |--------|---------|--------------------|

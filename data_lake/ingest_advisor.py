@@ -184,7 +184,7 @@ def _catalog_command(
         cmd = (
             f"# Convert to Parquet or row-normal FITS first, then:\n"
             f"dl-ingest-catalog-batch {list_arg} --survey {survey} "
-            f"--ra-col ra --dec-col dec --norder 5 --tile-mode append "
+            f"--ra-col ra --dec-col dec --healpix-order 5 --tile-mode append "
             f"--on-duplicate-id skip --n-workers 4{defer}"
         )
         return cmd, rationale
@@ -198,7 +198,7 @@ def _catalog_command(
     )
     cmd = (
         f"dl-ingest-catalog-batch {list_arg} --survey {survey} "
-        f"--ra-col ra --dec-col dec --norder 5 --tile-mode append "
+        f"--ra-col ra --dec-col dec --healpix-order 5 --tile-mode append "
         f"--on-duplicate-id skip --n-workers 8 --files-per-worker 4"
         f"{defer}"
     )
@@ -269,7 +269,7 @@ def _shard_commands(
     map_cmd = (
         f"dl-ingest-from-shard --phase map --file-list {list_arg} "
         f"--survey {survey} --shard-root {shard_root} "
-        f'--ra-col ra --dec-col dec --link-id-col "$LINK_ID_COL" --norder {norder} '
+        f'--ra-col ra --dec-col dec --link-id-col "$LINK_ID_COL" --healpix-order {norder} '
         f"--n-workers 8 --no-progress"
     )
     reduce_cmd = (
@@ -304,7 +304,7 @@ def _shard_catalog_recommendation(
         "parts in parallel across nodes; reduce concatenates each tile once.",
         "Scratch for --shard-root ≈ final survey size; keep it on large storage "
         "and pass --staging-dir for a small local SSD.",
-        "Always pass the same --norder to every map task; reduce reads it from "
+        "Always pass the same --healpix-order to every map task; reduce reads it from "
         "shard_info.json.",
     ]
     if n_files > 1:
@@ -407,7 +407,7 @@ def _spectra_command(
         rationale.append("2dF 1-D spectra: dl-ingest-spectra-from-list --fmt 2df.")
         cmd = (
             f"dl-ingest-spectra-from-list {list_arg} --survey {survey} "
-            f"--fmt 2df --norder 5 --wavelength-mode shared --on-duplicate skip "
+            f"--fmt 2df --healpix-order 5 --wavelength-mode shared --on-duplicate skip "
             f"--on-length-mismatch pad --checkpoint checkpoint.json "
             f"--failures-log failures.jsonl --update-catalog"
         )
@@ -417,7 +417,7 @@ def _spectra_command(
         rationale.append("6dF VR spectra: dl-ingest-spectra-from-list --fmt 6df.")
         cmd = (
             f"dl-ingest-spectra-from-list {list_arg} --survey {survey} "
-            f"--fmt 6df --norder 5 --wavelength-mode shared --on-duplicate skip "
+            f"--fmt 6df --healpix-order 5 --wavelength-mode shared --on-duplicate skip "
             f"--checkpoint checkpoint.json --failures-log failures.jsonl --update-catalog"
         )
         return cmd, rationale, _KNOWN_SLURM_SCRIPTS["6df"]
@@ -444,7 +444,7 @@ def _spectra_command(
         )
         cmd = (
             f"dl-ingest-spectra-from-list {list_arg} --survey {survey} "
-            f"--norder 5 --on-duplicate skip --on-length-mismatch pad "
+            f"--healpix-order 5 --on-duplicate skip --on-length-mismatch pad "
             f"--n-workers 4 --checkpoint checkpoint.json --failures-log failures.jsonl "
             f"--update-catalog"
         )

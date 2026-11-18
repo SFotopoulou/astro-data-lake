@@ -42,7 +42,7 @@ def test_recommend_dense_catalog(tmp_path: Path) -> None:
     assert 1_000 <= cand.est_rows_per_tile <= 200_000
     assert rec.total_rows == n
     assert rec.sample_rows == n
-    assert "Recommended --norder:" in format_recommendation_report(rec)
+    assert "Recommended --healpix-order:" in format_recommendation_report(rec)
 
 
 def test_sparse_allsky_lower_norder_than_dense_patch(tmp_path: Path) -> None:

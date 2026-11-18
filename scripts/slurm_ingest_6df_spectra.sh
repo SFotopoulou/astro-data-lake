@@ -61,7 +61,7 @@ dl-ingest-spectra-from-list \
   --config "${DATA_LAKE_CONFIG}" \
   --survey "${SURVEY}" \
   --fmt 6df \
-  --norder "${NORDER}" \
+  --healpix-order "${NORDER}" \
   --wavelength-mode shared \
   --on-duplicate skip \
   --on-length-mismatch pad \

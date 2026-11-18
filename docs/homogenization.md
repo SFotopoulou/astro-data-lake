@@ -58,7 +58,7 @@ You must give exactly one region selector. The exception is `--from-product` in 
 | `--from-area ID` | Use the area's region, and its `homogenize` block if present. |
 | `--cone RA DEC` + `--radius-arcsec R` | Cone selection (degrees, arcsec). |
 | `--bbox RA_MIN RA_MAX DEC_MIN DEC_MAX` | Box selection (four values). |
-| `--npix LIST` + `--norder N` | Explicit HEALPix pixels (comma-separated values and `a-b` ranges). |
+| `--npix LIST` + `--healpix-order N` | Explicit HEALPix pixels (comma-separated values and `a-b` ranges). |
 | `--ids FILE` | Select sources from an ID file. |
 | `--where SQL` | SQL predicate on the base catalog. |
 | `--transform ID` | Transform pack. The default is `phot_ab_v1` (catalog), `spec_observed_v1` (spectra) or `cutout_njy_v1` (cutout). |

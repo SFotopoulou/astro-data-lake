@@ -24,7 +24,7 @@ def _write_catalog_tile(lake: Path, survey: str, rows: list[dict], *, norder: in
     out_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, out_dir / f"Npix={npix}.parquet")
     (cat_root / "catalog_info.json").write_text(
-        json.dumps({"hats_order": norder, "link_id_column": "_source_id"})
+        json.dumps({"healpix_order": norder, "link_id_column": "_source_id"})
     )
 
 

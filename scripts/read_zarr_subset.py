@@ -280,7 +280,7 @@ def resolve_id_columns_from_lake(
     if not id_cols:
         return [], {}
 
-    norder = int(catalog_info.get("hats_order", 5))
+    norder = int(catalog_info.get("healpix_order", 5))
     print(f"  Resolving {id_cols} from lake catalog {cat_root.name} "
           f"(norder={norder}; legacy extract without embedded IDs) …",
           file=sys.stderr)

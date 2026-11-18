@@ -110,7 +110,7 @@ class TestRepairCatalogMetadataNormalizeFlag:
         catalog_root = tmp_path / "catalogs" / "ALLWISE"
         _write_padded_tile(catalog_root, norder, npix)
         catalog_root.joinpath("catalog_info.json").write_text(json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",

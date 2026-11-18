@@ -16,6 +16,7 @@ from typing import Any, Iterator
 
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.ingest.checkpoint_sidecars import validate_ingest_sidecars
 from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN
 
@@ -51,9 +52,11 @@ def validate_catalog_info(catalog_root: Path, rep: ValidationReport) -> dict[str
     except Exception as exc:
         rep.errors.append(f"Invalid JSON in {info_path}: {exc}")
         return None
-    for key in ("hats_order", "total_rows", "total_columns", "ra_column", "dec_column"):
+    for key in ("total_rows", "total_columns", "ra_column", "dec_column"):
         if key not in info:
             rep.errors.append(f"catalog_info.json missing key {key!r}")
+    if read_healpix_order(info) is None:
+        rep.errors.append("catalog_info.json missing key 'healpix_order'")
     if rep.errors:
         return None
     return info
@@ -76,7 +79,7 @@ def validate_catalog_tile(tile_path: Path, info: dict[str, Any], rep: Validation
         rep.errors.append(
             f"{tile_path}: schema missing join column {LAKE_JOIN_ID_COLUMN!r}"
         )
-    hp = f"_healpix_norder{int(info['hats_order'])}"
+    hp = f"_healpix_norder{int(read_healpix_order(info))}"
     if hp not in names:
         rep.warnings.append(f"{tile_path}: missing expected HEALPix column {hp!r}")
 

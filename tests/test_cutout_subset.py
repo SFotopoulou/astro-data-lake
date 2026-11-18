@@ -271,7 +271,7 @@ def _write_catalog_with_link_ids(lake: Path, sources: list[tuple]) -> None:
             tile_dir / f"Npix={npix}.parquet",
         )
     (cat_root / "catalog_info.json").write_text(json.dumps({
-        "hats_order": NORDER,
+        "healpix_order": NORDER,
         "link_id_mode": "composite:TARGETID,SURVEY,PROGRAM",
         "link_id_column": "_source_id",
         "native_id_column": "TARGETID,SURVEY,PROGRAM",

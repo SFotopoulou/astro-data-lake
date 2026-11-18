@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 from pathlib import Path
 
@@ -161,9 +162,8 @@ _cli_b_cache_mib = PARTNER_TILE_CACHE_MAX_BYTES // (1024 * 1024)
     type=float,
     help="Maximum match radius in arcseconds (nearest neighbour within radius).",
 )
-@click.option(
-    "--norder",
-    "norder_a",
+@healpix_order_option(
+    dest="norder_a",
     type=int,
     default=None,
     help="Survey-A HEALPix order (default: catalog_info.json).",

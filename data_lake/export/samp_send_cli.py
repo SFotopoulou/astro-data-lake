@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import logging
 import tempfile
 from pathlib import Path
@@ -122,7 +123,7 @@ try:
     @click.option("--radius-arcsec", type=float, default=None)
     @click.option("--bbox", nargs=4, type=float, default=None)
     @click.option("--npix", default=None)
-    @click.option("--norder", type=int, default=None)
+    @healpix_order_option(type=int, default=None)
     @click.option(
         "--moc", "moc_path", type=click.Path(path_type=Path), default=None,
     )

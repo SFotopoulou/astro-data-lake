@@ -1,5 +1,5 @@
 """
-recommend_norder – quick pre-ingest scan to suggest HEALPix ``--norder``.
+recommend_norder – quick pre-ingest scan to suggest HEALPix ``--healpix-order``.
 
 Reads only sky columns (and FITS headers for row counts) from a sample of catalog
 files, estimates mean rows per occupied HEALPix pixel at candidate orders, and
@@ -163,7 +163,7 @@ def recommend_catalog_norder(
     fits_hdu: str | None = None,
 ) -> NorderRecommendation:
     """
-    Scan catalog FITS files and recommend ``--norder`` for ingest.
+    Scan catalog FITS files and recommend ``--healpix-order`` for ingest.
 
     Uses a random subsample of RA/Dec (``sample_rows`` cap) and total row counts
     from FITS headers to estimate mean rows per occupied HEALPix pixel.
@@ -319,7 +319,7 @@ def _pick_norder(
 
 def format_recommendation_report(rec: NorderRecommendation) -> str:
     lines = [
-        f"Recommended --norder: {rec.recommended}",
+        f"Recommended --healpix-order: {rec.recommended}",
         f"Total rows (headers): {rec.total_rows:,}  |  Sampled RA/Dec: {rec.sample_rows:,}  "
         f"|  Files scanned: {rec.n_files}",
         f"Columns: {rec.ra_col!r}, {rec.dec_col!r}  |  "
@@ -393,7 +393,7 @@ try:
         quiet: bool,
         verbose: bool,
     ) -> None:
-        """Quick FITS scan: suggest ``--norder`` before ``dl-ingest-catalog*``."""
+        """Quick FITS scan: suggest ``--healpix-order`` before ``dl-ingest-catalog*``."""
         import logging as _logging
         from data_lake.cli_utils import configure_cli_logging, validate_quiet_verbose
         validate_quiet_verbose(quiet, verbose)

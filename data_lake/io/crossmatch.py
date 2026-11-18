@@ -56,6 +56,7 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.io.catalog import CatalogAccessor, ReturnFormat
 from data_lake.io.crossmatch_matchers import (
     MatchBackend,
@@ -1103,7 +1104,7 @@ def describe_crossmatch_tree(
         "match_col_b": match_col_b if match_mode == "column" else info.get("match_col_b"),
         "match_backend": info.get("match_backend"),
         "gpu_id": info.get("gpu_id"),
-        "hats_order": info.get("hats_order"),
+        "healpix_order": read_healpix_order(info),
         "survey_a_norder": info.get("survey_a_norder"),
         "survey_b_norder": info.get("survey_b_norder"),
         "survey_a_ra_column": info.get("survey_a_ra_column"),
@@ -1278,7 +1279,7 @@ def format_crossmatch_report(desc: dict[str, Any]) -> str:
                 f"  sky_b:             {desc.get('survey_b_ra_column')}, "
                 f"{desc.get('survey_b_dec_column')}"
             )
-    lines.append(f"  hats_order (A):    {desc.get('hats_order')}")
+    lines.append(f"  healpix_order (A): {desc.get('healpix_order')}")
     if desc.get("survey_a_norder") is not None:
         lines.append(f"  survey_a_norder:   {desc.get('survey_a_norder')}")
     if desc.get("survey_b_norder") is not None:
@@ -1313,7 +1314,7 @@ def _sky_columns_from_catalog_info(catalog_root: Path) -> tuple[str, str, int]:
     return (
         str(info.get("ra_column", "ra")),
         str(info.get("dec_column", "dec")),
-        int(info.get("hats_order", 5)),
+        int(read_healpix_order(info, 5)),
     )
 
 
@@ -1656,7 +1657,7 @@ def _crossmatch_one_tile(
     if ra_a.size > CROSSMATCH_DENSE_TILE_WARN:
         log.warning(
             "Survey-A tile Npix=%d has %d sources; matcher may be slow. "
-            "Consider coarser --norder or pre-filtering.",
+            "Consider coarser --healpix-order or pre-filtering.",
             npix_a,
             ra_a.size,
         )
@@ -1983,7 +1984,7 @@ def _resolve_crossmatch_norder(out_root: Path, norder: int | None) -> int:
     info_path = out_root / CROSSMATCH_INFO_FILENAME
     if info_path.is_file():
         with open(info_path) as fh:
-            return int(json.load(fh).get("hats_order", 5))
+            return int(read_healpix_order(json.load(fh), 5))
     for path in sorted(out_root.glob("Norder=*")):
         if path.is_dir() and path.name.startswith("Norder="):
             return int(path.name.split("=", 1)[1])
@@ -2571,7 +2572,7 @@ def _write_xm_info(
         "match_radius_arcsec": radius_arcsec,
         "match_backend": match_backend,
         "gpu_id": gpu_id if match_backend == "rapids" else None,
-        "hats_order": settings.survey_a.norder,
+        "healpix_order": settings.survey_a.norder,
         "survey_a_norder": settings.survey_a.norder,
         "survey_b_norder": settings.survey_b.norder,
         "survey_a_ra_column": settings.survey_a.ra_col,
@@ -2985,7 +2986,7 @@ def _write_column_xm_info(
         "match_col_a": match_col_a,
         "match_col_b": match_col_b,
         "match_radius_arcsec": None,
-        "hats_order": norder_a,
+        "healpix_order": norder_a,
         "survey_a_norder": norder_a,
         "survey_b_norder": norder_b,
         "total_rows": int(tree_rows),
@@ -3342,7 +3343,7 @@ def _base_catalog_norder(lake_root: Path, survey: str) -> int:
     if info_path.is_file():
         try:
             with open(info_path) as fh:
-                return int(json.load(fh).get("hats_order", 5))
+                return int(read_healpix_order(json.load(fh), 5))
         except (OSError, json.JSONDecodeError, TypeError, ValueError):
             pass
     return 5
@@ -3788,7 +3789,7 @@ class CrossmatchAccessor:
             with open(info_path) as fh:
                 self._info = json.load(fh)
 
-        self.norder: int = norder if norder is not None else int(self._info.get("hats_order", 5))
+        self.norder: int = norder if norder is not None else int(read_healpix_order(self._info, 5))
         self._con = connect_duckdb(":memory:")
         glob = str(self._xm_root / f"Norder={self.norder}" / "**" / "*.parquet")
         self._con.execute(

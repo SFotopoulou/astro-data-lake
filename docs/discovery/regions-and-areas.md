@@ -45,12 +45,12 @@ dl-region /data/lake --from-area Wide_Field_47
 
 # Ad-hoc selectors
 dl-region /data/lake --cone 150.1 2.2 --radius-arcsec 600 --modalities catalog,spectra
-dl-region /data/lake --npix 1002198,1002199,1003000-1003010 --norder 5
+dl-region /data/lake --npix 1002198,1002199,1003000-1003010 --healpix-order 5
 dl-region /data/lake --bbox 149.5 150.5 1.8 2.6 --count
 dl-region /data/lake --moc footprint.moc.fits
 
 # Save an ad-hoc region as a reusable area
-dl-region /data/lake --npix 1002198-1003000 --norder 5 --save-as Wide_Field_47
+dl-region /data/lake --npix 1002198-1003000 --healpix-order 5 --save-as Wide_Field_47
 ```
 
 By default, row counts are rounded estimates (`~12k`, `~750M`) computed from the registry and
@@ -62,7 +62,7 @@ lengths for spectra and cutouts. Neither mode reads row data.
 |------|---------|
 | `--from-area ID` | Use the region of `areas/<ID>.json`. |
 | `--cone RA DEC` + `--radius-arcsec R` | Cone in degrees; radius in arcsec. |
-| `--npix LIST` + `--norder N` | Comma-separated pixels and `a-b` ranges at source order `N`. |
+| `--npix LIST` + `--healpix-order N` | Comma-separated pixels and `a-b` ranges at source order `N`. |
 | `--bbox RA_MIN RA_MAX DEC_MIN DEC_MAX` | Box in degrees; RA may wrap through 0. |
 | `--moc FILE` | MOC FITS file (needs the `moc` extra). |
 | `--surveys LIST` | Comma-separated survey names, or `all` (default). |
@@ -168,7 +168,7 @@ dl-export-ds9-region --survey DESI_DR1 --mode sources \
 ## Region selector (Python)
 
 A `Region` resolves to pixels at a target order, because catalog, spectra, and cutout layers
-may each use a different `hats_order`:
+may each use a different `healpix_order`:
 
 ```python
 from data_lake.discovery.region import Region

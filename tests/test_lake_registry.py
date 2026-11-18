@@ -93,7 +93,7 @@ def test_registry_catalog_extended_fields(tmp_path: Path) -> None:
     assert row["n_tiles"] is not None and row["n_tiles"] >= 1
     assert row["has_aggregate_metadata"] is True
     assert row["registry_generated_utc"]
-    assert row["hats_order_match"] is None
+    assert row["healpix_order_match"] is None
 
 
 def test_master_meta_guess_and_write(tmp_path: Path) -> None:
@@ -206,7 +206,7 @@ def test_registry_spectra_total_rows(tmp_path: Path) -> None:
     assert "ra_key" in verbose_text
 
 
-def test_registry_hats_order_match(tmp_path: Path) -> None:
+def test_registry_healpix_order_match(tmp_path: Path) -> None:
     _ingest_mini_catalog(tmp_path, "PAIR_SURV")
     lake = tmp_path / "lake"
     paths = [tmp_path / "a.fits", tmp_path / "b.fits"]
@@ -227,8 +227,8 @@ def test_registry_hats_order_match(tmp_path: Path) -> None:
     refresh_lake_registry(lake)
     table = load_lake_registry(lake)
     rows = {r["modality"]: r for r in table.to_pylist() if r["survey"] == "PAIR_SURV"}
-    assert rows[MODALITY_CATALOG]["hats_order_match"] is True
-    assert rows[MODALITY_SPECTRA]["hats_order_match"] is True
+    assert rows[MODALITY_CATALOG]["healpix_order_match"] is True
+    assert rows[MODALITY_SPECTRA]["healpix_order_match"] is True
     footer = format_registry_pair_footer(table)
     assert "PAIR_SURV" in footer
     assert "match" in footer
@@ -292,7 +292,7 @@ def test_registry_crossmatch_total_rows(tmp_path: Path) -> None:
         "survey_a": "A",
         "survey_b": "B",
         "match_radius_arcsec": 1.0,
-        "hats_order": 5,
+        "healpix_order": 5,
         "total_rows": 1,
         "n_match_rows": 1,
         "n_tiles": 1,
@@ -316,7 +316,7 @@ def test_registry_crossmatch_total_rows(tmp_path: Path) -> None:
         "survey_b": "C",
         "match_col_a": "ID",
         "match_col_b": "ID",
-        "hats_order": 5,
+        "healpix_order": 5,
         "total_rows": 1,
         "n_match_rows": 1,
         "n_tiles": 1,
@@ -420,7 +420,7 @@ def test_registry_spectra_cutout_kind_filter(tmp_path: Path) -> None:
     ):
         root = lake / modality / name
         root.mkdir(parents=True)
-        payload = {"hats_order": 5, "n_pix": 8, "wavelength_mode": "shared", **extra}
+        payload = {"healpix_order": 5, "n_pix": 8, "wavelength_mode": "shared", **extra}
         (root / info_name).write_text(json.dumps(payload))
 
     table = build_lake_registry_table(lake)
@@ -450,7 +450,7 @@ def test_describe_lake_kind_ingested_includes_catalog_and_spectra(tmp_path: Path
     spec_root = lake / "spectra" / "BOTH_SURV"
     spec_root.mkdir(parents=True)
     (spec_root / "spectrum_info.json").write_text(
-        json.dumps({"hats_order": 5, "n_pix": 8, "wavelength_mode": "shared"})
+        json.dumps({"healpix_order": 5, "n_pix": 8, "wavelength_mode": "shared"})
     )
     refresh_lake_registry(lake)
 
@@ -479,12 +479,12 @@ def test_filter_kind_ingested_coalesces_legacy_null_spectra(tmp_path: Path) -> N
     cat = lake / "catalogs" / "LEGACY"
     cat.mkdir(parents=True)
     (cat / "catalog_info.json").write_text(
-        json.dumps({"hats_order": 5, "kind": "ingested", "total_rows": 1})
+        json.dumps({"healpix_order": 5, "kind": "ingested", "total_rows": 1})
     )
     spec = lake / "spectra" / "LEGACY"
     spec.mkdir(parents=True)
     (spec / "spectrum_info.json").write_text(
-        json.dumps({"hats_order": 5, "n_pix": 4, "wavelength_mode": "shared"})
+        json.dumps({"healpix_order": 5, "n_pix": 4, "wavelength_mode": "shared"})
     )
 
     # Build rows then strip kind from spectra to simulate pre-fix parquet.
@@ -604,7 +604,7 @@ def test_registry_scans_products_directory(tmp_path: Path) -> None:
     cat_dir = lake / "catalogs" / "WISE"
     cat_dir.mkdir(parents=True)
     (cat_dir / "catalog_info.json").write_text(json.dumps({
-        "hats_order": 5,
+        "healpix_order": 5,
         "kind": "ingested",
         "ra_column": "ra",
         "dec_column": "dec",
@@ -614,7 +614,7 @@ def test_registry_scans_products_directory(tmp_path: Path) -> None:
     prod_dir = lake / "products" / "EUCLID_wise_ab"
     prod_dir.mkdir(parents=True)
     (prod_dir / "catalog_info.json").write_text(json.dumps({
-        "hats_order": 5,
+        "healpix_order": 5,
         "kind": "product",
         "product_subtype": "homogenized",
         "ra_column": "ra",

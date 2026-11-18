@@ -21,7 +21,7 @@ def _write_catalog_tile(lake: Path, survey: str, norder: int, npix: int) -> None
 
 def _write_info(lake: Path, survey: str, norder: int) -> None:
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
-        json.dumps({"hats_order": norder})
+        json.dumps({"healpix_order": norder})
     )
 
 
@@ -30,7 +30,7 @@ def _write_crossmatch_tree(lake: Path, tree: str, norder: int, npix: int) -> Non
     tile_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.table({"x": [1]}), tile_dir / f"Npix={npix}.parquet")
     (lake / "crossmatch" / tree / "crossmatch_info.json").write_text(
-        json.dumps({"hats_order": norder, "total_rows": 1})
+        json.dumps({"healpix_order": norder, "total_rows": 1})
     )
 
 
@@ -43,7 +43,7 @@ class TestTileIndex:
 
         index = ti.write_tile_index(lake, "ALLWISE", "catalog")
         assert index["npix"] == [10, 20, 30]
-        assert index["hats_order"] == 5
+        assert index["healpix_order"] == 5
         assert index["n_tiles"] == 3
 
         loaded = ti.load_tile_index(lake, "ALLWISE", "catalog")
@@ -99,4 +99,4 @@ class TestTileIndex:
         loaded = ti.load_tile_index(lake, tree, MODALITY_CROSSMATCH)
         assert loaded is not None
         assert loaded["npix"] == [42]
-        assert loaded["hats_order"] == 5
+        assert loaded["healpix_order"] == 5

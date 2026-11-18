@@ -107,7 +107,7 @@ Give exactly one selector:
 | Selector | Meaning |
 |----------|---------|
 | `--from-area AREA` | The area's region (tile-granular). |
-| `--cone RA DEC --radius-arcsec R` / `--bbox RA_MIN RA_MAX DEC_MIN DEC_MAX` / `--npix … --norder N` | An ad-hoc sky region. |
+| `--cone RA DEC --radius-arcsec R` / `--bbox RA_MIN RA_MAX DEC_MIN DEC_MAX` / `--npix … --healpix-order N` | An ad-hoc sky region. |
 | `--ids FILE` | Explicit base source IDs from a Parquet or CSV file. |
 | `--where SQL` | A predicate over base columns, applied before the join. |
 

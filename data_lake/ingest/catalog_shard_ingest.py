@@ -29,6 +29,7 @@ After all tiles are written, ``finalize_catalog_survey`` refreshes metadata.
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import errno
 import json
 import logging
@@ -63,6 +64,7 @@ from data_lake.ingest.fits_to_parquet import (
     healpix_dir,
     record_fits_hdu,
 )
+from data_lake.healpix_order import read_healpix_order
 from data_lake.io.fits_read import catalog_fits_read_policy, parse_hdu_spec
 
 log = logging.getLogger(__name__)
@@ -160,9 +162,9 @@ def _check_shard_norder(shard_root: Path, survey: str, norder: int) -> dict | No
     info = _read_json(_shard_info_path(shard_root, survey))
     if info is not None and int(info["norder"]) != norder:
         raise ValueError(
-            f"--norder {norder} does not match shard tree "
+            f"--healpix-order {norder} does not match shard tree "
             f"{_shard_info_path(shard_root, survey)} (norder={info['norder']}). "
-            "Use the same --norder for every map task and for reduce."
+            "Use the same --healpix-order for every map task and for reduce."
         )
     return info
 
@@ -218,9 +220,9 @@ def _check_against_catalog(shard_info: dict, catalog_root: Path) -> None:
     if info is None:
         return
     problems: list[str] = []
-    lake_order = info.get("hats_order")
+    lake_order = read_healpix_order(info)
     if lake_order is not None and int(lake_order) != int(shard_info["norder"]):
-        problems.append(f"hats_order: lake={lake_order} shards={shard_info['norder']}")
+        problems.append(f"healpix_order: lake={lake_order} shards={shard_info['norder']}")
     lake_mode = info.get("link_id_mode")
     shard_mode = shard_info.get("link_id_mode")
     if lake_mode and shard_mode and lake_mode != shard_mode:
@@ -1011,13 +1013,11 @@ try:
             "composite (objid,brickname)."
         ),
     )
-    @click.option(
-        "--norder",
-        type=int,
+    @healpix_order_option(type=int,
         default=None,
         help=(
             "HEALPix order. Default: the existing shard tree's order, else config "
-            "hats_order, else 5."
+            "healpix_order, else 5."
         ),
     )
     @click.option(
@@ -1151,7 +1151,7 @@ try:
             dl-ingest-from-shard --phase map --input-dir /data/legacy/north/000 \\
                 --survey Legacy_DR11_north --shard-root $SCRATCH/shards \\
                 --ra-col ra --dec-col dec --link-id-col ls_id_dr11 \\
-                --norder 7 --n-workers 8
+                --healpix-order 7 --n-workers 8
 
         \b
         PHASE REDUCE – once, after the array completes:
@@ -1173,7 +1173,7 @@ try:
         n = pick(
             norder,
             shard_info.get("norder"),
-            pick(None, cfg.partitioning.hats_order if cfg else None, 5),
+            pick(None, cfg.partitioning.healpix_order if cfg else None, 5),
         )
         cols = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
 

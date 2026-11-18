@@ -36,7 +36,7 @@ def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extr
     pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",
@@ -158,7 +158,7 @@ class TestGatherProduct:
         assert len(df) == 1
 
     def test_partner_at_finer_healpix_order(self, tmp_path: Path) -> None:
-        """Gather tile-bounds partner reads when partner hats_order > base."""
+        """Gather tile-bounds partner reads when partner healpix_order > base."""
         lake = tmp_path / "lake"
         base_order, partner_order = 5, 6
         ra, dec = 120.0, 45.0
@@ -247,7 +247,7 @@ class TestGatherProduct:
         )
         (lake / "catalogs" / "SDSS_DR17" / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": norder,
+                "healpix_order": norder,
                 "ra_column": "ra",
                 "dec_column": "dec",
                 "link_id_mode": "sequential",
@@ -335,7 +335,7 @@ class TestGatherProduct:
         )
         (lake / "catalogs" / "PROD" / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": norder,
+                "healpix_order": norder,
                 "kind": "product",
                 "link_id_mode": "column:" + LAKE_JOIN_ID_COLUMN,
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -362,7 +362,7 @@ class TestGatherProduct:
             tile_dir / "Npix=1.parquet",
         )
         (lake / "catalogs" / "PROD" / "catalog_info.json").write_text(
-            json.dumps({"hats_order": 5, "kind": "product",
+            json.dumps({"healpix_order": 5, "kind": "product",
                         "link_id_column": LAKE_JOIN_ID_COLUMN,
                         "provenance": {"base_catalog": "X"}})
         )

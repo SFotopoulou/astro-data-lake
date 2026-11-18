@@ -9,7 +9,7 @@ A :class:`Region` is one of four spatial selectors (user stories A-D):
 
 Every region resolves to a set of pixels **at a target HEALPix order** via
 :meth:`Region.to_npix`. Because catalog, spectra and cutout layers may use
-different ``hats_order``, callers resolve the region per modality using that
+different ``healpix_order``, callers resolve the region per modality using that
 modality's order.
 
 Pixel indices are HEALPix **NESTED** scheme throughout, matching the on-disk

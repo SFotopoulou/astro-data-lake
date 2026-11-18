@@ -81,20 +81,20 @@ def footprint_npix_for_survey(
     region: Region | None = None,
     modality: str = MODALITY_CATALOG,
 ) -> tuple[list[int], int]:
-    """Populated tile npix (optionally region-clipped) and hats_order."""
-    npix_set, hats_order = survey_npix(lake_root, survey, modality, allow_scan=True)
+    """Populated tile npix (optionally region-clipped) and healpix_order."""
+    npix_set, healpix_order = survey_npix(lake_root, survey, modality, allow_scan=True)
     if not npix_set:
         raise FileNotFoundError(
             f"No tiles found for {survey!r} modality {modality!r}"
         )
-    if hats_order is None:
+    if healpix_order is None:
         from data_lake.io.catalog import CatalogAccessor
 
         with CatalogAccessor(lake_root, survey) as acc:
-            hats_order = int(acc.norder)
+            healpix_order = int(acc.norder)
     if region is not None:
-        npix_set &= region.to_npix(int(hats_order))
-    return sorted(int(p) for p in npix_set), int(hats_order)
+        npix_set &= region.to_npix(int(healpix_order))
+    return sorted(int(p) for p in npix_set), int(healpix_order)
 
 
 def write_footprint_regions(

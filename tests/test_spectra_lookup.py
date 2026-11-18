@@ -56,7 +56,7 @@ class TestBulkTileIndexFromCatalog:
         out_dir.mkdir(parents=True)
         pq.write_table(table, out_dir / f"Npix={npix}.parquet")
         (cat_root / "catalog_info.json").write_text(
-            '{"hats_order": 5, "link_id_column": "_source_id"}'
+            '{"healpix_order": 5, "link_id_column": "_source_id"}'
         )
 
         cat = CatalogAccessor(synthetic_lake, SURVEY, norder=NORDER)
@@ -80,7 +80,7 @@ class TestBulkTileIndexFromCatalog:
         out_dir.mkdir(parents=True)
         pq.write_table(table, out_dir / "Npix=1.parquet")
         (cat_root / "catalog_info.json").write_text(
-            '{"hats_order": 5, "link_id_column": "_source_id"}'
+            '{"healpix_order": 5, "link_id_column": "_source_id"}'
         )
         cat = CatalogAccessor(synthetic_lake, "empty_idx", norder=NORDER)
         assert bulk_tile_index_from_catalog(cat, [1], "spectrum") == {}
@@ -131,7 +131,7 @@ class TestSpectrumGetBatchBulkLookup:
             out_dir.mkdir(parents=True, exist_ok=True)
             pq.write_table(sub, out_dir / f"Npix={npix}.parquet")
         (cat_root / "catalog_info.json").write_text(
-            '{"hats_order": 5, "link_id_column": "_source_id"}'
+            '{"healpix_order": 5, "link_id_column": "_source_id"}'
         )
 
         cat = CatalogAccessor(synthetic_lake, SURVEY, norder=NORDER)

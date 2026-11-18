@@ -36,7 +36,7 @@ def _write_survey_with_tile(
     (survey_root / "spectrum_info.json").write_text(
         json.dumps({
             "n_pix": survey_n_pix,
-            "hats_order": NORDER,
+            "healpix_order": NORDER,
             "wavelength_mode": "shared",
             "mask_dtype": "uint8",
             "wcs": {

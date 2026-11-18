@@ -82,7 +82,7 @@ def _write_mini_catalog(
     )
     info = {
         "catalog_name": survey_name,
-        "hats_order": norder,
+        "healpix_order": norder,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_mode": sid_mode,
@@ -402,7 +402,7 @@ class TestUpdateIndexFromZarrTiles:
         assert all(v >= 0 for v in spec_idx)
 
     def test_rebuild_uses_catalog_info_norder(self, tmp_path: Path) -> None:
-        """Rebuild reads hats_order from catalog_info.json when --norder omitted."""
+        """Rebuild reads healpix_order from catalog_info.json when --norder omitted."""
         from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN
         from data_lake.ingest.update_catalog_indices import (
             update_index_column_from_zarr_tiles,
@@ -507,7 +507,7 @@ class TestUpdateIndexFromZarrTiles:
         )
         (tmp_path / "catalogs" / survey / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": norder,
+                "healpix_order": norder,
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
                 "link_id_mode": "sequential",
                 "ra_column": "ra",
@@ -539,7 +539,7 @@ class TestUpdateIndexFromZarrTiles:
         _write_mini_spectra_zarr(tmp_path, "no_cat", ids, [10.0], [0.0], norder=5)
         cat_root = tmp_path / "catalogs" / "no_cat"
         cat_root.mkdir(parents=True)
-        (cat_root / "catalog_info.json").write_text(json.dumps({"hats_order": 5}))
+        (cat_root / "catalog_info.json").write_text(json.dumps({"healpix_order": 5}))
 
         n_modified = update_index_column_from_zarr_tiles(
             lake_root=tmp_path,

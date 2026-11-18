@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.ingest.checkpoint_sidecars import (
     paths_from_file_list_file,
     validate_ingest_sidecars,
@@ -57,9 +58,11 @@ def validate_spectrum_info(survey_root: Path, rep: ValidationReport) -> dict[str
     except Exception as exc:
         rep.errors.append(f"Invalid JSON in {info_path}: {exc}")
         return None
-    for key in ("n_pix", "hats_order", "wavelength_mode", "wcs"):
+    for key in ("n_pix", "wavelength_mode", "wcs"):
         if key not in info:
             rep.errors.append(f"spectrum_info.json missing key {key!r}")
+    if read_healpix_order(info) is None:
+        rep.errors.append("spectrum_info.json missing key 'healpix_order'")
     if rep.errors:
         return None
     return info

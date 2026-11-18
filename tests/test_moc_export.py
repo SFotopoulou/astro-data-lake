@@ -53,7 +53,7 @@ def _write_tiny_catalog(
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps(
             {
-                "hats_order": norder,
+                "healpix_order": norder,
                 "ra_column": "ra",
                 "dec_column": "dec",
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -149,7 +149,7 @@ class TestMocExport:
             export_survey_moc(lake, "ALLWISE", out, moc_order=8, overwrite=True)
         assert not out.exists()
 
-    def test_from_rows_at_or_below_hats_order(
+    def test_from_rows_at_or_below_healpix_order(
         self, lake: Path, tmp_path: Path
     ) -> None:
         """source='rows' also works at moc_order <= HATS."""

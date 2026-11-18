@@ -36,7 +36,7 @@ def _write_catalog_tile(
         tile_dir / f"Npix={npix}.parquet",
     )
     info = {
-        "hats_order": norder,
+        "healpix_order": norder,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_mode": "column:id",
@@ -54,7 +54,7 @@ class TestRepairCatalogMetadata:
 
         catalog_root = lake / "catalogs" / "SURVEY_X"
         (catalog_root / "catalog_info.json").write_text(
-            json.dumps({"hats_order": 5, "link_id_column": "id", "link_id_mode": "sequential"})
+            json.dumps({"healpix_order": 5, "link_id_column": "id", "link_id_mode": "sequential"})
         )
         res = repair_catalog_metadata(catalog_root, "SURVEY_X")
         assert res.ok
@@ -104,7 +104,7 @@ class TestRebuildLinkId:
         )
         (lake / "catalogs" / "ZCOS" / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": norder,
+                "healpix_order": norder,
                 "ra_column": "ra",
                 "dec_column": "dec",
                 "link_id_mode": "column:id",

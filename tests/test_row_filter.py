@@ -38,7 +38,7 @@ def _write_filter_catalog(lake: Path) -> Path:
         tile_dir / "Npix=1.parquet",
     )
     (lake / "catalogs" / SURVEY / "catalog_info.json").write_text(
-        '{"hats_order": 5, "ra_column": "ra", "dec_column": "dec", '
+        '{"healpix_order": 5, "ra_column": "ra", "dec_column": "dec", '
         '"link_id_mode": "sequential", "link_id_column": "_source_id", '
         '"total_rows": 4}'
     )

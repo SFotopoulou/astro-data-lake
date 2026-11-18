@@ -33,7 +33,7 @@ The Python library for querying and crossmatching HATS catalogs. This lake does 
 See [lsdb.readthedocs.io](https://lsdb.readthedocs.io/en/stable/).
 
 **HEALPix / norder**
-HEALPix (Hierarchical Equal Area isoLatitude Pixelisation) divides the sphere into equal-area pixels. `norder` (also `hats_order`) sets the resolution: the sky has \(12 \times 4^{\text{norder}}\) pixels, so `norder=5` gives 12,288 pixels and `norder=7` gives 196,608. A higher norder means smaller pixels and more tiles. The default catalog norder is 5.
+HEALPix (Hierarchical Equal Area isoLatitude Pixelisation) divides the sphere into equal-area pixels. `norder` (also `healpix_order`) sets the resolution: the sky has \(12 \times 4^{\text{norder}}\) pixels, so `norder=5` gives 12,288 pixels and `norder=7` gives 196,608. A higher norder means smaller pixels and more tiles. The default catalog norder is 5.
 
 **homogenize / product catalog (homogenized)**
 Converting native survey columns (Vega magnitudes, Jy fluxes and so on) to a common system, such as AB magnitudes or uniform flux units, using versioned per-survey recipes. Run it with `dl-homogenize`. The output has `kind: product` and `product_subtype: homogenized`.
@@ -60,5 +60,5 @@ See [data-on-disk.md](layout/data-on-disk.md) for the full column set.
 The native ID is the survey's own identifier, for example DESI `TARGETID` or SDSS `SPECOBJID`. The `_source_id` is the lake's internal join key. When `--link-id-col` names a native integer column, the two have the same value. Otherwise `_source_id` is a hash of the native label. Catalogs ingested by older versions may use a sequential counter instead, and `catalog_info.json` records which mode was used in `link_id_mode`.
 
 **region**
-A sky geometry used to select data: a cone (`--cone RA DEC --radius-arcsec R`), a bounding box (`--bbox RA_MIN RA_MAX DEC_MIN DEC_MAX`), HEALPix pixels (`--npix … --norder N`) or a MOC file (`--moc`; needs the `moc` extra). `dl-region`, `dl-extract-catalog`, `dl-export-ds9-region`, `dl-samp-send-catalog`, `dl-gather` and `dl-homogenize` accept these selectors (lake extract/DS9/SAMP also via `--from-area`). `dl-crossmatch` takes a region through `--from-area`.
+A sky geometry used to select data: a cone (`--cone RA DEC --radius-arcsec R`), a bounding box (`--bbox RA_MIN RA_MAX DEC_MIN DEC_MAX`), HEALPix pixels (`--npix … --healpix-order N`) or a MOC file (`--moc`; needs the `moc` extra). `dl-region`, `dl-extract-catalog`, `dl-export-ds9-region`, `dl-samp-send-catalog`, `dl-gather` and `dl-homogenize` accept these selectors (lake extract/DS9/SAMP also via `--from-area`). `dl-crossmatch` takes a region through `--from-area`.
 See [Regions and areas](discovery/regions-and-areas.md).

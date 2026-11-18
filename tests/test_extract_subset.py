@@ -535,7 +535,7 @@ class TestExtractSubsetToZarr:
             )
         (cat_root / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": 5,
+                "healpix_order": 5,
                 "link_id_mode": "column:TARGETID",
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
                 "native_id_column": "TARGETID",
@@ -733,7 +733,7 @@ class TestExtractSubsetToZarr:
             )
         (cat_root / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": NORDER,
+                "healpix_order": NORDER,
                 "link_id_mode": "column:TARGETID",
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
                 "native_id_column": "TARGETID",

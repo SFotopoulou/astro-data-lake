@@ -35,7 +35,7 @@ def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extr
     pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",

@@ -42,7 +42,7 @@ def _write_wise_tile(lake: Path, norder: int, npix: int, w1: float) -> None:
         tile_dir / f"Npix={npix}.parquet",
     )
     (lake / "catalogs" / "ALLWISE" / "catalog_info.json").write_text(json.dumps({
-        "hats_order": norder,
+        "healpix_order": norder,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -478,7 +478,7 @@ def _write_gather_like_product(lake: Path, norder: int, npix: int, w1: float) ->
     )
     (lake / "catalogs" / "EUCLID_wise_native" / "catalog_info.json").write_text(
         json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -555,7 +555,7 @@ class TestHomogenizeProduct:
             sparse_dir / "Npix=10500.parquet",
         )
         (root / "catalog_info.json").write_text(json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -621,7 +621,7 @@ class TestHomogenizeProduct:
             null_dir / "Npix=10500.parquet",
         )
         (root / "catalog_info.json").write_text(json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -689,7 +689,7 @@ class TestHomogenizeProduct:
         _write(10_500, klass="STAR  ", w1=11.0)
 
         (root / "catalog_info.json").write_text(json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -761,7 +761,7 @@ class TestHomogenizeProduct:
             str_dir / "Npix=10500.parquet",
         )
         (root / "catalog_info.json").write_text(json.dumps({
-            "hats_order": norder,
+            "healpix_order": norder,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,

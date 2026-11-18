@@ -71,7 +71,7 @@ def _write_catalog_tile(
         f"column:{id_col}" if id_col != LAKE_JOIN_ID_COLUMN else "sequential"
     )
     info = {
-        "hats_order": norder,
+        "healpix_order": norder,
         "ra_column": ra_col,
         "dec_column": dec_col,
         "link_id_mode": mode,
@@ -569,7 +569,7 @@ class TestCrossmatchPaddedColumnNames:
         pq.write_table(padded_tile, tile_dir / f"Npix={npix}.parquet")
         (lake / "catalogs" / "SURVEY_B" / "catalog_info.json").write_text(
             json.dumps({
-                "hats_order": norder,
+                "healpix_order": norder,
                 "ra_column": "ra",   # logical name (stripped) in catalog_info
                 "dec_column": "dec",
                 "link_id_mode": "sequential",
@@ -945,7 +945,7 @@ def _write_catalog_tile_with_col(
     })
     pq.write_table(table, tile_dir / f"Npix={npix}.parquet")
     (lake / "catalogs" / survey / "catalog_info.json").write_text(json.dumps({
-        "hats_order": norder,
+        "healpix_order": norder,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_mode": "sequential",
@@ -1475,7 +1475,7 @@ class TestDescribeCrossmatch:
                 "survey_b": "B",
                 "match_radius_arcsec": 1.0,
                 "match_backend": "astropy",
-                "hats_order": 5,
+                "healpix_order": 5,
                 "total_rows": 3,
                 "n_tiles": 1,
             },
@@ -1516,7 +1516,7 @@ class TestDescribeCrossmatch:
                 "survey_a": "A",
                 "survey_b": "B",
                 "match_radius_arcsec": 1.0,
-                "hats_order": 5,
+                "healpix_order": 5,
                 "total_rows": 3,
                 "n_tiles": 1,
             },
@@ -1531,7 +1531,7 @@ class TestDescribeCrossmatch:
                 "match_col_a": "KEY",
                 "match_col_b": "KEY",
                 "match_radius_arcsec": None,
-                "hats_order": 5,
+                "healpix_order": 5,
                 "total_rows": 3,
                 "n_tiles": 1,
             },

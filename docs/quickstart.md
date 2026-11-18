@@ -67,7 +67,7 @@ A **deployment** is your private lake instance. `dl-init` scaffolds the director
 ```bash
 dl-init /data/lake \
     --description "My multi-survey lake" \
-    --norder 5 \
+    --healpix-order 5 \
     --ingest-token 'your-ingest-secret'
 ```
 

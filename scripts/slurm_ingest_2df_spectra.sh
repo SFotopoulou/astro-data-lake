@@ -97,7 +97,7 @@ INGEST_ARGS=(
     --config "${DATA_LAKE_CONFIG}"
     --survey "${SURVEY}"
     --fmt 2df
-    --norder "${NORDER}"
+    --healpix-order "${NORDER}"
     --wavelength-mode "${WAVELENGTH_MODE}"
     --n-workers "${N_WORKERS}"
     --on-duplicate skip
@@ -147,7 +147,7 @@ echo "Running dl-validate-spectra-ingest (spot-check) …"
 dl-validate-spectra-ingest \
     --config "${DATA_LAKE_CONFIG}" \
     --survey "${SURVEY}" \
-    --norder "${NORDER}" \
+    --healpix-order "${NORDER}" \
 || echo "WARNING: validation reported issues — check the log above."
 
 echo "All done — $(date --iso-8601=seconds)"

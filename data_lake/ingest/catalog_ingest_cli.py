@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 from pathlib import Path
 
 import click
@@ -36,7 +37,7 @@ from data_lake.ingest.fits_to_parquet import (
 @click.option("--survey", "survey_name", required=True, help="Short survey name.")
 @click.option("--ra-col", default="ra", show_default=True)
 @click.option("--dec-col", default="dec", show_default=True)
-@click.option("--norder", default=None, type=int,
+@healpix_order_option(default=None, type=int,
               help="HEALPix order (overrides config; default 5).")
 @click.option(
     "--link-id-col",
@@ -205,7 +206,7 @@ def cli(
         ra_col=ra_col,
         dec_col=dec_col,
         norder=pick(norder,
-                    cfg.partitioning.hats_order if cfg else None, 5),
+                    cfg.partitioning.healpix_order if cfg else None, 5),
         link_id_col=link_id_col,
         allow_incomplete_link_id=allow_incomplete_link_id,
         tile_mode=tile_mode.lower() if tile_mode else None,  # type: ignore[arg-type]
@@ -231,7 +232,7 @@ def cli(
 @click.option("--survey", "survey_name", required=True)
 @click.option("--ra-col", default="ra", show_default=True)
 @click.option("--dec-col", default="dec", show_default=True)
-@click.option("--norder", default=None, type=int)
+@healpix_order_option(default=None, type=int)
 @logging_options
 def cli_finalize(
     output_root: Path | None,
@@ -254,7 +255,7 @@ def cli_finalize(
         log_file=log_file,
     )
     lake = require_output_root(output_root, cfg, kind="catalogs")
-    n = pick(norder, cfg.partitioning.hats_order if cfg else None, 5)
+    n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
     catalog_root = lake / "catalogs" / survey_name
     if not finalize_catalog_survey(
         catalog_root,

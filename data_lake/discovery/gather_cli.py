@@ -9,11 +9,12 @@ Two entry styles:
   (JSON ``{survey: arcsec}``) + a selection selector + ``--materialize-as``.
 
 Selection selectors (exactly one): ``--from-area`` | ``--ids FILE`` |
-``--where SQL`` | ``--cone RA DEC`` | ``--bbox …`` | ``--npix`` (+ ``--norder``).
+``--where SQL`` | ``--cone RA DEC`` | ``--bbox …`` | ``--npix`` (+ ``--healpix-order``).
 """
 
 from __future__ import annotations
 
+from data_lake.cli_utils import healpix_order_option
 import json
 import logging
 from pathlib import Path
@@ -98,7 +99,7 @@ def _resolve_selection(
         return selection_from_region(lake, base, Region.bbox(*bbox))
     if npix is not None:
         if npix_norder is None:
-            raise ValueError("--npix requires --norder")
+            raise ValueError("--npix requires --healpix-order")
         return selection_from_region(
             lake, base, Region.from_npix(parse_npix_arg(npix), npix_norder)
         )
@@ -185,8 +186,8 @@ try:
     @click.option("--radius-arcsec", type=float, default=None, help="Cone radius (arcsec).")
     @click.option("--bbox", nargs=4, type=float, default=None,
                   help="Box RA_MIN RA_MAX DEC_MIN DEC_MAX (deg).")
-    @click.option("--npix", default=None, help="npix list/ranges (needs --norder).")
-    @click.option("--norder", "npix_norder", type=int, default=None, help="Order for --npix.")
+    @click.option("--npix", default=None, help="npix list/ranges (needs --healpix-order).")
+    @healpix_order_option(dest="npix_norder", type=int, default=None, help="Order for --npix.")
     @click.option("--overwrite", is_flag=True, help="Overwrite an existing product catalog.")
     @progress_option
     @click.option("--extract-modalities", "extract_modalities", default=None,

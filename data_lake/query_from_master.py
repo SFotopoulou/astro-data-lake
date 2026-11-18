@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from data_lake.healpix_order import read_healpix_order
 from data_lake.lake_registry import load_master_meta, read_parquet_column_names
 from data_lake.schema_registry import load_catalog_schema_manifest
 
@@ -112,7 +113,7 @@ def build_catalog_view_ddl(
         info_path = catalog_root / "catalog_info.json"
         if info_path.is_file():
             with open(info_path) as fh:
-                norder = int(json.load(fh).get("hats_order", 5))
+                norder = int(read_healpix_order(json.load(fh), 5))
         else:
             norder = 5
 

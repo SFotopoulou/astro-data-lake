@@ -338,10 +338,11 @@ class SpectrumAccessor:
             with open(info_path) as fh:
                 self._info = json.load(fh)
 
-        from data_lake.knobs import DEFAULT_HATS_ORDER, READ_MAX_OPEN_TILES
+        from data_lake.healpix_order import read_healpix_order
+        from data_lake.knobs import DEFAULT_HEALPIX_ORDER, READ_MAX_OPEN_TILES
 
         self.norder: int = norder if norder is not None else int(
-            self._info.get("hats_order", DEFAULT_HATS_ORDER)
+            read_healpix_order(self._info, DEFAULT_HEALPIX_ORDER)
         )
         self._catalog = catalog_accessor
         self._max_open_tiles: int = (
