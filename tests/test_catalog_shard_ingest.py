@@ -826,7 +826,7 @@ class TestCLI:
                 return self.key
 
         class _Pool:
-            def __init__(self, max_workers: int) -> None:
+            def __init__(self, max_workers: int, **kwargs) -> None:
                 self.alive = True
 
             def submit(self, fn, *args):

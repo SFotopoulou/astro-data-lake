@@ -63,7 +63,7 @@ _README_TEMPLATE = """\
 {description}
 
 This directory is a **data lake deployment**: a thin instance of the
-[`data_lake`](https://github.com/SFotopoulou/data_lake) library.
+[`data_lake`](https://github.com/SFotopoulou/astro-data-lake) library.
 The library code lives elsewhere; this folder holds the *config*,
 *data*, and *user-owned* scripts/notebooks for this particular lake.
 

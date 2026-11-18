@@ -14,8 +14,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"   # add to your shell rc
 
 # Clone and create a Python 3.12 venv
-git clone https://github.com/SFotopoulou/data_lake.git
-cd data_lake
+git clone https://github.com/SFotopoulou/astro-data-lake.git
+cd astro-data-lake
 uv venv --python 3.12 .venv
 
 # Install from the lockfile (editable, with extras):
@@ -53,7 +53,7 @@ Both should finish without errors. If they pass you are ready to create a real l
 **Jupyter / notebooks:** register the project kernel once:
 
 ```bash
-uv run python -m ipykernel install --user --name=data-lake --display-name "Python (data-lake)"
+uv run python -m ipykernel install --user --name=astro-data-lake --display-name "Python (astro-data-lake)"
 ```
 
 Then open `notebooks/01_catalog_ingest.ipynb` for a guided walk-through of catalog ingest with synthetic data. See [notebooks.md](notebooks.md) for which notebooks need a real lake.

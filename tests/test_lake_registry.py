@@ -645,4 +645,4 @@ def test_describe_lake_version_flag() -> None:
     assert __version__ == expected
     result = CliRunner().invoke(cli_describe_lake, ["--version"])
     assert result.exit_code == 0
-    assert result.output.strip() == f"data-lake, version {expected}"
+    assert result.output.strip() == f"astro-data-lake, version {expected}"

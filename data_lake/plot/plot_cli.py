@@ -173,7 +173,7 @@ def cli(
         except ImportError as exc:
             raise click.ClickException(
                 "matplotlib is required for plotting.\n"
-                "Install it with:  pip install \"data-lake[viz]\""
+                "Install it with:  pip install \"astro-data-lake[viz]\""
             ) from exc
 
         fig = plot_source_sed_spectrum(

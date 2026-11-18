@@ -6,8 +6,8 @@ This guide covers installing, configuring and running the two Model Context Prot
 
 | Server name | Command | Exposes |
 |-------------|---------|---------|
-| `data-lake-explorer` | `dl-mcp-lake` | Lake inventory, region discovery, provenance, QA and ingest advice |
-| `data-lake-docs` | `dl-mcp-docs` | Documentation search, `docs://` resources, and lake/survey inventory |
+| `astro-data-lake-explorer` | `dl-mcp-lake` | Lake inventory, region discovery, provenance, QA and ingest advice |
+| `astro-data-lake-docs` | `dl-mcp-docs` | Documentation search, `docs://` resources, and lake/survey inventory |
 
 Use the explorer alone unless you also want documentation search. It already includes the inventory tools (`describe_lake`, `describe_survey`, `list_products`, `list_homogenize_recipes`). Tool details are in [MCP lake explorer](mcp-lake.md) and [MCP docs server](mcp.md).
 
@@ -52,7 +52,7 @@ Explorer only (covers all lake operations):
 ```json
 {
   "mcpServers": {
-    "data-lake-explorer": {
+    "astro-data-lake-explorer": {
       "command": "uv",
       "args": ["run", "--extra", "mcp", "dl-mcp-lake"],
       "env": { "DATA_LAKE_CONFIG": "/shared/como/lake_config.toml" }
@@ -66,12 +66,12 @@ Both servers (adds documentation search and `docs://` resources):
 ```json
 {
   "mcpServers": {
-    "data-lake-docs": {
+    "astro-data-lake-docs": {
       "command": "uv",
       "args": ["run", "--extra", "mcp", "dl-mcp-docs"],
       "env": { "DATA_LAKE_CONFIG": "/shared/como/lake_config.toml" }
     },
-    "data-lake-explorer": {
+    "astro-data-lake-explorer": {
       "command": "uv",
       "args": ["run", "--extra", "mcp", "dl-mcp-lake"],
       "env": { "DATA_LAKE_CONFIG": "/shared/como/lake_config.toml" }

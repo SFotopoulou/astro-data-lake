@@ -3,7 +3,7 @@ Two-panel SED + 1D spectrum figure for a single source.
 
 Requires the ``viz`` optional extra::
 
-    pip install "data-lake[viz]"
+    pip install "astro-data-lake[viz]"
 
 Layout
 ------
@@ -49,7 +49,7 @@ def _require_matplotlib():
     except ImportError as exc:
         raise ImportError(
             "Plotting requires matplotlib.  Install it with:\n"
-            "    pip install \"data-lake[viz]\"\n"
+            "    pip install \"astro-data-lake[viz]\"\n"
             "or:\n"
             "    pip install matplotlib"
         ) from exc

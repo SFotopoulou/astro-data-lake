@@ -11,7 +11,7 @@ Supported input formats
 * **DESI**      ``coadd-*.fits`` – Uses ``desispec.io.read_spectra`` +
   ``desispec.coaddition.coadd_cameras`` for IVAR-weighted camera combination of
   the B/R/Z arms onto a single monotonic BRZ wavelength grid.
-  Requires ``pip install 'data-lake[desi]'`` (``desispec>=0.62``).
+  Requires ``pip install 'astro-data-lake[desi]'`` (``desispec>=0.62``).
 * **6dFGS**     multi-extension target FITS – ingests every combined VR spectrum extension.
 * **GAMA**      stacked AAOMEGA-2dF PRIMARY image ``(n_row, n_pix)`` with ``ROW1=Spectrum``,
   ``ROW2=Error`` (1-σ), optional sky rows; ``SPECID`` in the primary header.
@@ -130,7 +130,7 @@ def _import_desispec():
     except ImportError as exc:
         raise ImportError(
             "DESI coadd ingest requires desispec.\n"
-            "Install with: pip install 'data-lake[desi]'"
+            "Install with: pip install 'astro-data-lake[desi]'"
         ) from exc
 
 # ---------------------------------------------------------------------------

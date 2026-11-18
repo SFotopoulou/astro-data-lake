@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Distribution renamed `data-lake` → `astro-data-lake`.** Install with
+  `pip install astro-data-lake` (or `uv sync` in a checkout). The import name
+  `data_lake`, the `dl-*` commands and the config format are unchanged. The
+  repository moved to `github.com/SFotopoulou/astro-data-lake`; GitHub redirects
+  the old URL.
+
 ## [0.9.0] - 2026-11-18
 
 Upgrade notes (breaking changes, details under **Changed**):
@@ -383,12 +391,12 @@ Upgrade notes (breaking changes, details under **Changed**):
 - Multi-survey catalog (Parquet/HATS), cutout, and 1-D spectrum (Zarr v3) ingest.
 - Lake registry, crossmatch, validation, and export tooling.
 
-[Unreleased]: https://github.com/SFotopoulou/data_lake/compare/v0.9.0...HEAD
-[0.9.0]: https://github.com/SFotopoulou/data_lake/compare/v0.8.0...v0.9.0
-[0.8.0]: https://github.com/SFotopoulou/data_lake/compare/v0.7.0...v0.8.0
-[0.7.0]: https://github.com/SFotopoulou/data_lake/compare/v0.6.0...v0.7.0
-[0.4.1]: https://github.com/SFotopoulou/data_lake/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/SFotopoulou/data_lake/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/SFotopoulou/data_lake/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/SFotopoulou/data_lake/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/SFotopoulou/data_lake/releases/tag/v0.1.0
+[Unreleased]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.6.0...v0.7.0
+[0.4.1]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/SFotopoulou/astro-data-lake/releases/tag/v0.1.0

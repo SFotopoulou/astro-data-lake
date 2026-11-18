@@ -6,7 +6,7 @@ creates it; you can edit it by hand afterwards. Command-line tools find it
 automatically, so most commands do not need `--lake-root`.
 
 ```toml
-schema_version = "1"                # data-lake config schema; bumped on breaking changes
+schema_version = "1"                # astro-data-lake config schema; bumped on breaking changes
 
 [lake]
 name        = "my_lake"             # short identifier (no spaces)

@@ -683,10 +683,26 @@ class TestBuildIndexMapFromZarr:
 class TestCutoutFileListParallelPatch:
     """``dl-ingest-cutouts-from-list --n-workers > 1`` patches the catalog after ingest."""
 
-    def test_parallel_ingest_patches_cutout_index(self, tmp_path: Path) -> None:
+    def test_parallel_ingest_patches_cutout_index(self, tmp_path: Path, monkeypatch) -> None:
         from click.testing import CliRunner
 
+        from data_lake.cli_utils import INGEST_TOKEN_ENV, write_ingest_token_hash
         from data_lake.ingest.file_list_ingest import cli_cutout_list
+
+        # Ingest is guarded: give the test its own deployment and token so the
+        # result never depends on the operator's shell environment.
+        token = "parallel-patch-token"
+        dep = tmp_path / "dep"
+        dep.mkdir()
+        cfg_path = dep / "lake_config.toml"
+        cfg_path.write_text(
+            'schema_version = "1"\n[lake]\nname = "t"\n'
+            f'root = "{(tmp_path / "cfg_lake").as_posix()}"\n'
+            '[guardrails]\ningest_token_file = ".ingest_token_hash"\n'
+        )
+        write_ingest_token_hash(dep, token)
+        monkeypatch.setenv("DATA_LAKE_CONFIG", str(cfg_path))
+        monkeypatch.setenv(INGEST_TOKEN_ENV, token)
 
         ids = [7_000_001, 7_000_002, 7_000_003]
         ra = [45.0, 90.0, 120.0]

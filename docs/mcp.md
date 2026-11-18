@@ -21,7 +21,7 @@ In `.cursor/mcp.json`, set `DATA_LAKE_CONFIG` to the path of your `lake_config.t
 ```json
 {
   "mcpServers": {
-    "data-lake-docs": {
+    "astro-data-lake-docs": {
       "command": "uv",
       "args": ["run", "--extra", "mcp", "dl-mcp-docs"],
       "env": {

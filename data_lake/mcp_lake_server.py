@@ -602,7 +602,7 @@ def create_lake_mcp_app() -> Any:
     """Build the FastMCP application (requires ``mcp`` package)."""
     from mcp.server.fastmcp import FastMCP
 
-    mcp = FastMCP("data-lake-explorer")
+    mcp = FastMCP("astro-data-lake-explorer")
 
     @mcp.tool()
     def discover_region(

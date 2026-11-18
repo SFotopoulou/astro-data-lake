@@ -265,7 +265,7 @@ class LakeConfig:
         if schema_version != SCHEMA_VERSION:
             raise LakeConfigInvalid(
                 f"schema_version={schema_version!r} not supported by this library "
-                f"(expected {SCHEMA_VERSION!r}). Upgrade data-lake or migrate the config."
+                f"(expected {SCHEMA_VERSION!r}). Upgrade astro-data-lake or migrate the config."
             )
 
         if "lake" not in data:

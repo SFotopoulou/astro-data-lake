@@ -510,7 +510,7 @@ def _fits_keywords(
     moc_order: int,
 ) -> dict[str, Any]:
     kw: dict[str, Any] = {
-        "ORIGIN": "data-lake",
+        "ORIGIN": "astro-data-lake",
         "MOCORD": moc_order,
     }
     if provenance:

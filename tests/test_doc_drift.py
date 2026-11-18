@@ -32,6 +32,9 @@ def test_every_doc_linked_from_readme() -> None:
     readme = (_repo_root() / "README.md").read_text(encoding="utf-8")
     unlinked: list[str] = []
     for rel in list_doc_paths():
+        # docs/talks/ is gitignored (private working notes); it is not published.
+        if rel.startswith("talks/"):
+            continue
         # README links use docs/<path> or (docs/<path>)
         if rel == "mcp.md":
             needle = "docs/mcp.md"

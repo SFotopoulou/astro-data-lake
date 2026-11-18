@@ -44,7 +44,7 @@ def create_mcp_app() -> Any:
     """Build the FastMCP application (requires ``mcp`` package)."""
     from mcp.server.fastmcp import FastMCP
 
-    mcp = FastMCP("data-lake-docs")
+    mcp = FastMCP("astro-data-lake-docs")
 
     @mcp.tool()
     def search_docs(query: str, limit: int = 5) -> str:

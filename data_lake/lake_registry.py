@@ -1238,7 +1238,7 @@ try:
         click.echo(f"Wrote {out} ({pq.read_metadata(str(out)).num_rows} surveys/modalities)")
 
     @click.command("dl-describe-lake")
-    @click.version_option(version=_package_version, prog_name="data-lake")
+    @click.version_option(version=_package_version, prog_name="astro-data-lake")
     @click.argument("output_root", type=click.Path(path_type=Path), required=False)
     @config_option
     @click.option(

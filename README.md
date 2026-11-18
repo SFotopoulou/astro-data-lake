@@ -11,7 +11,7 @@ Each survey lives in its own directory under `catalogs/`, `spectra/`, or `cutout
 ```bash
 # 1. Install uv (https://github.com/astral-sh/uv) and clone
 curl -LsSf https://astral.sh/uv/install.sh | sh
-git clone https://github.com/SFotopoulou/data_lake.git && cd data_lake
+git clone https://github.com/SFotopoulou/astro-data-lake.git && cd astro-data-lake
 
 # 2. Create the environment and run the test suite
 uv venv --python 3.12 .venv && uv sync --extra dev --extra fitsio
@@ -66,6 +66,7 @@ dl-describe-lake --count-total
 | Export and sharing | [export-and-sharing.md](docs/export-and-sharing.md) |
 | Performance tuning (workers, caches, ML) | [performance.md](docs/performance.md) |
 | Troubleshooting | [troubleshooting.md](docs/troubleshooting.md) |
+| Security and ingest tokens | [security.md](docs/security.md) |
 
 ### Discovery and query
 

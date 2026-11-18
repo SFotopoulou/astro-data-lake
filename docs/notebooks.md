@@ -8,10 +8,10 @@ Run the notebooks in the uv project environment from the [Quick-start](quickstar
 
 ```bash
 uv sync --extra dev
-uv run python -m ipykernel install --user --name=data-lake --display-name "Python (data-lake)"
+uv run python -m ipykernel install --user --name=astro-data-lake --display-name "Python (astro-data-lake)"
 ```
 
-Then select the **Python (data-lake)** kernel. Notebook headers use Python 3.12 and `uv sync --extra dev`. Add `uv sync --extra desi` only if you ingest DESI coadd files (none of the notebooks do that as written).
+Then select the **Python (astro-data-lake)** kernel. Notebook headers use Python 3.12 and `uv sync --extra dev`. Add `uv sync --extra desi` only if you ingest DESI coadd files (none of the notebooks do that as written).
 
 **Lake path:** most notebooks read `LAKE_ROOT` from `$DATA_LAKE_ROOT` (fallback `/data/lake`). Notebooks `04`, `14`, `15` and `17` resolve a deployment via `$DATA_LAKE_CONFIG` / `lake_config.toml` instead. Edit survey names in the first code cells to match your lake.
 
@@ -38,7 +38,7 @@ Only `01` and `03` run without existing data, because they build a temporary dem
 | [`13_pytorch_training_loop.ipynb`](../notebooks/13_pytorch_training_loop.ipynb) | PyTorch `DataLoader` over Zarr cutouts: `CutoutDataset` resolves IDs once at construction (pass `catalog_accessor=` for a fast lookup), then workers read by tile position; prefer `TileSequentialSampler` over a plain shuffle. `TileCutoutDataset` streams whole tiles | A catalog and cutout survey at `$DATA_LAKE_ROOT` (`des_dr2` by default; `DEMO_PHOT` after `dl-demo-lake`) | `dev` |
 | [`14_discovery_workflow.ipynb`](../notebooks/14_discovery_workflow.ipynb) | The end-to-end reference: inventory, area, tile overlap, crossmatch, gather, homogenize (`phot_ab_v1`) and ML export. §8 covers spectra and cutouts by `_source_id` or positional partner. See the [workflow guide](discovery/workflow.md) and [`dl-area`](discovery/areas-cli.md) | A deployment (`$DATA_LAKE_CONFIG`) with `EUCLID_DR1`, `DESI_DR1` and `ALLWISE`, the template `examples/areas/multi_survey_cone.example.json`, and a writable scratch path | `dev` |
 | [`15_Photoz_estimation.ipynb`](../notebooks/15_Photoz_estimation.ipynb) | Build a photometric-redshift (photo-z) training catalog: `EUCLID_DR1` bounding box, crossmatch, gather, EUCLID `phot_ab_v1` recipe (lake override), AB homogenization, FITS export with spec-z columns, optional DESI spectra extract | A deployment (`$DATA_LAKE_CONFIG`) with `EUCLID_DR1`. Partners `ALLWISE`, `VIKING_DR4`, `GAIA_DR3_source`, `DESI_DR1` and `SDSS_DR17` are used when ingested. Needs a writable `/scratch/euclid_photoz` (editable) | `dev` |
-| [`16_cutout_day1_onboarding.ipynb`](../notebooks/16_cutout_day1_onboarding.ipynb) | First-time cutout modality gates on the synthetic demo lake: inventory, `_cutout_index`, validate, `locate`/`get_cutout_at`, extract subset, optional `CutoutDataset` + `TileSequentialSampler`; writes a friction JSON | None (calls `ensure_demo_lake`). Not for production ingest — see [`docs/talks/2026-11-cutout-real-lake-friction-plan.md`](talks/2026-11-cutout-real-lake-friction-plan.md) | `dev` |
+| [`16_cutout_day1_onboarding.ipynb`](../notebooks/16_cutout_day1_onboarding.ipynb) | First-time cutout modality gates on the synthetic demo lake: inventory, `_cutout_index`, validate, `locate`/`get_cutout_at`, extract subset, optional `CutoutDataset` + `TileSequentialSampler`; writes a friction JSON | None (calls `ensure_demo_lake`). | `dev` |
 | [`17_region_extract_samp.ipynb`](../notebooks/17_region_extract_samp.ipynb) | Save a bounding-box area (EDFN example), `dl-extract-catalog --from-area` for `DESI_DR1` (`TARGETID`, `TARGET_RA`, `TARGET_DEC`, `Z`), optionally `dl-samp-send-catalog` into a running TOPCAT | A deployment with `DESI_DR1`; writable scratch; TOPCAT open for the SAMP step | `dev` |
 
 ## Notes

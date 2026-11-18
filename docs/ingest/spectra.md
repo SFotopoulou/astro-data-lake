@@ -44,7 +44,7 @@ dl-ingest-spectra spec-3586-55181-0001.fits --survey sdss_dr17 \
 ```
 
 DESI (Dark Energy Spectroscopic Instrument) coadds need the `desi` optional extra
-(`pip install "data-lake[desi]"`, which installs `desispec`). The reader uses `desispec`'s
+(`pip install "astro-data-lake[desi]"`, which installs `desispec`). The reader uses `desispec`'s
 `read_spectra` and `coadd_cameras` so the B, R and Z camera arms are combined with
 inverse-variance (IVAR) weighting onto one wavelength grid.
 
@@ -756,7 +756,7 @@ best_template = template_library[np.argmin(chi2s)]
 `resolution_operator()` raises `ValueError` if the spectrum was ingested without
 `--with-resolution`, and `ImportError` if `scipy` is not installed.
 
-If you have the banded diagonals and only need scipy (not the full `data-lake` package), you
+If you have the banded diagonals and only need scipy (not the full `astro-data-lake` package), you
 can rebuild `R` directly:
 
 ```python

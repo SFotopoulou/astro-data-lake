@@ -26,7 +26,7 @@ def _package_version() -> str:
     if from_pyproject is not None:
         return from_pyproject
     try:
-        return version("data-lake")
+        return version("astro-data-lake")
     except PackageNotFoundError:
         return "unknown"
 

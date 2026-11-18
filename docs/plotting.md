@@ -12,7 +12,7 @@ Use `dl-plot-spectrum` to check a spectrum. Use `dl-plot-source` once you have a
 Plotting needs matplotlib, which is an optional dependency:
 
 ```bash
-pip install "data-lake[viz]"
+pip install "astro-data-lake[viz]"
 # or with uv:
 uv sync --extra viz
 ```

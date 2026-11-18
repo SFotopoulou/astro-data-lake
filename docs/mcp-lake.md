@@ -22,7 +22,7 @@ The example defines both servers. To run the explorer only:
 ```json
 {
   "mcpServers": {
-    "data-lake-explorer": {
+    "astro-data-lake-explorer": {
       "command": "uv",
       "args": ["run", "--extra", "mcp", "dl-mcp-lake"],
       "env": {
@@ -38,14 +38,14 @@ To also get documentation search and `docs://` resources, run both:
 ```json
 {
   "mcpServers": {
-    "data-lake-docs": {
+    "astro-data-lake-docs": {
       "command": "uv",
       "args": ["run", "--extra", "mcp", "dl-mcp-docs"],
       "env": {
         "DATA_LAKE_CONFIG": "/data/lake/lake_config.toml"
       }
     },
-    "data-lake-explorer": {
+    "astro-data-lake-explorer": {
       "command": "uv",
       "args": ["run", "--extra", "mcp", "dl-mcp-lake"],
       "env": {

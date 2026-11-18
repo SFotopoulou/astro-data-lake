@@ -138,6 +138,86 @@ wheels = [
 ]
 
 [[package]]
+name = "astro-data-lake"
+version = "0.9.0"
+source = { editable = "." }
+dependencies = [
+    { name = "astropy" },
+    { name = "click" },
+    { name = "duckdb" },
+    { name = "h5py" },
+    { name = "healpy" },
+    { name = "mocpy", extra = ["plots"] },
+    { name = "numcodecs" },
+    { name = "numpy" },
+    { name = "polars" },
+    { name = "pyarrow" },
+    { name = "scipy" },
+    { name = "torch" },
+    { name = "tqdm" },
+    { name = "zarr" },
+]
+
+[package.optional-dependencies]
+desi = [
+    { name = "desispec" },
+]
+dev = [
+    { name = "ipykernel" },
+    { name = "jupyterlab" },
+    { name = "matplotlib" },
+    { name = "napari" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+fitsio = [
+    { name = "fitsio" },
+]
+mcp = [
+    { name = "mcp" },
+]
+moc = [
+    { name = "mocpy", extra = ["plots"] },
+]
+rapids = [
+    { name = "cuml-cu12" },
+]
+viz = [
+    { name = "matplotlib" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "astropy", specifier = ">=6.0" },
+    { name = "click", specifier = ">=8.1" },
+    { name = "cuml-cu12", marker = "extra == 'rapids'", specifier = ">=24.8" },
+    { name = "desispec", marker = "extra == 'desi'", specifier = ">=0.62" },
+    { name = "duckdb", specifier = ">=0.10" },
+    { name = "fitsio", marker = "extra == 'fitsio'", specifier = ">=1.2" },
+    { name = "h5py", specifier = ">=3.10" },
+    { name = "healpy", specifier = ">=1.16" },
+    { name = "ipykernel", marker = "extra == 'dev'" },
+    { name = "jupyterlab", marker = "extra == 'dev'" },
+    { name = "matplotlib", marker = "extra == 'dev'" },
+    { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.7" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
+    { name = "mocpy", extras = ["plots"], specifier = ">=0.13" },
+    { name = "mocpy", extras = ["plots"], marker = "extra == 'moc'", specifier = ">=0.13" },
+    { name = "napari", marker = "extra == 'dev'" },
+    { name = "numcodecs", specifier = ">=0.13" },
+    { name = "numpy", specifier = ">=1.26" },
+    { name = "polars", specifier = ">=0.20" },
+    { name = "pyarrow", specifier = ">=15.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "scipy", specifier = ">=1.11" },
+    { name = "torch", specifier = ">=2.2" },
+    { name = "tqdm", specifier = ">=4.66" },
+    { name = "zarr", specifier = ">=3.0" },
+]
+provides-extras = ["desi", "fitsio", "dev", "mcp", "moc", "viz", "rapids"]
+
+[[package]]
 name = "astropy"
 version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -905,86 +985,6 @@ wheels = [
 array = [
     { name = "numpy" },
 ]
-
-[[package]]
-name = "data-lake"
-version = "0.9.0"
-source = { editable = "." }
-dependencies = [
-    { name = "astropy" },
-    { name = "click" },
-    { name = "duckdb" },
-    { name = "h5py" },
-    { name = "healpy" },
-    { name = "mocpy", extra = ["plots"] },
-    { name = "numcodecs" },
-    { name = "numpy" },
-    { name = "polars" },
-    { name = "pyarrow" },
-    { name = "scipy" },
-    { name = "torch" },
-    { name = "tqdm" },
-    { name = "zarr" },
-]
-
-[package.optional-dependencies]
-desi = [
-    { name = "desispec" },
-]
-dev = [
-    { name = "ipykernel" },
-    { name = "jupyterlab" },
-    { name = "matplotlib" },
-    { name = "napari" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-]
-fitsio = [
-    { name = "fitsio" },
-]
-mcp = [
-    { name = "mcp" },
-]
-moc = [
-    { name = "mocpy", extra = ["plots"] },
-]
-rapids = [
-    { name = "cuml-cu12" },
-]
-viz = [
-    { name = "matplotlib" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "astropy", specifier = ">=6.0" },
-    { name = "click", specifier = ">=8.1" },
-    { name = "cuml-cu12", marker = "extra == 'rapids'", specifier = ">=24.8" },
-    { name = "desispec", marker = "extra == 'desi'", specifier = ">=0.62" },
-    { name = "duckdb", specifier = ">=0.10" },
-    { name = "fitsio", marker = "extra == 'fitsio'", specifier = ">=1.2" },
-    { name = "h5py", specifier = ">=3.10" },
-    { name = "healpy", specifier = ">=1.16" },
-    { name = "ipykernel", marker = "extra == 'dev'" },
-    { name = "jupyterlab", marker = "extra == 'dev'" },
-    { name = "matplotlib", marker = "extra == 'dev'" },
-    { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.7" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
-    { name = "mocpy", extras = ["plots"], specifier = ">=0.13" },
-    { name = "mocpy", extras = ["plots"], marker = "extra == 'moc'", specifier = ">=0.13" },
-    { name = "napari", marker = "extra == 'dev'" },
-    { name = "numcodecs", specifier = ">=0.13" },
-    { name = "numpy", specifier = ">=1.26" },
-    { name = "polars", specifier = ">=0.20" },
-    { name = "pyarrow", specifier = ">=15.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "scipy", specifier = ">=1.11" },
-    { name = "torch", specifier = ">=2.2" },
-    { name = "tqdm", specifier = ">=4.66" },
-    { name = "zarr", specifier = ">=3.0" },
-]
-provides-extras = ["desi", "fitsio", "dev", "mcp", "moc", "viz", "rapids"]
 
 [[package]]
 name = "debugpy"

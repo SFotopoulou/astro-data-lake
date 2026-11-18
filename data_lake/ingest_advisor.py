@@ -357,7 +357,7 @@ def _generate_shard_slurm_script(
     return (
         "#!/bin/bash\n"
         f"# Generated Slurm wrapper for {survey} shard ingest, phase {phase} "
-        "(data-lake ingest advisor).\n"
+        "(astro-data-lake ingest advisor).\n"
         "#\n"
         "# Required env:\n"
         "#   DATA_LAKE_CONFIG  — path to lake_config.toml\n"
@@ -492,7 +492,7 @@ def _generate_slurm_script(
 
     return textwrap.dedent(f"""\
         #!/bin/bash
-        # Generated Slurm wrapper for {survey} ingest (data-lake ingest advisor).
+        # Generated Slurm wrapper for {survey} ingest (astro-data-lake ingest advisor).
         #
         # Required env:
         #   DATA_LAKE_CONFIG  — path to lake_config.toml
