@@ -11,7 +11,7 @@ data_lake/
   mcp_server.py, mcp_lake_server.py   MCP servers for agents (dl-mcp-docs, dl-mcp-lake)
 
   ingest/                   Raw files → lake
-    fits_to_parquet.py        Catalog → HATS Parquet tiles; finalize writes _common_metadata + _metadata
+    fits_to_parquet.py        Catalog → Parquet tiles in a HATS-style layout; finalize writes _common_metadata + _metadata
     catalog_ingest_cli.py     dl-ingest-catalog / dl-finalize-catalog
     catalog_parallel_ingest.py  dl-ingest-catalog-batch (parallel decode, single writer)
     catalog_shard_ingest.py   dl-ingest-from-shard (map → per-tile parts, reduce → tiles)

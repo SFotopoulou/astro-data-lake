@@ -1,6 +1,6 @@
 # Astronomy Data Lake
 
-A local-first data lake for multi-survey astronomy catalogs, galaxy image cutouts, and 1-D spectra. Data is stored in [HATS](https://hats.readthedocs.io/en/stable/)-partitioned Parquet (catalogs — HATS = HEALPix Adaptive Tiling Scheme) and sharded Zarr v3 (spectra, cutouts). FITS is the ingest/export format; internal storage is Parquet and Zarr.
+A local-first data lake for multi-survey astronomy catalogs, galaxy image cutouts, and 1-D spectra. Catalogs are stored as Parquet tiles in a HATS-style layout (HATS = [HEALPix Adaptive Tiling Scheme](https://hats.readthedocs.io/en/stable/); this lake uses one fixed order per catalog and does not use the [LSDB](https://lsdb.readthedocs.io/en/stable/) library), and spectra and cutouts are sharded Zarr v3. FITS is the ingest/export format; internal storage is Parquet and Zarr.
 
 Each survey lives in its own directory under `catalogs/`, `spectra/`, or `cutouts/` — these three directories are the three **modalities**. Every object carries a `_source_id` integer that links its catalog row to its spectrum and cutout tiles across all modalities.
 

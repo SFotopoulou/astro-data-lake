@@ -25,8 +25,12 @@ Building a joined "wide" product catalog from one base survey and one or more pa
 See [Gather](discovery/gather.md).
 
 **HATS (HEALPix Adaptive Tiling Scheme)**
-The partitioning scheme for catalog Parquet tiles. Each tile is one HEALPix pixel at a chosen `norder` and holds every source whose position falls inside that pixel. This makes spatial queries fast and allows incremental ingest.
+The community standard for partitioning catalogs into HEALPix-indexed Parquet tiles, with a standard directory layout and metadata files. The standard allows tiles to be adaptive: dense regions can be split to finer orders. This lake follows the HATS-style layout, with one fixed `norder` per catalog (tiles are not adaptive), and does not guarantee full HATS compliance.
 See [hats.readthedocs.io](https://hats.readthedocs.io/en/stable/).
+
+**LSDB**
+The Python library for querying and crossmatching HATS catalogs. This lake does not use LSDB or the `hats` package; it reads and writes its own Parquet tiles in a HATS-style layout.
+See [lsdb.readthedocs.io](https://lsdb.readthedocs.io/en/stable/).
 
 **HEALPix / norder**
 HEALPix (Hierarchical Equal Area isoLatitude Pixelisation) divides the sphere into equal-area pixels. `norder` (also `hats_order`) sets the resolution: the sky has \(12 \times 4^{\text{norder}}\) pixels, so `norder=5` gives 12,288 pixels and `norder=7` gives 196,608. A higher norder means smaller pixels and more tiles. The default catalog norder is 5.

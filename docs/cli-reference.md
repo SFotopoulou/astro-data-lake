@@ -16,7 +16,7 @@ All commands that read from or write to a lake honour `--config PATH` (or `$DATA
 
 | Command | Purpose |
 |---------|---------|
-| `dl-ingest-catalog` | Single FITS/CSV/Parquet/VOTable → HATS-partitioned Parquet; required: `--survey`, `--link-id-col` (source integer ID column), `--ra-col`, `--dec-col`; `--set-column NAME=VALUE` to inject constant columns before identity resolution (repeatable); `--defer-finalize`/`--lifecycle live` for incremental live surveys |
+| `dl-ingest-catalog` | Single FITS/CSV/Parquet/VOTable → Parquet tiles in a HATS-style layout; required: `--survey`, `--link-id-col` (source integer ID column), `--ra-col`, `--dec-col`; `--set-column NAME=VALUE` to inject constant columns before identity resolution (repeatable); `--defer-finalize`/`--lifecycle live` for incremental live surveys |
 | `dl-ingest-catalog-batch` | Parallel decode, single-thread writer (large file lists) |
 | `dl-ingest-catalog-from-list` | Sequential (default) or parallel catalog file-list ingest |
 | `dl-ingest-catalog-mef` | Join row-aligned FITS table extensions (shared keys, same `NAXIS2`) into one catalog; one file or `--file-list`; default `--tile-mode append`; see [Joined-extension catalogs](ingest/catalog.md#joined-extension-catalogs-dl-ingest-catalog-mef) |

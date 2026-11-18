@@ -245,7 +245,7 @@ appends slow and need a lot of RAM per tile. In practice:
 | Catalog type | Typical `--norder` | Why |
 |--------------|-------------------|-----|
 | Sparse all-sky (10⁶–10⁷ rows, full sphere) | 3–4 | Fewer, larger tiles and fewer inodes |
-| Dense survey footprint (DESI, deep fields) | 5 (default) | About 3.4 deg² tiles; matches common HATS (Hierarchical Adaptive Tiling Scheme) and Rubin/LSST `lsdb` practice |
+| Dense survey footprint (DESI, deep fields) | 5 (default) | About 3.4 deg² tiles; comparable to common HATS (HEALPix Adaptive Tiling Scheme) and Rubin/LSST LSDB catalog tile sizes |
 | Very local, high density | 6–7 | Only if tiles still hold many rows each |
 
 Base the choice on source density, not on the survey's name. Override the default per

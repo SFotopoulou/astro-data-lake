@@ -9,7 +9,7 @@
       ...
       _common_metadata      ← schema only (a few KiB); what readers use for column names and types
       _metadata             ← aggregate footer: every tile's row groups (large for wide catalogs)
-      catalog_info.json     ← HATS descriptor (kind: ingested, lifecycle, finalized)
+      catalog_info.json     ← lake descriptor in HATS-style layout (kind: ingested, lifecycle, finalized)
       schema_manifest.json  ← column manifest (name, dtype, role); written at finalize or by dl-describe-survey --rebuild
   products/                  ← derived catalogs (dl-gather, dl-homogenize); same on-disk shape as catalogs/
     <name>/
