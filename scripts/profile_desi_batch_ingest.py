@@ -71,7 +71,7 @@ def _cmd_worker(
     fits_paths: tuple[str, ...],
     file_list: Path | None,
     count: int | None,
-    norder: int,
+    healpix_order: int,
     output: str,
     lines: int,
     sort: str,
@@ -97,7 +97,7 @@ def _cmd_worker(
 
     def _run() -> None:
         for path_str in paths:
-            res = _decode_one_coadd(path_str, norder)
+            res = _decode_one_coadd(path_str, healpix_order)
             if not res.ok:
                 print(f"FAIL {path_str}: {res.error}", file=sys.stderr)
             else:
@@ -125,7 +125,7 @@ def _cmd_batch(
     n_workers: int,
     max_in_flight: int | None,
     max_open_tiles: int,
-    norder: int,
+    healpix_order: int,
     profile_output: str,
     lines: int,
     sort: str,
@@ -165,7 +165,7 @@ def _cmd_batch(
             output_root=tmp,
             survey_name=survey,
             n_workers=n_workers,
-            norder=norder,
+            healpix_order=healpix_order,
             checkpoint_path=survey_root / ".ingest_checkpoint.json",
             failures_log=survey_root / ".ingest_failures.jsonl",
             show_progress=False,
@@ -218,12 +218,12 @@ def worker_cmd(
     fits_paths: tuple[str, ...],
     file_list: Path | None,
     count: int | None,
-    norder: int,
+    healpix_order: int,
     output: str,
     lines: int,
     sort: str,
 ) -> int:
-    return _cmd_worker(fits_paths, file_list, count, norder, output, lines, sort)
+    return _cmd_worker(fits_paths, file_list, count, healpix_order, output, lines, sort)
 
 
 @cli.command(
@@ -256,7 +256,7 @@ def batch_cmd(
     n_workers: int,
     max_in_flight: int | None,
     max_open_tiles: int,
-    norder: int,
+    healpix_order: int,
     profile_output: str,
     lines: int,
     sort: str,
@@ -270,7 +270,7 @@ def batch_cmd(
         n_workers,
         max_in_flight,
         max_open_tiles,
-        norder,
+        healpix_order,
         profile_output,
         lines,
         sort,

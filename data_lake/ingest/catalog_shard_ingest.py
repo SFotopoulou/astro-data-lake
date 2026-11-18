@@ -4,7 +4,7 @@ catalog_shard_ingest – two-phase map-reduce catalog ingest (``dl-ingest-from-s
 Why
 ---
 The single-writer append path in ``ingest_catalog`` rewrites each Npix tile for
-every source file that touches it.  At norder=4 a tractor brick sits inside a
+every source file that touches it.  At healpix_order=4 a tractor brick sits inside a
 ~3.7° HEALPix pixel shared by hundreds of bricks → ~20 s/file → 2 000 CPU-hours
 for 400k files.
 
@@ -80,12 +80,12 @@ _SHARD_INFO_FILENAME = "shard_info.json"
 def _shard_part_path(
     shard_root: Path,
     survey: str,
-    norder: int,
+    healpix_order: int,
     npix: int,
     stem: str,
 ) -> Path:
     """Return the canonical path for an immutable shard part file."""
-    hp_dir = healpix_dir(norder, npix)
+    hp_dir = healpix_dir(healpix_order, npix)
     return shard_root / survey / hp_dir / f"Npix={npix}" / f"part-{stem}.parquet"
 
 
@@ -157,13 +157,13 @@ def _read_json(path: Path) -> dict | None:
         return json.load(fh)
 
 
-def _check_shard_norder(shard_root: Path, survey: str, norder: int) -> dict | None:
-    """Abort when *norder* differs from the order the shard tree was mapped at."""
+def _check_shard_healpix_order(shard_root: Path, survey: str, healpix_order: int) -> dict | None:
+    """Abort when *healpix_order* differs from the order the shard tree was mapped at."""
     info = _read_json(_shard_info_path(shard_root, survey))
-    if info is not None and int(info["norder"]) != norder:
+    if info is not None and int(info["healpix_order"]) != healpix_order:
         raise ValueError(
-            f"--healpix-order {norder} does not match shard tree "
-            f"{_shard_info_path(shard_root, survey)} (norder={info['norder']}). "
+            f"--healpix-order {healpix_order} does not match shard tree "
+            f"{_shard_info_path(shard_root, survey)} (healpix_order={info['healpix_order']}). "
             "Use the same --healpix-order for every map task and for reduce."
         )
     return info
@@ -221,8 +221,8 @@ def _check_against_catalog(shard_info: dict, catalog_root: Path) -> None:
         return
     problems: list[str] = []
     lake_order = require_healpix_order(info, str(catalog_root / "catalog_info.json"))
-    if int(lake_order) != int(shard_info["norder"]):
-        problems.append(f"healpix_order: lake={lake_order} shards={shard_info['norder']}")
+    if int(lake_order) != int(shard_info["healpix_order"]):
+        problems.append(f"healpix_order: lake={lake_order} shards={shard_info['healpix_order']}")
     lake_mode = info.get("link_id_mode")
     shard_mode = shard_info.get("link_id_mode")
     if lake_mode and shard_mode and lake_mode != shard_mode:
@@ -314,7 +314,7 @@ def _map_one_file(
     survey: str,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None,
     columns: tuple[str, ...] | None,
     allow_incomplete_link_id: bool,
@@ -331,7 +331,7 @@ def _map_one_file(
         source_path,
         ra_col=ra_col,
         dec_col=dec_col,
-        norder=norder,
+        healpix_order=healpix_order,
         link_id_col=link_id_col,
         columns=list(columns) if columns else None,
         allow_incomplete_link_id=allow_incomplete_link_id,
@@ -340,7 +340,7 @@ def _map_one_file(
     options = CatalogParquetOptions()
     n_written = 0
     for npix, tile_table in batches:
-        part_path = _shard_part_path(shard_root, survey, norder, npix, stem)
+        part_path = _shard_part_path(shard_root, survey, healpix_order, npix, stem)
         if part_path.exists():
             # idempotent resume: never overwrite a completed part
             continue
@@ -505,7 +505,7 @@ def run_map_phase(
     survey: str,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     *,
     link_id_col: str | None = None,
     columns: Sequence[str] | None = None,
@@ -533,7 +533,7 @@ def run_map_phase(
     settings disagree with the existing shard tree.
     """
     fits_hdu = parse_hdu_spec(fits_hdu)
-    _check_shard_norder(shard_root, survey, norder)
+    _check_shard_healpix_order(shard_root, survey, healpix_order)
     _warn_shard_fits_hdu(shard_root, survey, fits_hdu)
     checkpoint = checkpoint_path or _checkpoint_path(shard_root, survey)
     done = _load_checkpoint(checkpoint) if skip_completed else set()
@@ -552,7 +552,7 @@ def run_map_phase(
         survey=survey,
         ra_col=ra_col,
         dec_col=dec_col,
-        norder=norder,
+        healpix_order=healpix_order,
         link_id_col=link_id_col,
         columns=tuple(columns) if columns else None,
         allow_incomplete_link_id=allow_incomplete_link_id,
@@ -572,7 +572,7 @@ def run_map_phase(
                 shard_root,
                 survey,
                 {
-                    "norder": norder,
+                    "healpix_order": healpix_order,
                     "link_id_mode": sid_mode,
                     "ra_column": ra_col,
                     "dec_column": dec_col,
@@ -694,7 +694,7 @@ def _reduce_one_npix(
     npix: int,
     part_paths: list[Path],
     catalog_root: Path,
-    norder: int,
+    healpix_order: int,
     on_duplicate_id: DuplicateIdMode,
     staging_dir: Path | None = None,
     tile_mode: TileMode = "append",
@@ -709,7 +709,7 @@ def _reduce_one_npix(
     Returns ``(npix, n_rows, action)`` with action one of ``written``,
     ``merged``, ``unchanged``, ``skipped``.
     """
-    hp_dir = healpix_dir(norder, npix)
+    hp_dir = healpix_dir(healpix_order, npix)
     out_path = catalog_root / hp_dir / f"Npix={npix}.parquet"
     exists = out_path.exists()
     if exists and tile_mode == "skip":
@@ -763,7 +763,7 @@ def _reduce_one_npix(
 def _iter_shard_parts(
     shard_root: Path,
     survey: str,
-    norder: int,
+    healpix_order: int,
 ) -> Iterator[tuple[int, list[Path]]]:
     """Yield ``(npix, [part_paths])`` for every Npix that has at least one part."""
     survey_root = shard_root / survey
@@ -785,7 +785,7 @@ def run_reduce_phase(
     shard_root: Path,
     survey: str,
     catalog_root: Path,
-    norder: int,
+    healpix_order: int,
     *,
     on_duplicate_id: DuplicateIdMode = "skip",
     n_workers: int = 1,
@@ -801,7 +801,7 @@ def run_reduce_phase(
     """Concat shard parts → one lake tile per Npix, then finalize metadata.
 
     Raises ``ValueError`` before writing anything if the shards were mapped
-    at another ``norder`` or the existing lake survey uses another order /
+    at another ``healpix_order`` or the existing lake survey uses another order /
     link-id spec.  Per-tile errors are appended to *failures_log* (JSONL);
     finalize is skipped when any tile failed.  With *staging_dir*, each tile
     is written there first and then moved to *catalog_root*.
@@ -810,20 +810,20 @@ def run_reduce_phase(
     (counts per written/merged/unchanged/skipped), ``finalized`` and
     ``elapsed_s``.
     """
-    shard_info = _check_shard_norder(shard_root, survey, norder)
+    shard_info = _check_shard_healpix_order(shard_root, survey, healpix_order)
     if shard_info is None:
         log.warning(
             "No %s under %s; cannot verify link-id mode against the lake.",
             _SHARD_INFO_FILENAME, shard_root / survey,
         )
-        shard_info = {"norder": norder}
+        shard_info = {"healpix_order": healpix_order}
     _check_against_catalog(shard_info, catalog_root)
     new_survey = check_fits_hdu_provenance(catalog_root, shard_info.get("fits_hdu"))
 
     t0 = time.monotonic()
     actions: Counter[str] = Counter()
     n_err = 0
-    npix_groups = list(_iter_shard_parts(shard_root, survey, norder))
+    npix_groups = list(_iter_shard_parts(shard_root, survey, healpix_order))
 
     def _summary(finalized: bool) -> dict[str, Any]:
         return {
@@ -843,7 +843,7 @@ def run_reduce_phase(
         len(npix_groups), tile_mode,
     )
     options = CatalogParquetOptions.compact() if compact else CatalogParquetOptions()
-    args = (catalog_root, norder, on_duplicate_id, staging_dir, tile_mode, options)
+    args = (catalog_root, healpix_order, on_duplicate_id, staging_dir, tile_mode, options)
 
     def _on_failure(npix: int, parts: list[Path], exc: BaseException) -> None:
         nonlocal n_err
@@ -896,7 +896,7 @@ def run_reduce_phase(
     finalize_catalog_survey(
         catalog_root=catalog_root,
         survey_name=survey,
-        norder=norder,
+        healpix_order=healpix_order,
         ra_col=shard_info.get("ra_column", ra_col),
         dec_col=shard_info.get("dec_column", dec_col),
         link_id_mode=shard_info.get("link_id_mode"),
@@ -1121,7 +1121,7 @@ try:
         ra_col: str,
         dec_col: str,
         link_id_col: str | None,
-        norder: int | None,
+        healpix_order: int | None,
         columns: str | None,
         allow_incomplete_link_id: bool,
         fits_memmap: str,
@@ -1171,8 +1171,8 @@ try:
 
         shard_info = _read_json(_shard_info_path(shard_root, survey_name)) or {}
         n = pick(
-            norder,
-            shard_info.get("norder"),
+            healpix_order,
+            shard_info.get("healpix_order"),
             pick(None, cfg.partitioning.healpix_order if cfg else None, 5),
         )
         cols = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
@@ -1194,7 +1194,7 @@ try:
                     survey=survey_name,
                     ra_col=ra_col,
                     dec_col=dec_col,
-                    norder=n,
+                    healpix_order=n,
                     link_id_col=link_id_col,
                     columns=cols,
                     allow_incomplete_link_id=allow_incomplete_link_id,
@@ -1222,7 +1222,7 @@ try:
                 shard_root=shard_root,
                 survey=survey_name,
                 catalog_root=lake / "catalogs" / survey_name,
-                norder=n,
+                healpix_order=n,
                 on_duplicate_id=on_duplicate_id.lower(),  # type: ignore[arg-type]
                 n_workers=n_workers,
                 ra_col=ra_col,

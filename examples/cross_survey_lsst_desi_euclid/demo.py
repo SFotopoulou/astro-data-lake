@@ -33,16 +33,16 @@ from data_lake.ingest.fits_to_parquet import healpix_dir
 # Layout constants (same HEALPix order for all surveys in this toy example)
 # ---------------------------------------------------------------------------
 
-NORDER = 5
+HEALPIX_ORDER = 5
 LSST_SURVEY = "lsst_dc2_photometry"
 DESI_SURVEY = "desi_dr1_spectra"
 EUCLID_SURVEY = "euclid_q1_cutouts"
 
 
-def zarr_tile_path(lake: Path, modality: str, survey: str, norder: int, npix: int) -> Path:
+def zarr_tile_path(lake: Path, modality: str, survey: str, healpix_order: int, npix: int) -> Path:
     """Resolve ``…/{spectra|cutouts}/<survey>/Norder=…/Dir=…/Npix=<npix>.zarr``."""
     sub = "spectra" if modality == "spectra" else "cutouts"
-    rel = healpix_dir(norder, npix)
+    rel = healpix_dir(healpix_order, npix)
     return lake / sub / survey / rel / f"Npix={npix}.zarr"
 
 
@@ -51,11 +51,11 @@ def write_parquet(path: Path, table: pa.Table) -> None:
     pq.write_table(table, path, compression="zstd")
 
 
-def _catalog_info(path: Path, survey: str, norder: int, n_rows: int, n_cols: int) -> None:
+def _catalog_info(path: Path, survey: str, healpix_order: int, n_rows: int, n_cols: int) -> None:
     info = {
         "catalog_name": survey,
         "catalog_type": "object",
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "total_rows": n_rows,
         "total_columns": n_cols,
         "schema_version": "1",
@@ -83,7 +83,7 @@ def build_synthetic_lake(lake: Path) -> Path:
 
     # One shared tile (any npix is fine; Dir= follows HATS stride)
     npix = 12_345
-    hp_col = f"_healpix_norder{NORDER}"
+    hp_col = f"_healpix_order{HEALPIX_ORDER}"
 
     # --- LSST photometry (3 rows): wide g_mag for filtering ----------------
     lsst = pa.table({
@@ -96,9 +96,9 @@ def build_synthetic_lake(lake: Path) -> Path:
         "_cutout_index": pa.array([-1, -1, -1], type=pa.int64()),
     })
     lsst_root = lake / "catalogs" / LSST_SURVEY
-    tile_dir = lsst_root / healpix_dir(NORDER, npix)
+    tile_dir = lsst_root / healpix_dir(HEALPIX_ORDER, npix)
     write_parquet(tile_dir / f"Npix={npix}.parquet", lsst)
-    _catalog_info(lsst_root / "catalog_info.json", LSST_SURVEY, NORDER, len(lsst), len(lsst.schema))
+    _catalog_info(lsst_root / "catalog_info.json", LSST_SURVEY, HEALPIX_ORDER, len(lsst), len(lsst.schema))
 
     # --- DESI catalog (spectra indexed): two targets in same tile ------------
     desi = pa.table({
@@ -110,9 +110,9 @@ def build_synthetic_lake(lake: Path) -> Path:
         "_cutout_index": pa.array([-1, -1], type=pa.int64()),
     })
     desi_root = lake / "catalogs" / DESI_SURVEY
-    tile_d = desi_root / healpix_dir(NORDER, npix)
+    tile_d = desi_root / healpix_dir(HEALPIX_ORDER, npix)
     write_parquet(tile_d / f"Npix={npix}.parquet", desi)
-    _catalog_info(desi_root / "catalog_info.json", DESI_SURVEY, NORDER, len(desi), len(desi.schema))
+    _catalog_info(desi_root / "catalog_info.json", DESI_SURVEY, HEALPIX_ORDER, len(desi), len(desi.schema))
 
     # --- Euclid catalog (cutouts indexed) -----------------------------------
     euclid = pa.table({
@@ -124,9 +124,9 @@ def build_synthetic_lake(lake: Path) -> Path:
         "_cutout_index": pa.array([0, 1], type=pa.int64()),
     })
     eu_root = lake / "catalogs" / EUCLID_SURVEY
-    tile_e = eu_root / healpix_dir(NORDER, npix)
+    tile_e = eu_root / healpix_dir(HEALPIX_ORDER, npix)
     write_parquet(tile_e / f"Npix={npix}.parquet", euclid)
-    _catalog_info(eu_root / "catalog_info.json", EUCLID_SURVEY, NORDER, len(euclid), len(euclid.schema))
+    _catalog_info(eu_root / "catalog_info.json", EUCLID_SURVEY, HEALPIX_ORDER, len(euclid), len(euclid.schema))
 
     # --- Master association (built *outside* the lake in real life) ---------
     master = pa.table({
@@ -134,7 +134,7 @@ def build_synthetic_lake(lake: Path) -> Path:
         "desi_targetid": pa.array([2_000_001, 2_000_002], type=pa.int64()),
         "euclid_source_id": pa.array([3_000_001, 3_000_002], type=pa.int64()),
         "healpix_npix": pa.array([npix, npix], type=pa.int64()),
-        "norder": pa.array([NORDER, NORDER], type=pa.int32()),
+        "healpix_order": pa.array([HEALPIX_ORDER, HEALPIX_ORDER], type=pa.int32()),
         "desi_zarr_row": pa.array([0, 1], type=pa.int64()),
         "euclid_zarr_row": pa.array([0, 1], type=pa.int64()),
     })
@@ -179,8 +179,8 @@ def main() -> None:
     run_duckdb_query(lake, master_path, sql_path)
     npix = 12_345
     print("\nExpected Zarr paths (same pattern as ``healpix_dir`` in the package):")
-    print("  Spectra: ", zarr_tile_path(lake, "spectra", DESI_SURVEY, NORDER, npix))
-    print("  Cutouts:", zarr_tile_path(lake, "cutouts", EUCLID_SURVEY, NORDER, npix))
+    print("  Spectra: ", zarr_tile_path(lake, "spectra", DESI_SURVEY, HEALPIX_ORDER, npix))
+    print("  Cutouts:", zarr_tile_path(lake, "cutouts", EUCLID_SURVEY, HEALPIX_ORDER, npix))
     print(
         "\nNext step in real code: open each unique tile once with zarr, then\n"
         "  root['flux'][desi_zarr_row]   (or SpectrumAccessor pattern)\n"

@@ -261,7 +261,7 @@ try:
         survey_name: str,
         ra_col: str,
         dec_col: str,
-        norder: int | None,
+        healpix_order: int | None,
         link_id_col: str | None,
         allow_incomplete_link_id: bool,
         tile_mode: str | None,
@@ -295,7 +295,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="catalogs")
-        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        n = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
         default_ck = lake / "catalogs" / survey_name / ".ingest_checkpoint.json"
         col_list = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
 
@@ -320,7 +320,7 @@ try:
                 n_workers=n_workers,
                 ra_col=ra_col,
                 dec_col=dec_col,
-                norder=n,
+                healpix_order=n,
                 link_id_col=link_id_col,
                 allow_incomplete_link_id=allow_incomplete_link_id,
                 columns=col_list,
@@ -349,7 +349,7 @@ try:
                 survey_name=survey_name,
                 ra_col=ra_col,
                 dec_col=dec_col,
-                norder=n,
+                healpix_order=n,
                 link_id_col=link_id_col,
                 allow_incomplete_link_id=allow_incomplete_link_id,
                 tile_mode=resolve_catalog_tile_mode(tile_mode, parallel=False),  # type: ignore[arg-type]
@@ -464,7 +464,7 @@ try:
         link_id_col: str | None,
         image_hdu_index: int,
         band_axis: int | None,
-        norder: int | None,
+        healpix_order: int | None,
         band_names: str | None,
         dtype: str,
         on_duplicate: str,
@@ -496,7 +496,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="cutouts")
-        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        n = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
         bn = [x.strip() for x in band_names.split(",")] if band_names else None
         default_ck = lake / "cutouts" / survey_name / ".ingest_checkpoint.json"
 
@@ -521,7 +521,7 @@ try:
                 image_hdu_index=image_hdu_index,
                 band_axis=band_axis,
                 band_names=bn,
-                norder=n,
+                healpix_order=n,
                 dtype=np.dtype(dtype),
                 on_duplicate=on_duplicate,  # type: ignore[arg-type]
                 checkpoint_path=checkpoint or default_ck,
@@ -542,7 +542,7 @@ try:
                         lake_root=lake,
                         survey_name=survey_name,
                         kind="cutout",
-                        norder=n,
+                        healpix_order=n,
                     )
                     click.echo(f"Patched _cutout_index in {n_modified} catalog tile(s).")
                 except FileNotFoundError:
@@ -566,7 +566,7 @@ try:
                 image_hdu_index=image_hdu_index,
                 band_axis=band_axis,
                 band_names=bn,
-                norder=n,
+                healpix_order=n,
                 dtype=np.dtype(dtype),
                 on_duplicate_source_id=on_duplicate,  # type: ignore[arg-type]
                 fits_memmap=fits_memmap.lower(),
@@ -599,7 +599,7 @@ try:
                     survey_name=survey_name,
                     source_id_to_index=total_index_map,
                     kind="cutout",
-                    norder=n,
+                    healpix_order=n,
                     link_id_col=None,
                 )
                 click.echo(f"Patched _cutout_index in {n_modified} catalog tile(s).")
@@ -744,7 +744,7 @@ try:
         ra_col: str,
         dec_col: str,
         link_id_col: str | None,
-        norder: int | None,
+        healpix_order: int | None,
         fmt: str | None,
         specobj_lookup: Path | None,
         specobj_lookup_from_catalog: bool,
@@ -780,7 +780,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="spectra")
-        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        n = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
         default_ck = lake / "spectra" / survey_name / ".ingest_checkpoint.json"
         resolved_wavelength = pick(
             wavelength_mode,
@@ -809,7 +809,7 @@ try:
             decode_cfg = SpectrumDecodeConfig(
                 survey_name=survey_name,
                 output_root=str(lake),
-                norder=n,
+                healpix_order=n,
                 fmt=fmt,
                 ra_col=ra_col,
                 dec_col=dec_col,
@@ -850,7 +850,7 @@ try:
                         lake_root=lake,
                         survey_name=survey_name,
                         kind="spectrum",
-                        norder=n,
+                        healpix_order=n,
                     )
                     click.echo(f"Patched _spectrum_index in {n_modified} catalog tile(s).")
                 except FileNotFoundError:
@@ -872,7 +872,7 @@ try:
                 ra_col=ra_col,
                 dec_col=dec_col,
                 link_id_col=link_id_col,
-                norder=n,
+                healpix_order=n,
                 fmt=fmt,
                 wavelength_mode=resolved_wavelength,
                 on_length_mismatch=on_length_mismatch,
@@ -911,7 +911,7 @@ try:
                     survey_name=survey_name,
                     source_id_to_index=total_index_map,
                     kind="spectrum",
-                    norder=n,
+                    healpix_order=n,
                     link_id_col=None,
                 )
                 click.echo(f"Patched _spectrum_index in {n_modified} catalog tile(s).")

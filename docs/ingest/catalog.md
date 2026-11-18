@@ -150,10 +150,10 @@ whatever *k* is. Break-even is at *k* ≈ 3; above that, map-reduce wins by a ma
 grows linearly with *k*.
 
 To estimate *k* for spatially organised files, divide the tile area by the file area
-(tile areas are in [Choosing HEALPix order](#choosing-healpix-order---healpix-order--healpix_order)). For unsorted files,
+(tile areas are in [Choosing HEALPix order](#choosing-healpix-order---healpix-order)). For unsorted files,
 *k* is roughly the number of files, since each file touches most tiles.
 
-| Example | File area | norder 4 (13.4 deg²) | norder 5 (3.36 deg²) | norder 7 (0.21 deg²) |
+| Example | File area | healpix_order 4 (13.4 deg²) | healpix_order 5 (3.36 deg²) | healpix_order 7 (0.21 deg²) |
 |---------|-----------|----------------------|----------------------|----------------------|
 | Legacy Survey brick (0.25° × 0.25°) | 0.0625 deg² | k ≈ 215 | k ≈ 54 | k ≈ 3.4 |
 | 1° × 1° RA/Dec patch | 1 deg² | k ≈ 13 | k ≈ 3.4 | k ≈ 1 |
@@ -171,7 +171,7 @@ it moves the same cost into a single-node, in-memory stack. Use it only for mode
 inputs (see [Concatenate FITS shards](#concatenate-fits-shards-pre-ingest)).
 
 The ingest advisor applies the same rule: `recommend_ingest(..., layout="spatial")`, or
-`file_area_deg2=...` together with `norder=...`, returns the shard map and reduce
+`file_area_deg2=...` together with `healpix_order=...`, returns the shard map and reduce
 commands plus both Slurm scripts (see [MCP lake server](../mcp-lake.md)).
 
 ## Check FITS layout before ingest
@@ -209,7 +209,7 @@ If any file is `packed-vector`, expect long ingest times and high RAM per worker
 makes parallel whole-file ingest a poor fit. Re-export it as row-normal FITS (STILTS
 `col=false`) or Parquet first. See [Performance tuning](../performance.md).
 
-## Choosing HEALPix order (`--healpix-order` / `healpix_order`)
+## Choosing HEALPix order (`--healpix-order`)
 
 Catalogs, cutouts and spectra are partitioned on HEALPix nested pixels. Each non-empty
 pixel becomes one file (`Norder=<N>/Dir=<D>/Npix=<P>.parquet`, or `.zarr` for cutouts and
@@ -257,21 +257,21 @@ dl-ingest-catalog sparse_allsky.fits --survey my_sparse --healpix-order 4 \
 ```
 
 Catalog, spectra and cutouts can use different orders. The catalog stores
-`_healpix_norder{N}` (its own partition key) alongside `_spectrum_npix` and
+`_healpix_order{N}` (its own partition key) alongside `_spectrum_npix` and
 `_cutout_npix` (the pixel of the matching spectrum or cutout tile), so accessors find the
 right Zarr tile regardless of order. Linking uses `_source_id`, not equal HEALPix pixels,
 and cross-survey crossmatch does not need both catalogs at the same order.
 
-Before a TB-scale ingest, check the order with `dl-recommend-catalog-norder`, which reads
+Before a TB-scale ingest, check the order with `dl-recommend-catalog-healpix-order`, which reads
 FITS headers and a subsample of RA/Dec without writing anything:
 
 ```bash
 # Files or a directory of FITS (--glob filters a directory)
-dl-recommend-catalog-norder /path/to/catalogs/*.fits \
+dl-recommend-catalog-healpix-order /path/to/catalogs/*.fits \
   --ra-col TARGET_RA --dec-col TARGET_DEC
 
 # File list (same paths as batch ingest)
-dl-recommend-catalog-norder --file-list allwise_files.txt \
+dl-recommend-catalog-healpix-order --file-list allwise_files.txt \
   --ra-col ra --dec-col dec --max-files 32 --sample-rows 500000
 ```
 
@@ -286,7 +286,7 @@ footprints. Alternatively, ingest a subset and check the tile count and
 The lake joins catalogs, cutouts and spectra on one internal int64 column, `_source_id`,
 stored in the Parquet tiles and in Zarr `_source_id/` arrays. Your survey's own ID
 columns (for example UltraVISTA `SOURCE_ID` or DESI `TARGETID`) are kept unchanged. Any
-column starting with `_` is lake bookkeeping (`_healpix_norder*`, `_cutout_index`,
+column starting with `_` is lake bookkeeping (`_healpix_order*`, `_cutout_index`,
 `_spectrum_index`, and so on).
 
 `--link-id-col` is required and must name an existing column, or a comma-separated list
@@ -405,7 +405,7 @@ values may contain `=` or `:`.
 Constraints:
 
 - The column must not already exist in the source file.
-- Lake-internal names (`_source_id`, `_healpix_norder*`, `_cutout_*`, `_spectrum_*`) are
+- Lake-internal names (`_source_id`, `_healpix_order*`, `_cutout_*`, `_spectrum_*`) are
   rejected.
 - Every ingest into a survey must inject the same set of columns, starting with the first
   write. If earlier tiles were written without it, `--tile-mode append` fails with a
@@ -421,7 +421,7 @@ extensions (per-CCD or per-field tables, an `OBJECTS` table next to a `SUMMARY` 
 `EXTVER`-numbered copies), choose one with `--hdu`. The flag works the same on
 `dl-ingest-catalog`, `dl-ingest-catalog-batch`, `dl-ingest-catalog-from-list`,
 `dl-ingest-from-shard` (map phase), `dl-check-fits-table-format` and
-`dl-recommend-catalog-norder`, and can be set once with `$DATA_LAKE_FITS_HDU`. It is
+`dl-recommend-catalog-healpix-order`, and can be set once with `$DATA_LAKE_FITS_HDU`. It is
 ignored for non-FITS inputs.
 
 | `--hdu` value | Reads |

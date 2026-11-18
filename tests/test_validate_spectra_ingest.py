@@ -20,7 +20,7 @@ from data_lake.ingest.validate_spectra_ingest import run_validation
 N_PIX = 8
 
 
-def _mini_decoder(path_str: str, norder: int) -> WorkerResult:
+def _mini_decoder(path_str: str, healpix_order: int) -> WorkerResult:
     label = Path(path_str).stem
     npix = 100 if label == "fileA" else 200
     sid = 101 if label == "fileA" else 202
@@ -80,7 +80,7 @@ def test_run_validation_ok_after_minimal_ingest(tmp_path: Path, two_fake_coadds)
         output_root=lake,
         survey_name="syn",
         n_workers=1,
-        norder=5,
+        healpix_order=5,
         checkpoint_path=tmp_path / "ckpt.json",
         failures_log=tmp_path / "fail.jsonl",
         show_progress=False,
@@ -150,7 +150,7 @@ def test_strict_fails_on_stale_inflight(tmp_path: Path, two_fake_coadds) -> None
         output_root=lake,
         survey_name="syn",
         n_workers=1,
-        norder=5,
+        healpix_order=5,
         checkpoint_path=tmp_path / "ckpt.json",
         failures_log=tmp_path / "fail.jsonl",
         show_progress=False,
@@ -160,7 +160,7 @@ def test_strict_fails_on_stale_inflight(tmp_path: Path, two_fake_coadds) -> None
     inflight = survey_root / ".ingest_inflight.json"
     _atomic_write_json(
         inflight,
-        {"commit": {"path": "/nope.fits", "tiles": {"100": 0}, "norder": 5}},
+        {"commit": {"path": "/nope.fits", "tiles": {"100": 0}, "healpix_order": 5}},
     )
     rep = run_validation(lake, "syn")
     assert not rep.ok(strict=True)

@@ -60,7 +60,7 @@ def _ingest_mini_catalog(
         ra_col="TARGET_RA",
         dec_col="TARGET_DEC",
         link_id_col="TARGETID",
-        norder=5,
+        healpix_order=5,
         tile_mode="overwrite",
     )
 
@@ -128,7 +128,7 @@ def test_build_registry_table_empty_lake(tmp_path: Path) -> None:
     assert table.num_rows == 0
 
 
-def _mini_spectrum_decoder(path_str: str, norder: int) -> WorkerResult:
+def _mini_spectrum_decoder(path_str: str, healpix_order: int) -> WorkerResult:
     label = Path(path_str).stem
     npix = 100 if label == "fileA" else 200
     sid = 101 if label == "fileA" else 202
@@ -172,7 +172,7 @@ def test_registry_spectra_total_rows(tmp_path: Path) -> None:
         output_root=lake,
         survey_name="SPEC_SURV",
         n_workers=1,
-        norder=5,
+        healpix_order=5,
         checkpoint_path=tmp_path / "ckpt.json",
         failures_log=tmp_path / "fail.jsonl",
         show_progress=False,
@@ -217,7 +217,7 @@ def test_registry_healpix_order_match(tmp_path: Path) -> None:
         output_root=lake,
         survey_name="PAIR_SURV",
         n_workers=1,
-        norder=5,
+        healpix_order=5,
         checkpoint_path=tmp_path / "ckpt.json",
         failures_log=tmp_path / "fail.jsonl",
         show_progress=False,
@@ -572,7 +572,7 @@ def test_describe_lake_pair_surveys_cli(tmp_path: Path) -> None:
         output_root=lake,
         survey_name="PAIR_CLI",
         n_workers=1,
-        norder=5,
+        healpix_order=5,
         checkpoint_path=tmp_path / "ckpt_pair.json",
         failures_log=tmp_path / "fail_pair.jsonl",
         show_progress=False,

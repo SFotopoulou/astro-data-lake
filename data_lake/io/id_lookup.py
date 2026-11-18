@@ -20,11 +20,11 @@ log = logging.getLogger(__name__)
 ModalityKind = Literal["spectrum", "cutout"]
 
 
-def _index_columns(kind: ModalityKind, norder: int) -> tuple[str, str, str]:
+def _index_columns(kind: ModalityKind, healpix_order: int) -> tuple[str, str, str]:
     """Return (index_col, npix_col, fallback_hp_col) for a modality."""
     index_col = f"_{kind}_index"
     npix_col = f"_{kind}_npix"
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     return index_col, npix_col, hp_col
 
 
@@ -43,7 +43,7 @@ def bulk_tile_index_from_catalog(
         return result
 
     cat_cols = catalog.columns
-    index_col, npix_col, hp_col = _index_columns(kind, catalog.norder)
+    index_col, npix_col, hp_col = _index_columns(kind, catalog.healpix_order)
     if index_col not in cat_cols:
         return result
 

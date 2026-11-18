@@ -33,7 +33,7 @@ dl-validate-catalog-spectra-link --all
 ## Verify catalog ↔ spectra linkage
 
 After a spectrum ingest (with `--update-catalog`, the default), every catalog
-row that has a spectrum carries `_source_id`, `_healpix_norder{N}` and
+row that has a spectrum carries `_source_id`, `_healpix_order{N}` and
 `_spectrum_index`, which points at the matching row in the paired
 `Npix=*.zarr` spectrum tile. Check this in two steps:
 

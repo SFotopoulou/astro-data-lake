@@ -57,7 +57,7 @@ class TestDecodeCatalogFileToBatches:
             fits_path,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
         )
         assert n_rows == 5
@@ -68,7 +68,7 @@ class TestDecodeCatalogFileToBatches:
         assert int(npix) == npix
 
         # Round-trip through helper used by ingest
-        hp_col = "_healpix_norder5"
+        hp_col = "_healpix_order5"
         prepared = tbl  # already has healpix col from decode
         assert hp_col in prepared.schema.names
         repart = catalog_table_to_tile_batches(prepared, 5)
@@ -89,7 +89,7 @@ class TestParallelCatalogIngest:
             _write_table_as_fits(_make_same_pixel_table([i + 1]), p)
             paths.append(str(p))
         cfg = CatalogDecodeConfig(
-            norder=5,
+            healpix_order=5,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
             link_id_col="TARGETID",
@@ -114,7 +114,7 @@ class TestParallelCatalogIngest:
             n_workers=2,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="append",
             show_progress=False,
@@ -147,7 +147,7 @@ class TestParallelCatalogIngest:
             n_workers=1,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="append",
             checkpoint_path=ckpt,
@@ -161,7 +161,7 @@ class TestParallelCatalogIngest:
             n_workers=1,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="append",
             checkpoint_path=ckpt,
@@ -185,7 +185,7 @@ class TestParallelCatalogIngest:
             n_workers=1,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="append",
             checkpoint_path=ckpt,
@@ -203,7 +203,7 @@ class TestParallelCatalogIngest:
             n_workers=1,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="append",
             checkpoint_path=ckpt,
@@ -231,7 +231,7 @@ class TestParallelCatalogIngest:
             n_workers=1,
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             failures_log=fail_log,
             show_progress=False,
             decoder=_boom,

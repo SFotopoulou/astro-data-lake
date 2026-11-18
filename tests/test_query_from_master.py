@@ -37,7 +37,7 @@ def _ingest(tmp_path: Path, survey: str, id_offset: int) -> None:
         ra_col="TARGET_RA",
         dec_col="TARGET_DEC",
         link_id_col="TARGETID",
-        norder=5,
+        healpix_order=5,
         tile_mode="overwrite",
     )
 

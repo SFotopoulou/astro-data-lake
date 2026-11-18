@@ -27,7 +27,7 @@ def _write_tiny_catalog(
     *,
     ra: float,
     dec: float,
-    norder: int = 5,
+    healpix_order: int = 5,
     source_id: int = 1,
 ) -> int:
     import pyarrow as pa
@@ -35,10 +35,10 @@ def _write_tiny_catalog(
 
     from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN
 
-    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+    npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     pq.write_table(
         pa.table(
             {
@@ -53,7 +53,7 @@ def _write_tiny_catalog(
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps(
             {
-                "healpix_order": norder,
+                "healpix_order": healpix_order,
                 "ra_column": "ra",
                 "dec_column": "dec",
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -68,7 +68,7 @@ def _write_tiny_catalog(
 @pytest.fixture
 def lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
-    _write_tiny_catalog(lake, "ALLWISE", ra=120.0, dec=45.0, norder=5)
+    _write_tiny_catalog(lake, "ALLWISE", ra=120.0, dec=45.0, healpix_order=5)
     return lake
 
 
@@ -307,7 +307,7 @@ class TestMocExport:
         from data_lake.lake_registry import refresh_lake_registry
 
         # Second survey so bulk iterates more than one name.
-        _write_tiny_catalog(lake, "DESI_DR1", ra=10.0, dec=0.0, norder=5, source_id=2)
+        _write_tiny_catalog(lake, "DESI_DR1", ra=10.0, dec=0.0, healpix_order=5, source_id=2)
         refresh_lake_registry(lake)
 
         runner = CliRunner()

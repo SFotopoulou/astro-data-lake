@@ -106,7 +106,7 @@ def test_config_legacy_partitioning_key_is_rejected(tmp_path) -> None:
         LakeConfig.load(cfg_path)
 
 
-def test_flag_helper_canonical_and_hidden_alias() -> None:
+def test_flag_helper_canonical_only() -> None:
     import click
     from click.testing import CliRunner
 
@@ -114,16 +114,14 @@ def test_flag_helper_canonical_and_hidden_alias() -> None:
 
     @click.command()
     @healpix_order_option(default=5, type=int, help="HEALPix order.")
-    def cmd(norder: int) -> None:
-        click.echo(f"norder={norder}")
+    def cmd(healpix_order: int) -> None:
+        click.echo(f"healpix_order={healpix_order}")
 
     runner = CliRunner()
-    assert runner.invoke(cmd, []).output.strip() == "norder=5"
-    assert runner.invoke(cmd, ["--healpix-order", "7"]).output.strip() == "norder=7"
-    assert runner.invoke(cmd, ["--norder", "6"]).output.strip() == "norder=6"
-    help_text = runner.invoke(cmd, ["--help"]).output
-    assert "--healpix-order" in help_text
-    assert "--norder" not in help_text
+    assert runner.invoke(cmd, []).output.strip() == "healpix_order=5"
+    assert runner.invoke(cmd, ["--healpix-order", "7"]).output.strip() == "healpix_order=7"
+    # The old --norder alias was removed in 0.10.0.
+    assert runner.invoke(cmd, ["--norder", "6"]).exit_code != 0
 
 
 def test_region_cli_help_shows_healpix_order_only() -> None:
@@ -132,38 +130,37 @@ def test_region_cli_help_shows_healpix_order_only() -> None:
     from data_lake.discovery.region_cli import cli
 
     help_text = CliRunner().invoke(cli, ["--help"]).output
-    assert "--healpix-order" in help_text
     assert "--norder" not in help_text
 
 
-def test_catalog_extract_norder_raises_without_key(tmp_path) -> None:
-    from data_lake.export.catalog_extract import _lake_norder
+def test_catalog_extract_healpix_order_raises_without_key(tmp_path) -> None:
+    from data_lake.export.catalog_extract import _lake_healpix_order
 
     (tmp_path / "catalog_info.json").write_text(json.dumps({"ra_column": "ra"}))
     with pytest.raises(HealpixOrderError, match="catalog_info.json"):
-        _lake_norder(tmp_path, None)
-    assert _lake_norder(tmp_path, 3) == 3
+        _lake_healpix_order(tmp_path, None)
+    assert _lake_healpix_order(tmp_path, 3) == 3
 
 
-def test_update_indices_norder_raises_without_key(tmp_path) -> None:
-    from data_lake.ingest.update_catalog_indices import _resolve_catalog_norder
+def test_update_indices_healpix_order_raises_without_key(tmp_path) -> None:
+    from data_lake.ingest.update_catalog_indices import _resolve_catalog_healpix_order
 
     (tmp_path / "catalog_info.json").write_text("{}")
     with pytest.raises(HealpixOrderError):
-        _resolve_catalog_norder(tmp_path)
-    assert _resolve_catalog_norder(tmp_path, override=4) == 4
+        _resolve_catalog_healpix_order(tmp_path)
+    assert _resolve_catalog_healpix_order(tmp_path, override=4) == 4
 
 
-def test_crossmatch_norder_falls_back_to_layout_only(tmp_path) -> None:
-    from data_lake.io.crossmatch import _resolve_crossmatch_norder
+def test_crossmatch_healpix_order_falls_back_to_layout_only(tmp_path) -> None:
+    from data_lake.io.crossmatch import _resolve_crossmatch_healpix_order
 
     (tmp_path / "Norder=4").mkdir()
-    assert _resolve_crossmatch_norder(tmp_path, None) == 4
+    assert _resolve_crossmatch_healpix_order(tmp_path, None) == 4
 
     empty = tmp_path / "empty"
     empty.mkdir()
     with pytest.raises(HealpixOrderError):
-        _resolve_crossmatch_norder(empty, None)
+        _resolve_crossmatch_healpix_order(empty, None)
 
 
 def test_survey_npix_raises_on_index_without_order(tmp_path) -> None:

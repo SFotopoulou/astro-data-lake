@@ -52,7 +52,7 @@ DEMO_DIR_ENV = "DATA_LAKE_DEMO_DIR"
 CENTER_RA_DEG = 150.0
 CENTER_DEC_DEG = 2.2
 HALF_WIDTH_DEG = 1.0
-NORDER = 5
+HEALPIX_ORDER = 5
 
 PHOT_BANDS = ("g", "z", "y", "j", "h")
 CUTOUT_BANDS = ("g", "z", "h")
@@ -367,10 +367,10 @@ def _ingest_modalities(lake: Path, inputs: DemoInputs) -> None:
     from data_lake.ingest.fits_to_zarr import ingest_cutouts_from_fits
 
     for p in inputs.spectra:
-        ingest_spectra_from_fits(p, lake, SPEC_SURVEY, norder=NORDER, link_id_col="TARGETID", fmt="generic")
+        ingest_spectra_from_fits(p, lake, SPEC_SURVEY, healpix_order=HEALPIX_ORDER, link_id_col="TARGETID", fmt="generic")
     for p in inputs.cutouts:
         ingest_cutouts_from_fits(
-            p, lake, PHOT_SURVEY, norder=NORDER, link_id_col="OBJID",
+            p, lake, PHOT_SURVEY, healpix_order=HEALPIX_ORDER, link_id_col="OBJID",
             band_axis=0, band_names=list(CUTOUT_BANDS),
         )
 
@@ -402,7 +402,7 @@ def build_demo_lake(
     init_lake(
         deployment.name, deployment.parent,
         description="Synthetic demo lake (dl-demo-lake)",
-        norder=NORDER, ingest_token=DEMO_INGEST_TOKEN,
+        healpix_order=HEALPIX_ORDER, ingest_token=DEMO_INGEST_TOKEN,
     )
     config_path = deployment / "lake_config.toml"
     lake = Path(LakeConfig.discover(config_path).lake.root)
@@ -416,14 +416,14 @@ def build_demo_lake(
         (inputs.spec_catalog, SPEC_SURVEY, "TARGET_RA", "TARGET_DEC", "TARGETID"),
         (inputs.ir_catalog, IR_SURVEY, "RA", "DEC", "SOURCE_ID"),
     ):
-        ingest_catalog(src, lake, survey, ra_col=ra, dec_col=dec, norder=NORDER, link_id_col=link)
+        ingest_catalog(src, lake, survey, ra_col=ra, dec_col=dec, healpix_order=HEALPIX_ORDER, link_id_col=link)
 
     log.info("Ingesting %d spectra and %d cutouts", len(inputs.spectra), len(inputs.cutouts))
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message=".*does not have a Zarr V3 specification.*")
         _ingest_modalities(lake, inputs)
-    update_index_column_from_zarr_tiles(lake, SPEC_SURVEY, kind="spectrum", norder=NORDER)
-    update_index_column_from_zarr_tiles(lake, PHOT_SURVEY, kind="cutout", norder=NORDER)
+    update_index_column_from_zarr_tiles(lake, SPEC_SURVEY, kind="spectrum", healpix_order=HEALPIX_ORDER)
+    update_index_column_from_zarr_tiles(lake, PHOT_SURVEY, kind="cutout", healpix_order=HEALPIX_ORDER)
 
     recipe_dir = lake / "shared" / "registry" / "homogenize"
     recipe_dir.mkdir(parents=True, exist_ok=True)

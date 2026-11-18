@@ -94,7 +94,7 @@ survey, partner count and tile count.
   and `ALLWISE_w1mpro`, unless the name already starts with `SURVEY_`.
 - Separations are written as `DESI_DR1_sep_arcsec` and so on, when
   `include_sep` is true.
-- `_healpix_norder<N>` is added from the base catalog order.
+- `_healpix_order<N>` is added from the base catalog order.
 
 Only the listed columns are read and written; surveys not in `columns` are not
 joined.

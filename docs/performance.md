@@ -104,7 +104,7 @@ scan for IDs the catalog cannot resolve. Avoid loops over `get_spectrum(id)` /
   multi-tile extracts. Raise `EXTRACT_TILE_WORKERS` / `$DATA_LAKE_EXTRACT_TILE_WORKERS`
   instead to read several tiles concurrently (writers stay ordered).
 - `dl-extract-catalog --target-list` first prunes to HEALPix tiles that hold the
-  IDs (`_healpix_norder{N}`), then projects only those tiles. Prefer Parquet/CSV
+  IDs (`_healpix_order{N}`), then projects only those tiles. Prefer Parquet/CSV
   output (DuckDB `COPY`); `--limit` under `engine=auto` uses the tile engine so
   it can stop early without a global `ORDER BY`. FITS/VOTable lake exports go
   through a temp Parquet pass.
@@ -112,6 +112,10 @@ scan for IDs the catalog cannot resolve. Avoid loops over `get_spectrum(id)` /
   instead of re-running positional matching inside analysis loops.
 
 ### Machine-learning datasets
+
+Install the `ml` extra (`uv sync --extra ml`) to get `torch`. Without it the
+datasets still build and return NumPy arrays. On GPU systems, install a CUDA
+build of `torch` for the site instead.
 
 `data_lake.ml.dataset.CutoutDataset` and
 `data_lake.ml.spectrum_dataset.SpectrumDataset` resolve every source ID once,
@@ -124,7 +128,7 @@ share its DuckDB connection.
 IDs that are not found are reported in one warning at construction; accessing
 such a sample raises `KeyError`, so drop them first (`ds.tile_npix < 0` marks
 them). Both datasets read the lake's stored `healpix_order` by default and raise if
-it is missing; pass `norder=` to override it.
+it is missing; pass `healpix_order=` to override it.
 
 `TileSequentialSampler` (for `CutoutDataset` or `SpectrumDataset`) yields
 samples grouped by tile, shuffling the tile order by default, so consecutive
@@ -253,7 +257,7 @@ cache); a large `t_match_s` points to compute.
 
 - GPU: `--match-backend rapids --n-workers 1 --gpu-id 0` (requires
   `uv sync --extra rapids`).
-- Use a coarser `--norder-b` when the science allows, to shrink the set of
+- Use a coarser `--healpix-order-b` when the science allows, to shrink the set of
   survey-B candidates.
 
 More detail: [Crossmatch performance tuning](discovery/crossmatch.md#performance-tuning).

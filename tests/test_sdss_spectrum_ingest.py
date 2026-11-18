@@ -122,7 +122,7 @@ class TestSdssVariableLengthIngest:
                 lake,
                 survey,
                 link_id_col="SPECOBJID",
-                norder=5,
+                healpix_order=5,
             )
 
         acc = SpectrumAccessor(lake, survey)
@@ -130,7 +130,7 @@ class TestSdssVariableLengthIngest:
         info = __import__("json").loads(info_path.read_text())
         assert info["wavelength_mode"] == "per_source"
 
-        # Both files share HEALPix Npix=519 at norder 5
+        # Both files share HEALPix Npix=519 at healpix_order 5
         tile = lake / "spectra" / survey / "Norder=5" / "Dir=0" / "Npix=519.zarr"
         assert tile.is_dir()
         import zarr

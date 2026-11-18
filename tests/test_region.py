@@ -36,10 +36,10 @@ class TestRescaleNpix:
 
 class TestConeRegion:
     def test_cone_contains_center_tile(self) -> None:
-        ra, dec, norder = 120.0, 45.0, 5
+        ra, dec, healpix_order = 120.0, 45.0, 5
         region = Region.cone(ra, dec, radius_arcsec=60.0)
-        npix = region.to_npix(norder)
-        center = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = region.to_npix(healpix_order)
+        center = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         assert center in npix
 
     def test_cone_scales_with_order(self) -> None:
@@ -52,19 +52,19 @@ class TestConeRegion:
 
 class TestBboxRegion:
     def test_bbox_contains_interior_point(self) -> None:
-        norder = 6
+        healpix_order = 6
         region = Region.bbox(ra_min=100.0, ra_max=101.0, dec_min=20.0, dec_max=21.0)
-        npix = region.to_npix(norder)
-        inside = int(assign_healpix(np.array([100.5]), np.array([20.5]), norder)[0])
+        npix = region.to_npix(healpix_order)
+        inside = int(assign_healpix(np.array([100.5]), np.array([20.5]), healpix_order)[0])
         assert inside in npix
 
     def test_bbox_ra_wraparound(self) -> None:
-        norder = 5
+        healpix_order = 5
         # Box wrapping through RA=0 (359 -> 1 deg).
         region = Region.bbox(ra_min=359.0, ra_max=1.0, dec_min=-1.0, dec_max=1.0)
-        npix = region.to_npix(norder)
-        p_left = int(assign_healpix(np.array([359.5]), np.array([0.0]), norder)[0])
-        p_right = int(assign_healpix(np.array([0.5]), np.array([0.0]), norder)[0])
+        npix = region.to_npix(healpix_order)
+        p_left = int(assign_healpix(np.array([359.5]), np.array([0.0]), healpix_order)[0])
+        p_right = int(assign_healpix(np.array([0.5]), np.array([0.0]), healpix_order)[0])
         assert p_left in npix
         assert p_right in npix
 
@@ -77,7 +77,7 @@ class TestBboxRegion:
 
 class TestNpixRegion:
     def test_npix_region_rescales(self) -> None:
-        region = Region.from_npix([10, 11], source_norder=5)
+        region = Region.from_npix([10, 11], source_healpix_order=5)
         assert region.to_npix(5) == {10, 11}
         assert region.to_npix(6) == set(range(40, 48))
 

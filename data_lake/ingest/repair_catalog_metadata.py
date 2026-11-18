@@ -147,7 +147,7 @@ def repair_catalog_metadata(
     catalog_root: Path | str,
     survey_name: str,
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     ra_col: str | None = None,
     dec_col: str | None = None,
     rebuild_link_id: str | None = None,
@@ -159,7 +159,7 @@ def repair_catalog_metadata(
     catalog_root = Path(catalog_root)
     before = _read_catalog_info(catalog_root)
     healpix_order = (
-        int(norder) if norder is not None
+        int(healpix_order) if healpix_order is not None
         else require_healpix_order(before, str(catalog_root / "catalog_info.json"))
     )
     ra = ra_col or str(before.get("ra_column", "ra"))
@@ -231,7 +231,7 @@ def repair_catalogs_under_lake(
     lake_root: Path | str,
     survey_names: list[str],
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     rebuild_link_id: str | None = None,
     allow_incomplete_link_id: bool | None = None,
     normalize_column_names: bool = False,
@@ -274,7 +274,7 @@ def repair_catalogs_under_lake(
                 repair_catalog_metadata(
                     catalog_root,
                     name,
-                    norder=norder,
+                    healpix_order=healpix_order,
                     rebuild_link_id=rebuild_link_id,
                     allow_incomplete_link_id=allow_incomplete_link_id,
                     normalize_column_names=normalize_column_names,
@@ -350,7 +350,7 @@ def check_lake_join_columns(
                 out.append(
                     JoinColumnCheckResult(
                         survey=name,
-                        modality="cutouts",
+                        modality="cutout",
                         root=cut_root,
                         ok=chk.ok,
                         tiles_checked=chk.tiles_checked,
@@ -441,7 +441,7 @@ try:
         config_path: Path | None,
         surveys: tuple[str, ...],
         repair_all: bool,
-        norder: int | None,
+        healpix_order: int | None,
         check_only: bool,
         rebuild_link_id: str | None,
         allow_incomplete_link_id: bool | None,
@@ -538,7 +538,7 @@ try:
         results = repair_catalogs_under_lake(
             lake,
             names,
-            norder=norder,
+            healpix_order=healpix_order,
             rebuild_link_id=rebuild_link_id,
             allow_incomplete_link_id=allow_incomplete_link_id,
             normalize_column_names=normalize_column_names,

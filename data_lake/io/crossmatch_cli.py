@@ -163,12 +163,12 @@ _cli_b_cache_mib = PARTNER_TILE_CACHE_MAX_BYTES // (1024 * 1024)
     help="Maximum match radius in arcseconds (nearest neighbour within radius).",
 )
 @healpix_order_option(
-    dest="norder_a",
+    dest="healpix_order_a",
     type=int,
     default=None,
     help="Survey-A HEALPix order (default: catalog_info.json).",
 )
-@click.option("--norder-b", type=int, default=None, help="Survey-B HEALPix order.")
+@click.option("--healpix-order-b", type=int, default=None, help="Survey-B HEALPix order.")
 @click.option("--ra-col", "ra_col_a", default=None, help="Survey-A RA column override.")
 @click.option("--dec-col", "dec_col_a", default=None, help="Survey-A Dec column override.")
 @click.option("--ra-col-b", default=None, help="Survey-B RA column override.")
@@ -307,8 +307,8 @@ def cli(
     report_path: Path | None,
     no_report: bool,
     radius_arcsec: float,
-    norder_a: int | None,
-    norder_b: int | None,
+    healpix_order_a: int | None,
+    healpix_order_b: int | None,
     ra_col_a: str | None,
     dec_col_a: str | None,
     ra_col_b: str | None,
@@ -459,8 +459,8 @@ def cli(
                 match_col_a,  # type: ignore[arg-type]
                 match_col_b,  # type: ignore[arg-type]
                 overwrite=overwrite,
-                norder_a=norder_a,
-                norder_b=norder_b,
+                healpix_order_a=healpix_order_a,
+                healpix_order_b=healpix_order_b,
                 populated_tiles_only=not all_tiles,
                 show_progress=effective_progress,
                 n_workers=n_workers,
@@ -571,8 +571,8 @@ def cli(
         survey_a,
         survey_b,
         radius_arcsec=radius_arcsec,
-        norder_a=norder_a,
-        norder_b=norder_b,
+        healpix_order_a=healpix_order_a,
+        healpix_order_b=healpix_order_b,
         ra_col_a=ra_col_a,
         dec_col_a=dec_col_a,
         ra_col_b=ra_col_b,

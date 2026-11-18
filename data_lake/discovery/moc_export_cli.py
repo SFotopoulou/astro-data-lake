@@ -73,9 +73,9 @@ try:
         show_default=True,
         help=(
             "How to build the MOC. --from-tiles (default): populated HATS "
-            "tiles (fast; needs --moc-order <= the survey HATS order). "
+            "tiles (fast; needs --moc-order <= the survey HEALPix order). "
             "--from-rows: catalog RA/Dec streamed per tile (any --moc-order, "
-            "including finer than HATS; catalog modality only)."
+            "including finer than the HEALPix tiling; catalog modality only)."
         ),
     )
     @click.option(
@@ -128,7 +128,7 @@ try:
         radius_arcsec: float | None,
         bbox: tuple[float, float, float, float] | None,
         npix: str | None,
-        norder: int | None,
+        healpix_order: int | None,
         moc_path: Path | None,
         overwrite: bool,
         continue_on_error: bool,
@@ -139,7 +139,7 @@ try:
         """Export a survey footprint as an IVOA MOC (optional region clip).
 
         The build method is explicit: --from-tiles (default) uses populated
-        HATS tiles and needs --moc-order <= the survey HATS order;
+        HEALPix tiles and needs --moc-order <= the survey HEALPix order;
         --from-rows uses catalog RA/Dec and works at any order.
 
         Default output (when ``-o`` is omitted)::
@@ -237,7 +237,7 @@ try:
         if n_clips:
             try:
                 region, _ = _region_from_args(
-                    from_area=from_area, npix=npix, norder=norder, cone=cone,
+                    from_area=from_area, npix=npix, healpix_order=healpix_order, cone=cone,
                     radius_arcsec=radius_arcsec, bbox=bbox, moc=moc_path,
                     lake_root=lake,
                 )

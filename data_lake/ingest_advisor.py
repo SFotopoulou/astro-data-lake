@@ -34,12 +34,12 @@ _DEFAULT_NORDER = 5
 _FULL_SKY_DEG2 = 4 * math.pi * (180 / math.pi) ** 2
 
 
-def tile_area_deg2(norder: int) -> float:
-    """Mean HEALPix tile area at *norder* (deg²)."""
-    return _FULL_SKY_DEG2 / (12 * 4**norder)
+def tile_area_deg2(healpix_order: int) -> float:
+    """Mean HEALPix tile area at *healpix_order* (deg²)."""
+    return _FULL_SKY_DEG2 / (12 * 4**healpix_order)
 
 
-def estimate_files_per_tile(norder: int, file_area_deg2: float) -> float:
+def estimate_files_per_tile(healpix_order: int, file_area_deg2: float) -> float:
     """Average number of spatially organised input files feeding one lake tile.
 
     Files larger than a tile give ~1 (each tile is fed by one file, apart from
@@ -47,7 +47,7 @@ def estimate_files_per_tile(norder: int, file_area_deg2: float) -> float:
     """
     if file_area_deg2 <= 0:
         raise ValueError(f"file_area_deg2 must be > 0, got {file_area_deg2}")
-    return max(1.0, tile_area_deg2(norder) / file_area_deg2)
+    return max(1.0, tile_area_deg2(healpix_order) / file_area_deg2)
 
 _KNOWN_SLURM_SCRIPTS: dict[str, str] = {
     "2df": "scripts/slurm_ingest_2df_spectra.sh",
@@ -257,7 +257,7 @@ def _shard_commands(
     survey: str,
     *,
     list_arg: str,
-    norder: int,
+    healpix_order: int,
     shard_root: str = '"$SHARD_ROOT"',
     lake_root: str = "$LAKE_ROOT",
 ) -> tuple[str, str]:
@@ -269,7 +269,7 @@ def _shard_commands(
     map_cmd = (
         f"dl-ingest-from-shard --phase map --file-list {list_arg} "
         f"--survey {survey} --shard-root {shard_root} "
-        f'--ra-col ra --dec-col dec --link-id-col "$LINK_ID_COL" --healpix-order {norder} '
+        f'--ra-col ra --dec-col dec --link-id-col "$LINK_ID_COL" --healpix-order {healpix_order} '
         f"--n-workers 8 --no-progress"
     )
     reduce_cmd = (
@@ -285,12 +285,12 @@ def _shard_catalog_recommendation(
     *,
     n_files: int,
     file_list: str | None,
-    norder: int,
+    healpix_order: int,
     reason: str,
 ) -> tuple[str, list[str], str, str]:
     """Return ``(command, rationale, map_slurm, reduce_slurm)``."""
     map_cmd, reduce_cmd = _shard_commands(
-        survey, list_arg=file_list or "files.txt", norder=norder,
+        survey, list_arg=file_list or "files.txt", healpix_order=healpix_order,
     )
     command = (
         "# 1. Map (Slurm array: one task per folder or file-list chunk)\n"
@@ -316,7 +316,7 @@ def _shard_catalog_recommendation(
 
     map_body = _generate_shard_slurm_script(
         survey=survey, phase="map", ingest_command=_shard_commands(
-            survey, list_arg='"${CHUNK}"', norder=norder,
+            survey, list_arg='"${CHUNK}"', healpix_order=healpix_order,
         )[0],
     )
     reduce_body = _generate_shard_slurm_script(
@@ -566,7 +566,7 @@ def recommend_ingest(
     streaming: bool = False,
     layout: CatalogLayout | None = None,
     file_area_deg2: float | None = None,
-    norder: int | None = None,
+    healpix_order: int | None = None,
 ) -> IngestRecommendation:
     """
     Recommend a ``dl-*`` ingest command and Slurm wrapper for the given inputs.
@@ -583,9 +583,9 @@ def recommend_ingest(
         ``unsorted``, ``partitioned``).  Chooses between append batch ingest and
         ``dl-ingest-from-shard``.
     file_area_deg2
-        Catalog only: sky area of a typical input file.  With *norder*, gives
+        Catalog only: sky area of a typical input file.  With *healpix_order*, gives
         the files-per-tile estimate that drives the choice (overrides *layout*).
-    norder
+    healpix_order
         Target HEALPix order for the files-per-tile estimate and the shard
         commands (default 5).
     """
@@ -602,8 +602,8 @@ def recommend_ingest(
     if modality == "catalog":
         if total_size_gb is not None and total_size_gb > 8:
             streaming = True
-        preflight.append(f"dl-recommend-catalog-norder --file-list {file_list_str or 'files.txt'}")
-        n = norder if norder is not None else _DEFAULT_NORDER
+        preflight.append(f"dl-recommend-catalog-healpix-order --file-list {file_list_str or 'files.txt'}")
+        n = healpix_order if healpix_order is not None else _DEFAULT_NORDER
         files_per_tile = (
             estimate_files_per_tile(n, file_area_deg2) if file_area_deg2 is not None else None
         )
@@ -622,7 +622,7 @@ def recommend_ingest(
         slurm_path = None
         if use_shard:
             command, rationale, slurm_body, reduce_body = _shard_catalog_recommendation(
-                survey, n_files=n_files, file_list=file_list_str, norder=n,
+                survey, n_files=n_files, file_list=file_list_str, healpix_order=n,
                 reason=reason or "",
             )
             extra_slurm["reduce"] = reduce_body

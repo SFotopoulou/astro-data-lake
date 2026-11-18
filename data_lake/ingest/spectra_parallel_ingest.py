@@ -61,7 +61,7 @@ class _SpectrumTileCache:
         self,
         *,
         survey_root: Path,
-        norder: int,
+        healpix_order: int,
         mask_dtype: np.dtype,
         wcs_attrs: dict,
         wavelength_mode: str,
@@ -72,7 +72,7 @@ class _SpectrumTileCache:
         res_offsets: np.ndarray | None = None,
     ) -> None:
         self._survey_root = survey_root
-        self._norder = norder
+        self._healpix_order = healpix_order
         self._mask_dtype = mask_dtype
         self._wcs_attrs = wcs_attrs
         self._wavelength_mode = wavelength_mode
@@ -112,7 +112,7 @@ class _SpectrumTileCache:
                     )
             return entry
 
-        tile_dir = self._survey_root / healpix_dir(self._norder, npix)
+        tile_dir = self._survey_root / healpix_dir(self._healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
         tile_exists = tile_path.exists() and (tile_path / "zarr.json").exists()
@@ -182,7 +182,7 @@ def ingest_spectra_files_parallel(
     survey_name: str,
     n_workers: int,
     decode_config: SpectrumDecodeConfig,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     checkpoint_path: Path | str | None = None,
     failures_log: Path | str | None = None,
     inflight_path: Path | str | None = None,
@@ -212,7 +212,7 @@ def ingest_spectra_files_parallel(
         raise ValueError("files_per_worker must be >= 1")
 
     output_root = Path(output_root)
-    resolved_norder = int(decode_config.norder if norder is None else norder)
+    resolved_healpix_order = int(decode_config.healpix_order if healpix_order is None else healpix_order)
     survey_root = output_root / "spectra" / survey_name
     survey_root.mkdir(parents=True, exist_ok=True)
 
@@ -233,7 +233,7 @@ def ingest_spectra_files_parallel(
         else survey_root / ".ingest_inflight.json"
     )
     _recover_stale_parallel_commit(
-        survey_root, resolved_norder, resolved_inflight, completed,
+        survey_root, resolved_healpix_order, resolved_inflight, completed,
     )
 
     requested = [_canonical_fits_path(p) for p in file_paths]
@@ -354,7 +354,7 @@ def ingest_spectra_files_parallel(
         if tile_cache is None:
             tile_cache = _SpectrumTileCache(
                 survey_root=survey_root,
-                norder=resolved_norder,
+                healpix_order=resolved_healpix_order,
                 mask_dtype=mask_dtype,
                 wcs_attrs=wcs_attrs_known,
                 wavelength_mode=decode_config.wavelength_mode,
@@ -375,7 +375,7 @@ def ingest_spectra_files_parallel(
                 "commit": {
                     "path": res.path,
                     "tiles": {str(k): v for k, v in snap.items()},
-                    "norder": int(resolved_norder),
+                    "healpix_order": int(resolved_healpix_order),
                 },
             },
         )
@@ -495,7 +495,7 @@ def ingest_spectra_files_parallel(
         _write_spectrum_info(
             survey_root,
             survey_name,
-            resolved_norder,
+            resolved_healpix_order,
             max(n_pix_for_info, 1),
             wavelength_mode_run,
             str(mask_dtype),

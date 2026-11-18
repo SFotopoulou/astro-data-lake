@@ -1,14 +1,34 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+# setuptools>=77 is required for the SPDX `license = "MIT"` string form.
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "astro-data-lake"
-version = "0.9.0"
-description = "Astronomy data lake: wide multi-survey catalogs (Parquet/HATS) + galaxy cutout stacks (Zarr v3)"
+version = "0.10.0"
+description = "Astronomy data lake: wide multi-survey catalogs (HATS-style Parquet) + galaxy cutout stacks (Zarr v3)"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Sotiria Fotopoulou" }]
+keywords = [
+    "astronomy",
+    "data lake",
+    "HEALPix",
+    "catalogs",
+    "Parquet",
+    "Zarr",
+    "cross-match",
+    "FITS",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+]
 requires-python = ">=3.12"
 dependencies = [
     # Array / columnar I/O
@@ -24,14 +44,19 @@ dependencies = [
     "healpy>=1.16",
     # MOC export/import; [plots] pulls cdshealpix (+ matplotlib) for fill/border
     "mocpy[plots]>=0.13",
-    # ML
-    "torch>=2.2",
     "numpy>=1.26",
     "h5py>=3.10",
     # Utilities
     "tqdm>=4.66",
     "click>=8.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SFotopoulou/astro-data-lake"
+Repository = "https://github.com/SFotopoulou/astro-data-lake"
+Issues = "https://github.com/SFotopoulou/astro-data-lake/issues"
+Documentation = "https://github.com/SFotopoulou/astro-data-lake/tree/main/docs"
+Changelog = "https://github.com/SFotopoulou/astro-data-lake/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 desi = ["desispec>=0.62"]
@@ -45,6 +70,9 @@ dev = [
     "napari",
 ]
 mcp = ["mcp>=1.0"]
+# PyTorch datasets (data_lake.ml). Optional: the rest of the package runs without it.
+# On HPC/GPU systems, install a CUDA build of torch matching the site instead.
+ml = ["torch>=2.2"]
 # Kept for docs/scripts that still pass ``--extra moc``; mocpy is also a core dep.
 moc = ["mocpy[plots]>=0.13"]
 viz = ["matplotlib>=3.7"]
@@ -60,7 +88,7 @@ dl-ingest-catalog  = "data_lake.ingest.catalog_ingest_cli:cli"
 dl-finalize-catalog = "data_lake.ingest.catalog_ingest_cli:cli_finalize"
 dl-repair-catalog-metadata = "data_lake.ingest.repair_catalog_metadata:main"
 dl-debug-specobj-lookup = "data_lake.ingest.sdss_specobj_lookup_debug:cli"
-dl-recommend-catalog-norder = "data_lake.ingest.recommend_norder:cli"
+dl-recommend-catalog-healpix-order = "data_lake.ingest.recommend_healpix_order:cli"
 dl-check-fits-table-format = "data_lake.ingest.check_fits_table_format:cli"
 dl-describe-survey = "data_lake.schema_registry:cli"
 dl-describe-lake = "data_lake.lake_registry:cli_describe_lake"
@@ -114,6 +142,8 @@ include = ["data_lake*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets plain `pytest` import the shared helpers in tests/ (e.g. tests.test_crossmatch).
+pythonpath = ["."]
 markers = [
     "gpu: tests requiring CUDA and the optional [rapids] extra",
 ]

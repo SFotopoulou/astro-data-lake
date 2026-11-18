@@ -50,10 +50,10 @@ python examples/cross_survey_lsst_desi_euclid/demo.py
 
 Both should finish without errors. If they pass you are ready to create a real lake.
 
-**Jupyter / notebooks:** register the project kernel once:
+**Jupyter / notebooks:** start Jupyter from the project environment and select the **Python 3** kernel:
 
 ```bash
-uv run python -m ipykernel install --user --name=astro-data-lake --display-name "Python (astro-data-lake)"
+uv run jupyter lab
 ```
 
 Then open `notebooks/01_catalog_ingest.ipynb` for a guided walk-through of catalog ingest with synthetic data. See [notebooks.md](notebooks.md) for which notebooks need a real lake.
@@ -128,7 +128,7 @@ dl-describe-lake --count-total
 # Show columns for a survey
 dl-describe-survey MY_SURVEY --modality catalog
 
-# Peek first sources (catalog / spectra / cutouts)
+# Peek first sources (catalog / spectra / cutout)
 dl-preview-sources MY_SURVEY --modality catalog -n 5
 dl-preview-sources MY_SURVEY --modality spectra -n 5
 ```
@@ -150,7 +150,7 @@ from data_lake.io.preview import preview_sources
 
 preview_sources("/data/lake", "MY_SURVEY", modality="catalog", n=5)
 preview_sources("/data/lake", "MY_SURVEY", modality="spectra", n=5)
-preview_sources("/data/lake", "MY_SURVEY", modality="cutouts", n=5)
+preview_sources("/data/lake", "MY_SURVEY", modality="cutout", n=5)
 ```
 
 ---
@@ -166,7 +166,7 @@ preview_sources("/data/lake", "MY_SURVEY", modality="cutouts", n=5)
 | Build a joined product catalog (≥2 surveys) | [discovery/workflow.md](discovery/workflow.md) · [notebook 14](../notebooks/14_discovery_workflow.ipynb) |
 | Homogenize photometry to AB magnitudes | [homogenization.md](homogenization.md) |
 | Export a source subset (spectra → Zarr/FITS) | [export-and-sharing.md](export-and-sharing.md) |
-| Train on cutouts or spectra with PyTorch | [performance.md](performance.md#machine-learning-datasets) · [notebook 13](../notebooks/13_pytorch_training_loop.ipynb) |
+| Train on cutouts or spectra with PyTorch (`uv sync --extra ml`) | [performance.md](performance.md#machine-learning-datasets) · [notebook 13](../notebooks/13_pytorch_training_loop.ipynb) |
 | Speed up workers, caches or ID lookups | [performance.md](performance.md) |
 | Plot SED + spectrum for one source | [plotting.md](plotting.md) |
 | All `dl-*` commands | [cli-reference.md](cli-reference.md) |
@@ -193,8 +193,8 @@ dl-set-ingest-token --ingest-token 'new-secret'
 
 ## Dependencies
 
-Core: `pyarrow`, `zarr>=3`, `numcodecs`, `duckdb`, `astropy`, `healpy`,
-`mocpy[plots]`, `numpy`, `polars`, `torch`, `tqdm`, `click`.
+Core: `pyarrow`, `zarr>=3`, `numcodecs`, `duckdb`, `polars`, `astropy`, `scipy`,
+`healpy`, `mocpy[plots]`, `numpy`, `h5py`, `tqdm`, `click`.
 
 Optional extras:
 
@@ -205,6 +205,7 @@ Optional extras:
 | `desi` | DESI coadd ingest (adds `desispec`) | `uv sync --extra desi` |
 | `mcp` | MCP server for AI agents | `uv sync --extra mcp` |
 | `viz` | SED + spectrum plots (`dl-plot-source`) | `uv sync --extra viz` |
+| `ml` | PyTorch datasets (`data_lake.ml`, adds `torch`) | `uv sync --extra ml` |
 | `moc` | No-op alias (mocpy is already core) | `uv sync --extra moc` |
 
 Catalog queries (`CatalogAccessor.query`) return **Polars** DataFrames by default (`fmt="polars"`). Use `fmt="arrow"` or `fmt="astropy"` when needed.

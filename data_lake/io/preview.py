@@ -5,7 +5,7 @@ Usage
 >>> from data_lake.io.preview import preview_sources
 >>> preview_sources("/data/lake", "DESI_DR1", modality="catalog", n=5)
 >>> preview_sources("/data/lake", "DESI_DR1", modality="spectra", n=5)
->>> preview_sources("/data/lake", "DESI_DR1", modality="cutouts", n=5)
+>>> preview_sources("/data/lake", "DESI_DR1", modality="cutout", n=5)
 """
 
 from __future__ import annotations
@@ -16,14 +16,13 @@ from typing import Literal, Sequence
 import numpy as np
 import polars as pl
 
-Modality = Literal["catalog", "spectra", "cutouts", "spectrum", "cutout"]
+Modality = Literal["catalog", "spectra", "cutout"]
 
+# Canonical names match ``schema_registry`` (MODALITY_*). Only these are accepted.
 _MODALITY_ALIASES: dict[str, str] = {
     "catalog": "catalog",
     "spectra": "spectra",
-    "spectrum": "spectra",
-    "cutouts": "cutouts",
-    "cutout": "cutouts",
+    "cutout": "cutout",
 }
 
 # Preferred catalog peek columns when present (order preserved).
@@ -216,7 +215,7 @@ try:
         "--modality",
         default="catalog",
         type=click.Choice(
-            ["catalog", "spectra", "spectrum", "cutouts", "cutout"],
+            ["catalog", "spectra", "cutout"],
             case_sensitive=False,
         ),
         show_default=True,

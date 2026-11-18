@@ -81,7 +81,7 @@ class TestGamaIngest:
         lake = tmp_path / "lake"
         _write_gama_like(p)
         index = ingest_spectra_from_fits(
-            p, lake, "GAMA_TEST", fmt="gama", norder=5, link_id_col="SPECID",
+            p, lake, "GAMA_TEST", fmt="gama", healpix_order=5, link_id_col="SPECID",
         )
         assert len(index) == 1
 

@@ -199,7 +199,7 @@ def ingest_cutouts_from_fits(
     image_hdu_index: int = 0,
     band_axis: int | None = None,
     band_names: list[str] | None = None,
-    norder: int = 5,
+    healpix_order: int = 5,
     link_id_col: str | None = None,
     dtype: np.dtype | type = _DEFAULT_DTYPE,
     on_duplicate_source_id: Literal["append", "error", "skip"] = "skip",
@@ -233,7 +233,7 @@ def ingest_cutouts_from_fits(
         which axis index it is.  ``None`` means a 2-D (single-band) image.
     band_names:
         Optional list of band names for Zarr attributes.
-    norder:
+    healpix_order:
         HEALPix partitioning order.
     dtype:
         Storage dtype (float32 default).
@@ -267,14 +267,14 @@ def ingest_cutouts_from_fits(
     # Group by HEALPix tile
     tile_groups: dict[int, list[CutoutRecord]] = {}
     for rec in records:
-        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), norder)[0])
+        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), healpix_order)[0])
         tile_groups.setdefault(pix, []).append(rec)
 
     n_bands = records[0].image.shape[0]
     h, w = records[0].image.shape[1], records[0].image.shape[2]
 
     for npix, tile_records in tile_groups.items():
-        tile_dir = output_root / "cutouts" / survey_name / healpix_dir(norder, npix)
+        tile_dir = output_root / "cutouts" / survey_name / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
 
@@ -320,7 +320,7 @@ def ingest_cutouts_from_fits(
     _write_cutout_info(
         cutout_root,
         survey_name,
-        norder,
+        healpix_order,
         n_bands,
         h,
         w,
@@ -403,7 +403,7 @@ def ingest_cutouts_batch(
 def _write_cutout_info(
     cutout_root: Path,
     survey_name: str,
-    norder: int,
+    healpix_order: int,
     n_bands: int,
     height: int,
     width: int,
@@ -414,7 +414,7 @@ def _write_cutout_info(
 ) -> None:
     info = {
         "survey_name": survey_name,
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "n_bands": n_bands,
         "height": height,
         "width": width,
@@ -517,7 +517,7 @@ try:
         link_id_col: str | None,
         image_hdu_index: int,
         band_axis: int | None,
-        norder: int | None,
+        healpix_order: int | None,
         band_names: str | None,
         dtype: str,
         on_duplicate: str,
@@ -545,7 +545,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         resolved_output = require_output_root(output_root, cfg, kind="cutouts")
-        resolved_norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        resolved_healpix_order = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
 
         bn = [x.strip() for x in band_names.split(",")] if band_names else None
 
@@ -559,7 +559,7 @@ try:
             image_hdu_index=image_hdu_index,
             band_axis=band_axis,
             band_names=bn,
-            norder=resolved_norder,
+            healpix_order=resolved_healpix_order,
             dtype=np.dtype(dtype),
             on_duplicate_source_id=on_duplicate,  # type: ignore[arg-type]
             fits_memmap=fits_memmap.lower(),
@@ -573,7 +573,7 @@ try:
                     survey_name=survey_name,
                     source_id_to_index=index_map,
                     kind="cutout",
-                    norder=resolved_norder,
+                    healpix_order=resolved_healpix_order,
                     link_id_col=None,
                 )
                 click.echo(f"Patched _cutout_index in {n_modified} catalog tile(s).")

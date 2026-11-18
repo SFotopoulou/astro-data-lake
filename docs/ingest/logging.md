@@ -19,7 +19,7 @@ Every `dl-*` command accepts `--log-file` (plus `-q`/`--quiet` and, where it doe
 clash with a product flag, `-v`/`--verbose`) via the shared `logging_options` helper.
 Most commands log at INFO to stderr by default. Two exceptions: the DESI and spPlate
 batch commands write logs only to a file (see
-[Parallel worker logs](#parallel-worker-logs)), and `dl-recommend-catalog-norder` defaults
+[Parallel worker logs](#parallel-worker-logs)), and `dl-recommend-catalog-healpix-order` defaults
 to WARNING.
 
 | Mode | Flags | Terminal (stderr) | Optional `--log-file` |

@@ -14,7 +14,7 @@
 #   mkdir -p logs
 #   export DATA_LAKE_CONFIG=/path/to/lake_config.toml
 #   export COADD_LIST=/path/to/coadds.txt
-#   sbatch scripts/slurm_batch_ingest_spectra.py
+#   sbatch scripts/slurm_batch_ingest_spectra.sh
 #
 #SBATCH --job-name=dl-desi-spectra
 #SBATCH --partition=slow

@@ -7,13 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-18
+
 ### Changed
+
+- **Breaking: `norder` renamed to `healpix_order` everywhere.** Python kwargs (`norder=` → `healpix_order=`), MCP parameters and output keys (`recommended_norder` → `recommended_healpix_order`), the CLI flag (`--norder` → `--healpix-order`; the hidden alias is removed), `dl-recommend-catalog-norder` → `dl-recommend-catalog-healpix-order`, the module `recommend_norder` → `recommend_healpix_order`, and the classes `NorderCandidate`/`NorderRecommendation` → `HealpixOrderCandidate`/`HealpixOrderRecommendation`.
+- **Breaking: on-disk keys renamed.** Parquet tile columns `_healpix_norder{N}` → `_healpix_order{N}`; JSON keys `norder`, `survey_a_norder`/`survey_b_norder` and `source_norder` → `healpix_order`-based names; MOC provenance `hatsord` → `healpix_order`. Existing lakes do not open: **reingest them** (no migration tool). Directory names `Norder=N` (HATS layout) and MOC filenames `Norder<N>` are unchanged.
 
 - **Distribution renamed `data-lake` → `astro-data-lake`.** Install with
   `pip install astro-data-lake` (or `uv sync` in a checkout). The import name
   `data_lake`, the `dl-*` commands and the config format are unchanged. The
   repository moved to `github.com/SFotopoulou/astro-data-lake`; GitHub redirects
   the old URL.
+- **Modality names (breaking):** `--modality` and `preview_sources(modality=...)` accept only `catalog`, `spectra` and `cutout`, matching the schema registry. `spectrum` and `cutouts` are removed. On-disk folder names (`spectra/`, `cutouts/`) are unchanged.
+- **Notebooks:** all use the `python3` kernel (start Jupyter with `uv run jupyter lab`); the kernel-registration step is gone. Cells have ids (nbformat 4.5).
+- **Notebooks 11–13** run on the synthetic demo lake by default (`USE_DEMO = True`). Cells that need real surveys (multi-survey join, crossmatch, W3/W4) are skipped with a message on the demo.
+- **Wording:** "HATS order" is now "HEALPix order" in `dl-export-moc` messages, `dl-init` help and docs. The verbose `dl-describe-lake` column `hats` is now `order`. The `hatsord` provenance key is unchanged (pending the naming-scope decision).
+- **PyTorch is optional:** `torch` moved from the core dependencies to the new `ml` extra (`uv sync --extra ml`). The ML datasets still import without it. Installs that relied on `torch` coming with the package need the extra.
+- **Package metadata:** SPDX `license = "MIT"`, PyPI classifiers, keywords and project URLs. Building now needs `setuptools>=77`.
+
+### Added
+
+- **GitHub Actions CI**: lint (ruff `E9,F811,F821`), tests on Ubuntu with Python 3.12, and a wheel/sdist build with `twine check`.
+- **`SECURITY.md`** (private vulnerability reporting) and **`CITATION.cff`**.
+
+### Fixed
+
+- Plain `pytest` now imports the shared test helpers (`pythonpath = ["."]`).
+- `scripts/slurm_batch_ingest_spectra.py` was a Bash script with a `.py` extension; it is now `scripts/slurm_batch_ingest_spectra.sh`.
+- Undefined-name annotations, a duplicate import in `catalog_extract`, and redundant test imports cleaned up.
 
 ## [0.9.0] - 2026-11-18
 
@@ -391,7 +413,8 @@ Upgrade notes (breaking changes, details under **Changed**):
 - Multi-survey catalog (Parquet/HATS), cutout, and 1-D spectrum (Zarr v3) ingest.
 - Lake registry, crossmatch, validation, and export tooling.
 
-[Unreleased]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/SFotopoulou/astro-data-lake/compare/v0.6.0...v0.7.0

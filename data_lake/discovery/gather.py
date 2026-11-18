@@ -140,7 +140,7 @@ def _fetch_partner_catalog(
     else:
         partner_npix = sorted(
             _partner_healpix_pixels_covering_base_tile(
-                base_npix, base_order, pacc.norder,
+                base_npix, base_order, pacc.healpix_order,
             )
         )
 
@@ -270,7 +270,7 @@ def _gather_one_tile(
         )
 
     out = out.with_columns(
-        pl.lit(npix).cast(pl.Int64).alias(f"_healpix_norder{base_order}")
+        pl.lit(npix).cast(pl.Int64).alias(f"_healpix_order{base_order}")
     )
     if not keep_all:
         out = _apply_matches_only_filter(out, partners, include_sep)
@@ -333,7 +333,7 @@ def gather_product(
             f"product catalog already exists: {out_root} (use overwrite=True)"
         )
 
-    base_order = selection.norder
+    base_order = selection.healpix_order
     npix_list = sorted(selection.npix)
     selection_ids = (
         set(selection.source_ids) if selection.source_ids is not None else None
@@ -384,7 +384,7 @@ def gather_product(
         except ImportError:
             pass
 
-    base_acc = CatalogAccessor(lake_root, base, norder=base_order, metadata_cache=False)
+    base_acc = CatalogAccessor(lake_root, base, healpix_order=base_order, metadata_cache=False)
     partner_acc = {
         p.survey: CatalogAccessor(lake_root, p.survey, metadata_cache=False)
         for p in partners
@@ -539,7 +539,7 @@ def _write_product_info(
             ],
             "selection": {
                 "base_survey": selection.base_survey,
-                "norder": selection.norder,
+                "healpix_order": selection.healpix_order,
                 "n_npix": len(selection.npix),
                 "n_source_ids": (
                     None if selection.source_ids is None else len(selection.source_ids)

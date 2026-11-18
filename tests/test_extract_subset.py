@@ -43,7 +43,7 @@ from data_lake.ingest.fits_to_parquet import (
 # ---------------------------------------------------------------------------
 
 N_PIX = 32
-NORDER = 5
+HEALPIX_ORDER = 5
 SURVEY = "synthetic"
 
 # (source_id, ra, dec, z) — chosen so the two tiles land at different npix
@@ -110,14 +110,14 @@ def _ingest_synthetic_lake(lake_root: Path) -> dict[int, int]:
     # Group by HEALPix tile
     tile_groups: dict[int, list[SpectrumRecord]] = {}
     for rec in records:
-        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), NORDER)[0])
+        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), HEALPIX_ORDER)[0])
         tile_groups.setdefault(pix, []).append(rec)
 
     survey_root = lake_root / "spectra" / SURVEY
     index_map: dict[int, int] = {}
 
     for npix, recs in tile_groups.items():
-        tile_dir = survey_root / healpix_dir(NORDER, npix)
+        tile_dir = survey_root / healpix_dir(HEALPIX_ORDER, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
 
@@ -146,7 +146,7 @@ def _ingest_synthetic_lake(lake_root: Path) -> dict[int, int]:
             index_map[r.source_id] = start_idx + i
 
     _write_spectrum_info(
-        survey_root, SURVEY, NORDER, N_PIX,
+        survey_root, SURVEY, HEALPIX_ORDER, N_PIX,
         "shared", "uint8", wcs_attrs,
     )
 
@@ -188,12 +188,12 @@ def _ingest_per_source_synthetic_lake(lake_root: Path) -> None:
 
     tile_groups: dict[int, list] = {}
     for sid, ra, dec, z in PS_SOURCES:
-        pix = int(assign_healpix(np.array([ra]), np.array([dec]), NORDER)[0])
+        pix = int(assign_healpix(np.array([ra]), np.array([dec]), HEALPIX_ORDER)[0])
         tile_groups.setdefault(pix, []).append((sid, ra, dec, z))
 
     survey_root = lake_root / "spectra" / PS_SURVEY
     for npix, recs in tile_groups.items():
-        tile_dir = survey_root / healpix_dir(NORDER, npix)
+        tile_dir = survey_root / healpix_dir(HEALPIX_ORDER, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
 
@@ -234,7 +234,7 @@ def _ingest_per_source_synthetic_lake(lake_root: Path) -> None:
         root["meta"].append(meta_buf)
 
     _write_spectrum_info(
-        survey_root, PS_SURVEY, NORDER, N_PIX,
+        survey_root, PS_SURVEY, HEALPIX_ORDER, N_PIX,
         "per_source", "uint8", wcs_attrs,
     )
 
@@ -517,10 +517,10 @@ class TestExtractSubsetToZarr:
         by_tile: dict[int, list[tuple[int, float]]] = {}
         for sid, z_cat in catalog_z.items():
             _, ra, dec, _ = next(row for row in SOURCES if row[0] == sid)
-            npix = int(assign_healpix(np.array([ra]), np.array([dec]), NORDER)[0])
+            npix = int(assign_healpix(np.array([ra]), np.array([dec]), HEALPIX_ORDER)[0])
             by_tile.setdefault(npix, []).append((sid, z_cat))
         for npix, rows in by_tile.items():
-            tile_dir = cat_root / healpix_dir(NORDER, npix)
+            tile_dir = cat_root / healpix_dir(HEALPIX_ORDER, npix)
             tile_dir.mkdir(parents=True, exist_ok=True)
             sids, zs = zip(*rows)
             pq.write_table(
@@ -528,7 +528,7 @@ class TestExtractSubsetToZarr:
                     "TARGETID": pa.array(sids, type=pa.int64()),
                     LAKE_JOIN_ID_COLUMN: pa.array(sids, type=pa.int64()),
                     "Z": pa.array(zs, type=pa.float64()),
-                    f"_healpix_norder{NORDER}": pa.array([npix] * len(sids), type=pa.int64()),
+                    f"_healpix_order{HEALPIX_ORDER}": pa.array([npix] * len(sids), type=pa.int64()),
                     "_spectrum_index": pa.array(range(len(sids)), type=pa.int64()),
                 }),
                 tile_dir / f"Npix={npix}.parquet",
@@ -714,10 +714,10 @@ class TestExtractSubsetToZarr:
         by_tile: dict[int, list[tuple[int, str]]] = {}
         spectype = {101: "STAR", 102: "GALAXY", 103: "STAR", 201: "STAR", 202: "QSO"}
         for sid, ra, dec, _z in SOURCES:
-            npix = int(assign_healpix(np.array([ra]), np.array([dec]), NORDER)[0])
+            npix = int(assign_healpix(np.array([ra]), np.array([dec]), HEALPIX_ORDER)[0])
             by_tile.setdefault(npix, []).append((sid, spectype[sid]))
         for npix, rows in by_tile.items():
-            tile_dir = cat_root / healpix_dir(NORDER, npix)
+            tile_dir = cat_root / healpix_dir(HEALPIX_ORDER, npix)
             tile_dir.mkdir(parents=True, exist_ok=True)
             sids = [r[0] for r in rows]
             types = [r[1] for r in rows]
@@ -726,14 +726,14 @@ class TestExtractSubsetToZarr:
                     "TARGETID": pa.array(sids, type=pa.int64()),
                     LAKE_JOIN_ID_COLUMN: pa.array(sids, type=pa.int64()),
                     "SPECTYPE": pa.array(types, type=pa.string()),
-                    f"_healpix_norder{NORDER}": pa.array([npix] * len(sids), type=pa.int64()),
+                    f"_healpix_order{HEALPIX_ORDER}": pa.array([npix] * len(sids), type=pa.int64()),
                     "_spectrum_index": pa.array(range(len(sids)), type=pa.int64()),
                 }),
                 tile_dir / f"Npix={npix}.parquet",
             )
         (cat_root / "catalog_info.json").write_text(
             json.dumps({
-                "healpix_order": NORDER,
+                "healpix_order": HEALPIX_ORDER,
                 "link_id_mode": "column:TARGETID",
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
                 "native_id_column": "TARGETID",

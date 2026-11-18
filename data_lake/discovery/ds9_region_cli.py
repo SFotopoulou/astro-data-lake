@@ -88,7 +88,7 @@ try:
         cone_radius_arcsec: float | None,
         bbox: tuple[float, float, float, float] | None,
         npix: str | None,
-        norder: int | None,
+        healpix_order: int | None,
         moc_path: Path | None,
         ra_col: str | None,
         dec_col: str | None,
@@ -136,7 +136,7 @@ try:
                 region, _ = _region_from_args(
                     from_area=from_area,
                     npix=npix,
-                    norder=norder,
+                    healpix_order=healpix_order,
                     cone=cone,
                     radius_arcsec=cone_radius_arcsec,
                     bbox=bbox,

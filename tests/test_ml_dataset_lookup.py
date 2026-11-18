@@ -18,7 +18,7 @@ from data_lake.io.spectra import SpectrumAccessor
 from data_lake.ml.dataset import CutoutDataset, TileSequentialSampler
 from data_lake.ml.spectrum_dataset import SpectrumDataset
 
-from synthetic_lake_helpers import NORDER, SOURCES, SURVEY, ingest_synthetic_spectrum_lake
+from synthetic_lake_helpers import HEALPIX_ORDER, SOURCES, SURVEY, ingest_synthetic_spectrum_lake
 from test_cutout_lookup import _make_cutout_tile
 
 
@@ -26,7 +26,7 @@ def _write_index_catalog(lake: Path, lookup: dict[int, tuple[int, int]], kind: s
     rows = [
         {
             "_source_id": sid,
-            f"_healpix_norder{NORDER}": npix,
+            f"_healpix_order{HEALPIX_ORDER}": npix,
             f"_{kind}_index": lidx,
             f"_{kind}_npix": npix,
         }
@@ -34,13 +34,13 @@ def _write_index_catalog(lake: Path, lookup: dict[int, tuple[int, int]], kind: s
     ]
     table = pa.Table.from_pylist(rows)
     root = lake / "catalogs" / SURVEY
-    for npix in sorted({r[f"_healpix_norder{NORDER}"] for r in rows}):
-        sub = table.filter(pa.compute.equal(table[f"_healpix_norder{NORDER}"], npix))
-        out = root / healpix_dir(NORDER, npix)
+    for npix in sorted({r[f"_healpix_order{HEALPIX_ORDER}"] for r in rows}):
+        sub = table.filter(pa.compute.equal(table[f"_healpix_order{HEALPIX_ORDER}"], npix))
+        out = root / healpix_dir(HEALPIX_ORDER, npix)
         out.mkdir(parents=True, exist_ok=True)
         pq.write_table(sub, out / f"Npix={npix}.parquet")
     (root / "catalog_info.json").write_text(
-        f'{{"healpix_order": {NORDER}, "link_id_column": "_source_id"}}'
+        f'{{"healpix_order": {HEALPIX_ORDER}, "link_id_column": "_source_id"}}'
     )
 
 
@@ -76,14 +76,14 @@ class TestLocate:
 class TestSpectrumDataset:
     def test_items_match_accessor(self, spectrum_lake: Path) -> None:
         ids = [s[0] for s in SOURCES]
-        ds = SpectrumDataset(spectrum_lake, SURVEY, ids, norder=NORDER, return_full=True)
+        ds = SpectrumDataset(spectrum_lake, SURVEY, ids, healpix_order=HEALPIX_ORDER, return_full=True)
         with SpectrumAccessor(spectrum_lake, SURVEY) as acc:
             for i, sid in enumerate(ids):
                 assert ds[i].source_id == sid
                 np.testing.assert_array_equal(ds[i].flux, acc.get_spectrum(sid).flux)
 
     def test_missing_id_raises_on_access(self, spectrum_lake: Path) -> None:
-        ds = SpectrumDataset(spectrum_lake, SURVEY, [101, 999], norder=NORDER)
+        ds = SpectrumDataset(spectrum_lake, SURVEY, [101, 999], healpix_order=HEALPIX_ORDER)
         with pytest.raises(KeyError, match="999"):
             ds[1]
 
@@ -94,10 +94,10 @@ class TestSpectrumDataset:
         _write_index_catalog(
             spectrum_lake, dict(zip(ids, zip(npix.tolist(), local.tolist()))), "spectrum",
         )
-        cat = CatalogAccessor(spectrum_lake, SURVEY, norder=NORDER)
+        cat = CatalogAccessor(spectrum_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         with patch.object(cat, "get_tile_index", wraps=cat.get_tile_index) as spy:
             ds = SpectrumDataset(
-                spectrum_lake, SURVEY, ids, norder=NORDER, catalog_accessor=cat,
+                spectrum_lake, SURVEY, ids, healpix_order=HEALPIX_ORDER, catalog_accessor=cat,
             )
             for i in range(len(ds)):
                 ds[i]
@@ -108,14 +108,14 @@ class TestSpectrumDataset:
 
 class TestCutoutDataset:
     def test_tile_sort_and_sampler_runs(self, cutout_lake: Path) -> None:
-        ds = CutoutDataset(cutout_lake, SURVEY, [601, 501, 502], norder=NORDER)
+        ds = CutoutDataset(cutout_lake, SURVEY, [601, 501, 502], healpix_order=HEALPIX_ORDER)
         assert ds.tile_sorted_indices == [1, 2, 0]
         sampler = TileSequentialSampler(ds, shuffle_tiles=False)
         assert sorted(map(sorted, sampler._tile_runs)) == [[0], [1, 2]]
         assert sorted(sampler) == [0, 1, 2]
 
     def test_items_match_accessor(self, cutout_lake: Path) -> None:
-        ds = CutoutDataset(cutout_lake, SURVEY, [601, 502], norder=NORDER)
+        ds = CutoutDataset(cutout_lake, SURVEY, [601, 502], healpix_order=HEALPIX_ORDER)
         with CutoutAccessor(cutout_lake, SURVEY) as acc:
             np.testing.assert_array_equal(np.asarray(ds[1]), acc.get_image(502))
             np.testing.assert_array_equal(np.asarray(ds[0]), acc.get_image(601))
@@ -127,9 +127,9 @@ class TestCutoutDataset:
         _write_index_catalog(
             cutout_lake, dict(zip(ids, zip(npix.tolist(), local.tolist()))), "cutout",
         )
-        cat = CatalogAccessor(cutout_lake, SURVEY, norder=NORDER)
+        cat = CatalogAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         with patch.object(cat, "get_tile_index", wraps=cat.get_tile_index) as spy:
-            ds = CutoutDataset(cutout_lake, SURVEY, ids, norder=NORDER, catalog_accessor=cat)
+            ds = CutoutDataset(cutout_lake, SURVEY, ids, healpix_order=HEALPIX_ORDER, catalog_accessor=cat)
             for i in range(len(ds)):
                 ds[i]
         assert spy.call_count == 0

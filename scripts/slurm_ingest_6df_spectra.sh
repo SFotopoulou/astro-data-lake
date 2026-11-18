@@ -9,7 +9,7 @@
 # Optional env:
 #   DATA_LAKE_REPO       # default: repo root inferred from scripts/
 #   SURVEY               # default: SIXDF_DR3
-#   NORDER               # default: 5
+#   HEALPIX_ORDER               # default: 5
 #
 # Submit:
 #   mkdir -p logs
@@ -39,7 +39,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${DATA_LAKE_REPO:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 SURVEY="${SURVEY:-SIXDF_DR3}"
-NORDER="${NORDER:-5}"
+HEALPIX_ORDER="${HEALPIX_ORDER:-5}"
 
 CONFIG_DIR="$(dirname "${DATA_LAKE_CONFIG}")"
 STATE_DIR="${CONFIG_DIR}/ingest_state/6df"
@@ -51,7 +51,7 @@ FAILURES_LOG="${STATE_DIR}/failures.jsonl"
 source "${REPO}/.venv/bin/activate"
 
 echo "6dF ingest start: $(date --iso-8601=seconds)"
-echo "survey=${SURVEY} norder=${NORDER}"
+echo "survey=${SURVEY} healpix_order=${HEALPIX_ORDER}"
 echo "file_list=${FILE_LIST}"
 echo "checkpoint=${CHECKPOINT}"
 echo "failures=${FAILURES_LOG}"
@@ -61,7 +61,7 @@ dl-ingest-spectra-from-list \
   --config "${DATA_LAKE_CONFIG}" \
   --survey "${SURVEY}" \
   --fmt 6df \
-  --healpix-order "${NORDER}" \
+  --healpix-order "${HEALPIX_ORDER}" \
   --wavelength-mode shared \
   --on-duplicate skip \
   --on-length-mismatch pad \

@@ -177,7 +177,7 @@ class CutoutAccessor:
         Data lake root.
     survey_name:
         Survey identifier.
-    norder:
+    healpix_order:
         HEALPix partitioning order (read from ``cutout_info.json`` if omitted).
     catalog_accessor:
         Optional ``CatalogAccessor`` used for source_id → tile lookup.
@@ -189,7 +189,7 @@ class CutoutAccessor:
         self,
         lake_root: Path | str,
         survey_name: str,
-        norder: int | None = None,
+        healpix_order: int | None = None,
         catalog_accessor=None,
         max_open_tiles: int | None = None,
     ) -> None:
@@ -209,8 +209,8 @@ class CutoutAccessor:
         from data_lake.healpix_order import require_healpix_order
         from data_lake.knobs import READ_MAX_OPEN_TILES
 
-        self.norder: int = (
-            norder if norder is not None
+        self.healpix_order: int = (
+            healpix_order if healpix_order is not None
             else require_healpix_order(self._info, str(info_path))
         )
         self._catalog = catalog_accessor
@@ -226,7 +226,7 @@ class CutoutAccessor:
     # ------------------------------------------------------------------
 
     def _tile_path(self, npix: int) -> Path:
-        return self._cutout_root / healpix_dir(self.norder, npix) / f"Npix={npix}.zarr"
+        return self._cutout_root / healpix_dir(self.healpix_order, npix) / f"Npix={npix}.zarr"
 
     def _get_tile_store(self, npix: int) -> TileStore:
         if npix in self._tile_stores:
@@ -467,7 +467,7 @@ class CutoutAccessor:
     def __repr__(self) -> str:
         return (
             f"CutoutAccessor(survey={self.survey_name!r}, "
-            f"norder={self.norder}, root={self.lake_root})"
+            f"healpix_order={self.healpix_order}, root={self.lake_root})"
         )
 
     # ------------------------------------------------------------------

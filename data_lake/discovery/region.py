@@ -31,8 +31,8 @@ RegionType = Literal["npix", "cone", "bbox", "moc"]
 
 def rescale_npix_nested(
     npix: Iterable[int],
-    source_norder: int,
-    target_norder: int,
+    source_healpix_order: int,
+    target_healpix_order: int,
 ) -> set[int]:
     """Rescale NESTED pixel indices between HEALPix orders.
 
@@ -44,25 +44,25 @@ def rescale_npix_nested(
 
     This is exact for the NESTED indexing scheme.
     """
-    if source_norder < 0 or target_norder < 0:
+    if source_healpix_order < 0 or target_healpix_order < 0:
         raise ValueError("HEALPix orders must be >= 0")
     src = {int(p) for p in npix}
-    if target_norder == source_norder:
+    if target_healpix_order == source_healpix_order:
         return src
-    if target_norder > source_norder:
-        delta = target_norder - source_norder
+    if target_healpix_order > source_healpix_order:
+        delta = target_healpix_order - source_healpix_order
         shift = 2 * delta
         out: set[int] = set()
         for p in src:
             base = p << shift
             out.update(range(base, base + (1 << shift)))
         return out
-    shift = 2 * (source_norder - target_norder)
+    shift = 2 * (source_healpix_order - target_healpix_order)
     return {p >> shift for p in src}
 
 
-def _cone_npix(ra_deg: float, dec_deg: float, radius_arcsec: float, norder: int) -> set[int]:
-    nside = hp.order2nside(norder)
+def _cone_npix(ra_deg: float, dec_deg: float, radius_arcsec: float, healpix_order: int) -> set[int]:
+    nside = hp.order2nside(healpix_order)
     theta = math.radians(90.0 - dec_deg)
     phi = math.radians(ra_deg)
     vec = hp.ang2vec(theta, phi)
@@ -80,16 +80,16 @@ def _bbox_polygon_npix(
     ra_max: float,
     dec_min: float,
     dec_max: float,
-    norder: int,
+    healpix_order: int,
 ) -> set[int]:
-    """Pixels inside an RA/Dec box at *norder*, handling RA wrap-around.
+    """Pixels inside an RA/Dec box at *healpix_order*, handling RA wrap-around.
 
     When ``ra_min > ra_max`` the box is interpreted as wrapping through 0/360 and
     is split into two sub-boxes. Dec is clamped to [-90, 90].
     """
     dec_lo = _normalize_dec(min(dec_min, dec_max))
     dec_hi = _normalize_dec(max(dec_min, dec_max))
-    nside = hp.order2nside(norder)
+    nside = hp.order2nside(healpix_order)
 
     def _one(a0: float, a1: float) -> set[int]:
         # Degenerate width -> nothing.
@@ -109,7 +109,7 @@ def _bbox_polygon_npix(
             pix = hp.query_polygon(nside, vecs, nest=True, inclusive=True)
         except Exception:
             # Fall back to a disc covering the box (robust near poles / thin boxes).
-            return _bbox_disc_fallback(a0, a1, dec_lo, dec_hi, norder)
+            return _bbox_disc_fallback(a0, a1, dec_lo, dec_hi, healpix_order)
         return {int(p) for p in pix}
 
     ra0 = float(ra_min) % 360.0
@@ -124,7 +124,7 @@ def _bbox_polygon_npix(
 
 
 def _bbox_disc_fallback(
-    ra_min: float, ra_max: float, dec_min: float, dec_max: float, norder: int
+    ra_min: float, ra_max: float, dec_min: float, dec_max: float, healpix_order: int
 ) -> set[int]:
     ra_c = 0.5 * (ra_min + ra_max)
     dec_c = 0.5 * (dec_min + dec_max)
@@ -132,8 +132,8 @@ def _bbox_disc_fallback(
     cos_dec = max(math.cos(math.radians(dec_c)), 1e-6)
     dra = 0.5 * (ra_max - ra_min) * cos_dec
     ddec = 0.5 * (dec_max - dec_min)
-    radius_deg = math.hypot(dra, ddec) + hp.nside2resol(hp.order2nside(norder), arcmin=True) / 60.0
-    return _cone_npix(ra_c, dec_c, radius_deg * 3600.0, norder)
+    radius_deg = math.hypot(dra, ddec) + hp.nside2resol(hp.order2nside(healpix_order), arcmin=True) / 60.0
+    return _cone_npix(ra_c, dec_c, radius_deg * 3600.0, healpix_order)
 
 
 @dataclass(frozen=True)
@@ -147,7 +147,7 @@ class Region:
     type: RegionType
     # npix
     npix: tuple[int, ...] = ()
-    source_norder: int | None = None
+    source_healpix_order: int | None = None
     # cone
     ra_deg: float | None = None
     dec_deg: float | None = None
@@ -164,9 +164,9 @@ class Region:
     # -- constructors -------------------------------------------------------
 
     @classmethod
-    def from_npix(cls, npix: Iterable[int], source_norder: int) -> "Region":
+    def from_npix(cls, npix: Iterable[int], source_healpix_order: int) -> "Region":
         pix = tuple(sorted({int(p) for p in npix}))
-        return cls(type="npix", npix=pix, source_norder=int(source_norder))
+        return cls(type="npix", npix=pix, source_healpix_order=int(source_healpix_order))
 
     @classmethod
     def cone(cls, ra_deg: float, dec_deg: float, radius_arcsec: float) -> "Region":
@@ -201,27 +201,27 @@ class Region:
 
     # -- resolution ---------------------------------------------------------
 
-    def to_npix(self, target_norder: int) -> set[int]:
-        """Resolve this region to a set of NESTED pixel indices at *target_norder*."""
-        if target_norder < 0:
-            raise ValueError("target_norder must be >= 0")
+    def to_npix(self, target_healpix_order: int) -> set[int]:
+        """Resolve this region to a set of NESTED pixel indices at *target_healpix_order*."""
+        if target_healpix_order < 0:
+            raise ValueError("target_healpix_order must be >= 0")
         if self.type == "npix":
-            if self.source_norder is None:
-                raise ValueError("npix region requires source_norder")
-            return rescale_npix_nested(self.npix, self.source_norder, target_norder)
+            if self.source_healpix_order is None:
+                raise ValueError("npix region requires source_healpix_order")
+            return rescale_npix_nested(self.npix, self.source_healpix_order, target_healpix_order)
         if self.type == "cone":
             return _cone_npix(
-                self.ra_deg, self.dec_deg, self.radius_arcsec, target_norder  # type: ignore[arg-type]
+                self.ra_deg, self.dec_deg, self.radius_arcsec, target_healpix_order  # type: ignore[arg-type]
             )
         if self.type == "bbox":
             return _bbox_polygon_npix(
-                self.ra_min, self.ra_max, self.dec_min, self.dec_max, target_norder  # type: ignore[arg-type]
+                self.ra_min, self.ra_max, self.dec_min, self.dec_max, target_healpix_order  # type: ignore[arg-type]
             )
         if self.type == "moc":
-            return self._moc_to_npix(target_norder)
+            return self._moc_to_npix(target_healpix_order)
         raise ValueError(f"unknown region type {self.type!r}")
 
-    def _moc_to_npix(self, target_norder: int) -> set[int]:
+    def _moc_to_npix(self, target_healpix_order: int) -> set[int]:
         try:
             from mocpy import MOC  # type: ignore
         except ImportError as exc:  # pragma: no cover
@@ -236,9 +236,9 @@ class Region:
             moc = MOC.from_string(self.moc_string)  # type: ignore[arg-type]
 
         # Degrade/keep to the target order, then enumerate NESTED pixels.
-        max_order = getattr(moc, "max_order", target_norder)
-        if max_order > target_norder:
-            moc = moc.degrade_to_order(target_norder)
+        max_order = getattr(moc, "max_order", target_healpix_order)
+        if max_order > target_healpix_order:
+            moc = moc.degrade_to_order(target_healpix_order)
         out: set[int] = set()
         # mocpy exposes (order, npix) cell iteration differently across versions;
         # flatten to target order via the uniq/cells interface.
@@ -246,17 +246,17 @@ class Region:
             cells = moc.flatten()  # array of NESTED npix at moc.max_order
             cell_order = moc.max_order
             for p in cells:
-                out |= rescale_npix_nested([int(p)], cell_order, target_norder)
+                out |= rescale_npix_nested([int(p)], cell_order, target_healpix_order)
         except AttributeError:  # pragma: no cover - version fallback
             for order, ipix in moc.to_json().items():  # type: ignore[attr-defined]
-                out |= rescale_npix_nested([int(p) for p in ipix], int(order), target_norder)
+                out |= rescale_npix_nested([int(p) for p in ipix], int(order), target_healpix_order)
         return out
 
     # -- (de)serialization --------------------------------------------------
 
     def to_dict(self) -> dict[str, Any]:
         if self.type == "npix":
-            return {"type": "npix", "npix": list(self.npix), "source_norder": self.source_norder}
+            return {"type": "npix", "npix": list(self.npix), "source_healpix_order": self.source_healpix_order}
         if self.type == "cone":
             return {
                 "type": "cone",
@@ -286,10 +286,10 @@ class Region:
         rtype = d.get("type")
         if rtype == "npix":
             npix = _parse_npix_spec(d.get("npix", []))
-            source_norder = d.get("source_norder")
-            if source_norder is None:
-                raise ValueError("npix region requires 'source_norder'")
-            return cls.from_npix(npix, int(source_norder))
+            source_healpix_order = d.get("source_healpix_order")
+            if source_healpix_order is None:
+                raise ValueError("npix region requires 'source_healpix_order'")
+            return cls.from_npix(npix, int(source_healpix_order))
         if rtype == "cone":
             return cls.cone(
                 float(d["ra_deg"]), float(d["dec_deg"]), float(d["radius_arcsec"])

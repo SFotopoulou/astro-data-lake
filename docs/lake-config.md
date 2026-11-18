@@ -44,7 +44,7 @@ that contains the config file. `schema_version` must be `"1"`; any other value
 is rejected.
 
 - `healpix_order`: see
-  [Choosing HEALPix order](ingest/catalog.md#choosing-healpix-order---healpix-order--healpix_order)
+  [Choosing HEALPix order](ingest/catalog.md#choosing-healpix-order---healpix-order)
   in the catalog ingest guide.
 - `chunks_per_shard`: matches `data_lake.knobs.SPECTRA_CHUNKS_PER_SHARD`.
   Cutout ingest uses `CUTOUT_CHUNKS_PER_SHARD` (1024) instead.

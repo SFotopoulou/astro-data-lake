@@ -164,12 +164,12 @@ tile once, removes duplicates according to `--on-duplicate-id`, and writes the f
 tile. No tile locking is needed, so reduce scales linearly with workers. After all tiles
 succeed, reduce finalizes the catalog (see [Finalize](#parallel-catalog-batch-large-file-lists)).
 
-### Choosing norder
+### Choosing the HEALPix order
 
-Run `dl-recommend-catalog-norder` on a few sample files with `--norder-max 8`. For
+Run `dl-recommend-catalog-healpix-order` on a few sample files with `--healpix-order-max 8`. For
 tractor-format bricks (Legacy Survey), `--healpix-order 6` or `7` is usually best: smaller tiles
 mean smaller concatenations in reduce and more parallel reduce tasks. If an existing
-`norder=4` tree must be kept, ingest under a new survey name.
+`healpix_order=4` tree must be kept, ingest under a new survey name.
 
 ### Slurm recipe
 
@@ -238,7 +238,7 @@ serial append.
 
 Map the new files into a fresh `--shard-root` and reduce with the default
 `--tile-mode append`. Each touched tile is read once, merged with the new rows, and
-rewritten once. Map records `norder` and `link_id_mode` in
+rewritten once. Map records `healpix_order` and `link_id_mode` in
 `<shard-root>/<survey>/shard_info.json`. Reduce aborts before writing anything if those
 disagree with `--healpix-order` or with the existing survey's `catalog_info.json`, and map aborts
 if a later task uses another `--link-id-col` or `--healpix-order` on the same shard tree. Reduce
@@ -375,7 +375,7 @@ crossmatch at scale:
    Schema lookups read `_common_metadata`; older catalogs without it fall back to reading
    one tile, and a single `dl-finalize-catalog` run adds it. `dl-validate-catalog-ingest`
    warns when `_metadata` is missing.
-3. **HEALPix order.** Use `dl-recommend-catalog-norder` on a sample file when unsure.
+3. **HEALPix order.** Use `dl-recommend-catalog-healpix-order` on a sample file when unsure.
    `--healpix-order` must match `healpix_order` in `catalog_info.json` for retrieval and crossmatch
    tile paths.
 4. **Storage locality.** Keep the lake root on local SSD when possible; on NFS or Lustre use

@@ -37,7 +37,7 @@ class TestDecodeSpectrumFile:
         cfg = SpectrumDecodeConfig(
             survey_name="SIXDF_DR3",
             output_root="/tmp",
-            norder=1,
+            healpix_order=1,
             fmt="6df",
             ra_col="ra",
             dec_col="dec",
@@ -60,7 +60,7 @@ class TestDecodeSpectrumFile:
         cfg = SpectrumDecodeConfig(
             survey_name="TEST_2DF",
             output_root="/tmp",
-            norder=5,
+            healpix_order=5,
             fmt="2df",
             ra_col="RA",
             dec_col="DEC",
@@ -87,7 +87,7 @@ class TestParallelSpectrumIngest:
         cfg = SpectrumDecodeConfig(
             survey_name="TEST_2DF",
             output_root=str(lake_par),
-            norder=5,
+            healpix_order=5,
             fmt="2df",
             ra_col="RA",
             dec_col="DEC",
@@ -138,7 +138,7 @@ class TestParallelSpectrumIngest:
         cfg = SpectrumDecodeConfig(
             survey_name="SIXDF_DR3",
             output_root=str(lake),
-            norder=1,
+            healpix_order=1,
             fmt="6df",
             ra_col="ra",
             dec_col="dec",
@@ -174,7 +174,7 @@ class TestParallelSpectrumIngest:
         cfg = SpectrumDecodeConfig(
             survey_name="TEST_2DF",
             output_root=str(lake),
-            norder=5,
+            healpix_order=5,
             fmt="2df",
             ra_col="RA",
             dec_col="DEC",

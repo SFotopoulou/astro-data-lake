@@ -60,7 +60,7 @@ def _resolve_selection(
     lake: Path,
     *,
     base: str,
-    norder: int,
+    healpix_order: int,
     from_area_obj: Area | None,
     ids_file: Path | None,
     where: str | None,
@@ -68,7 +68,7 @@ def _resolve_selection(
     radius_arcsec: float | None,
     bbox: tuple[float, float, float, float] | None,
     npix: str | None,
-    npix_norder: int | None,
+    npix_healpix_order: int | None,
 ) -> BaseSelection:
     selectors = [
         ("--from-area", from_area_obj is not None),
@@ -98,10 +98,10 @@ def _resolve_selection(
     if bbox is not None:
         return selection_from_region(lake, base, Region.bbox(*bbox))
     if npix is not None:
-        if npix_norder is None:
+        if npix_healpix_order is None:
             raise ValueError("--npix requires --healpix-order")
         return selection_from_region(
-            lake, base, Region.from_npix(parse_npix_arg(npix), npix_norder)
+            lake, base, Region.from_npix(parse_npix_arg(npix), npix_healpix_order)
         )
     raise ValueError("no selection selector")  # pragma: no cover
 
@@ -187,7 +187,7 @@ try:
     @click.option("--bbox", nargs=4, type=float, default=None,
                   help="Box RA_MIN RA_MAX DEC_MIN DEC_MAX (deg).")
     @click.option("--npix", default=None, help="npix list/ranges (needs --healpix-order).")
-    @healpix_order_option(dest="npix_norder", type=int, default=None, help="Order for --npix.")
+    @healpix_order_option(dest="npix_healpix_order", type=int, default=None, help="Order for --npix.")
     @click.option("--overwrite", is_flag=True, help="Overwrite an existing product catalog.")
     @progress_option
     @click.option("--extract-modalities", "extract_modalities", default=None,
@@ -218,7 +218,7 @@ try:
         radius_arcsec: float | None,
         bbox: tuple[float, float, float, float] | None,
         npix: str | None,
-        npix_norder: int | None,
+        npix_healpix_order: int | None,
         overwrite: bool,
         show_progress: bool,
         extract_modalities: str | None,
@@ -303,7 +303,7 @@ try:
                 from data_lake.io.catalog import CatalogAccessor
 
                 with CatalogAccessor(lake, base) as acc:
-                    base_order = acc.norder
+                    base_order = acc.healpix_order
 
             if partner_cache_mb < 0:
                 raise click.ClickException("--partner-cache-mb must be >= 0")
@@ -321,7 +321,7 @@ try:
             selection = _resolve_selection(
                 lake,
                 base=base,
-                norder=base_order,
+                healpix_order=base_order,
                 from_area_obj=area_obj,
                 ids_file=ids_file,
                 where=where,
@@ -329,7 +329,7 @@ try:
                 radius_arcsec=radius_arcsec,
                 bbox=bbox,
                 npix=npix,
-                npix_norder=npix_norder,
+                npix_healpix_order=npix_healpix_order,
             )
             out_path = lake / "products" / materialize_as
             click.echo(

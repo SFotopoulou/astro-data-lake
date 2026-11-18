@@ -9,7 +9,7 @@
 # Optional:
 #   DATA_LAKE_REPO    — repo root (default: parent of this scripts/ directory)
 #   SURVEY            — survey name written into the lake (default: 2DFGRS_DR3)
-#   NORDER            — HEALPix order (default: 5)
+#   HEALPIX_ORDER            — HEALPix order (default: 5)
 #   WAVELENGTH_MODE   — shared or per_source (default: shared; 2dF has a fixed grid)
 #   N_WORKERS         — parallel decode workers (default: 1 = sequential)
 #
@@ -59,7 +59,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${DATA_LAKE_REPO:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 SURVEY="${SURVEY:-2DFGRS_DR3}"
-NORDER="${NORDER:-5}"
+HEALPIX_ORDER="${HEALPIX_ORDER:-5}"
 WAVELENGTH_MODE="${WAVELENGTH_MODE:-shared}"
 N_WORKERS="${N_WORKERS:-1}"
 
@@ -80,7 +80,7 @@ echo "2dFGRS spectra ingest — $(date --iso-8601=seconds)"
 echo "Job ID         : ${SLURM_JOB_ID:-local}"
 echo "Survey         : ${SURVEY}"
 echo "File list      : ${FILE_LIST}"
-echo "Norder         : ${NORDER}"
+echo "Norder         : ${HEALPIX_ORDER}"
 echo "Wavelength mode: ${WAVELENGTH_MODE}"
 echo "N workers      : ${N_WORKERS}"
 echo "Checkpoint     : ${CHECKPOINT}"
@@ -97,7 +97,7 @@ INGEST_ARGS=(
     --config "${DATA_LAKE_CONFIG}"
     --survey "${SURVEY}"
     --fmt 2df
-    --healpix-order "${NORDER}"
+    --healpix-order "${HEALPIX_ORDER}"
     --wavelength-mode "${WAVELENGTH_MODE}"
     --n-workers "${N_WORKERS}"
     --on-duplicate skip
@@ -147,7 +147,7 @@ echo "Running dl-validate-spectra-ingest (spot-check) …"
 dl-validate-spectra-ingest \
     --config "${DATA_LAKE_CONFIG}" \
     --survey "${SURVEY}" \
-    --healpix-order "${NORDER}" \
+    --healpix-order "${HEALPIX_ORDER}" \
 || echo "WARNING: validation reported issues — check the log above."
 
 echo "All done — $(date --iso-8601=seconds)"

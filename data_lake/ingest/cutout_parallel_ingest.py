@@ -39,7 +39,7 @@ CutoutDuplicateMode = Literal["append", "error", "skip"]
 
 @dataclass(frozen=True)
 class CutoutDecodeConfig:
-    norder: int
+    healpix_order: int
     ra_col: str
     dec_col: str
     link_id_col: str | None
@@ -91,7 +91,7 @@ def _decode_cutout_file(path_str: str, config: CutoutDecodeConfig) -> CutoutWork
 
     tile_groups: dict[int, list[CutoutRecord]] = {}
     for rec in records:
-        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), config.norder)[0])
+        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), config.healpix_order)[0])
         tile_groups.setdefault(pix, []).append(rec)
 
     batches: list[CutoutTileBatch] = []
@@ -151,13 +151,13 @@ class _CutoutTileCache:
         self,
         *,
         survey_root: Path,
-        norder: int,
+        healpix_order: int,
         dtype: np.dtype,
         on_duplicate: CutoutDuplicateMode,
         max_open: int,
     ) -> None:
         self._survey_root = survey_root
-        self._norder = norder
+        self._healpix_order = healpix_order
         self._dtype = dtype
         self._on_duplicate = on_duplicate
         self._max_open = max_open
@@ -167,7 +167,7 @@ class _CutoutTileCache:
 
     def append_batch(self, batch: CutoutTileBatch) -> None:
         npix = int(batch.npix)
-        tile_dir = self._survey_root / healpix_dir(self._norder, npix)
+        tile_dir = self._survey_root / healpix_dir(self._healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
         if npix not in self._tiles:
@@ -241,7 +241,7 @@ def ingest_cutouts_parallel(
     image_hdu_index: int = 0,
     band_axis: int | None = None,
     band_names: Sequence[str] | None = None,
-    norder: int = 5,
+    healpix_order: int = 5,
     dtype: np.dtype | type = np.float32,
     on_duplicate: CutoutDuplicateMode = "skip",
     checkpoint_path: Path | str | None = None,
@@ -270,7 +270,7 @@ def ingest_cutouts_parallel(
     warn_high_parallelism_on_slow_storage(n_workers, output_root)
 
     decode_cfg = CutoutDecodeConfig(
-        norder=norder,
+        healpix_order=healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
         link_id_col=link_id_col,
@@ -344,7 +344,7 @@ def ingest_cutouts_parallel(
                         if tile_cache is None:
                             tile_cache = _CutoutTileCache(
                                 survey_root=survey_root,
-                                norder=norder,
+                                healpix_order=healpix_order,
                                 dtype=np.dtype(dtype),
                                 on_duplicate=on_duplicate,
                                 max_open=max_open_tiles,

@@ -54,7 +54,7 @@
 Each catalog row carries:
 - `_source_id` — stable int64 join key for Zarr/cross-match (sequential 0…N−1, copy of native int ID, or hash of a label column)
 - native survey ID columns (e.g. `TARGETID`, `SOURCE_ID`) when ``link_id_mode`` is ``column:…`` or ``label:…``
-- `_healpix_norder{N}` — HEALPix tile pixel at the **catalog** partition order (partitioning key only)
+- `_healpix_order{N}` — HEALPix tile pixel at the **catalog** partition order (partitioning key only)
 - `_cutout_index` — local row offset inside the Zarr cutout tile identified by `_cutout_npix` (-1 = not ingested)
 - `_cutout_npix` — HEALPix pixel at the **cutout** `healpix_order` that identifies the Zarr tile (-1 = not ingested)
 - `_spectrum_index` — local row offset inside the Zarr spectrum tile identified by `_spectrum_npix` (-1 = not ingested)

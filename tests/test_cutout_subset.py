@@ -17,7 +17,7 @@ from data_lake.io.cutouts import CutoutAccessor
 # ---------------------------------------------------------------------------
 
 SURVEY = "test_cutout_survey"
-NORDER = 3
+HEALPIX_ORDER = 3
 
 # Source table: (sid, ra, dec, flux_value)
 SOURCES = [
@@ -60,7 +60,7 @@ def cutout_lake(tmp_path: Path) -> Path:
         ingest_cutouts_from_fits(
             f, tmp_path, SURVEY,
             ra_col="RA", dec_col="DEC",
-            norder=NORDER,
+            healpix_order=HEALPIX_ORDER,
             band_names=["r"],
         )
     return tmp_path
@@ -74,7 +74,7 @@ class TestExtractSubsetToZarr:
     def test_round_trip_flux(self, cutout_lake: Path) -> None:
         import zarr
 
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         result = acc.extract_subset_to_zarr(
             [1001, 2001], cutout_lake / "sub.zarr", show_progress=False
         )
@@ -100,7 +100,7 @@ class TestExtractSubsetToZarr:
         import struct
         import zarr
 
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         result = acc.extract_subset_to_zarr(
             [1001], cutout_lake / "wcs_sub.zarr", show_progress=False
         )
@@ -117,7 +117,7 @@ class TestExtractSubsetToZarr:
         assert abs(crval2 - 20.00) < 1e-6
 
     def test_missing_skip(self, cutout_lake: Path) -> None:
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         result = acc.extract_subset_to_zarr(
             [1001, 9999], cutout_lake / "miss.zarr",
             missing="skip", show_progress=False,
@@ -126,7 +126,7 @@ class TestExtractSubsetToZarr:
         assert 9999 in result["missing_ids"]
 
     def test_missing_error_raises(self, cutout_lake: Path) -> None:
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         with pytest.raises(KeyError, match="9999"):
             acc.extract_subset_to_zarr(
                 [1001, 9999], cutout_lake / "err.zarr",
@@ -134,7 +134,7 @@ class TestExtractSubsetToZarr:
             )
 
     def test_overwrite_guard(self, cutout_lake: Path) -> None:
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         out = cutout_lake / "guard.zarr"
         acc.extract_subset_to_zarr([1001], out, show_progress=False)
         with pytest.raises(FileExistsError):
@@ -145,7 +145,7 @@ class TestExtractSubsetToZarr:
     def test_attrs_written(self, cutout_lake: Path) -> None:
         import zarr
 
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         acc.extract_subset_to_zarr([1001], cutout_lake / "attr.zarr", show_progress=False)
         root = zarr.open_group(
             store=zarr.storage.LocalStore(str(cutout_lake / "attr.zarr")),
@@ -164,7 +164,7 @@ class TestExtractSubsetToZarr:
 
 class TestExtractSubsetToFits:
     def test_writes_fits_with_wcs(self, cutout_lake: Path) -> None:
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         out_dir = cutout_lake / "fits_out"
         result = acc.extract_subset_to_fits(
             [1001, 2001], out_dir, show_progress=False
@@ -187,7 +187,7 @@ class TestExtractSubsetToFits:
 
     def test_wcs_values_correct(self, cutout_lake: Path) -> None:
         """CRVAL1/2 in the output FITS must match the ingested RA/Dec."""
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         out_dir = cutout_lake / "wcs_fits"
         result = acc.extract_subset_to_fits([1001], out_dir, show_progress=False)
         fpath = Path(result["id_to_path"][1001])
@@ -197,7 +197,7 @@ class TestExtractSubsetToFits:
         assert abs(hdr["CRVAL2"] - 20.00) < 1e-6
 
     def test_custom_filename_template(self, cutout_lake: Path) -> None:
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         out_dir = cutout_lake / "tpl_fits"
         result = acc.extract_subset_to_fits(
             [1001], out_dir,
@@ -217,7 +217,7 @@ class TestExtractSubsetToHdf5:
         pytest.importorskip("h5py")
         import h5py
 
-        acc = CutoutAccessor(cutout_lake, SURVEY, norder=NORDER)
+        acc = CutoutAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         out = cutout_lake / "sub.h5"
         result = acc.extract_subset_to_hdf5([1001, 2001], out, show_progress=False)
         assert result["n_written"] == 2
@@ -253,11 +253,11 @@ def _write_catalog_with_link_ids(lake: Path, sources: list[tuple]) -> None:
     cat_root = lake / "catalogs" / SURVEY
     by_tile: dict[int, list] = {}
     for sid, ra, dec, _flux in sources:
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), NORDER)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), HEALPIX_ORDER)[0])
         by_tile.setdefault(npix, []).append((sid, ra, dec))
 
     for npix, rows in by_tile.items():
-        tile_dir = cat_root / healpix_dir(NORDER, npix)
+        tile_dir = cat_root / healpix_dir(HEALPIX_ORDER, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         sids = [r[0] for r in rows]
         pq.write_table(
@@ -266,12 +266,12 @@ def _write_catalog_with_link_ids(lake: Path, sources: list[tuple]) -> None:
                 "SURVEY": pa.array(["main"] * len(sids)),
                 "PROGRAM": pa.array(["dark"] * len(sids)),
                 "_source_id": pa.array(sids, type=pa.int64()),
-                f"_healpix_norder{NORDER}": pa.array([npix] * len(sids), type=pa.int64()),
+                f"_healpix_order{HEALPIX_ORDER}": pa.array([npix] * len(sids), type=pa.int64()),
             }),
             tile_dir / f"Npix={npix}.parquet",
         )
     (cat_root / "catalog_info.json").write_text(json.dumps({
-        "healpix_order": NORDER,
+        "healpix_order": HEALPIX_ORDER,
         "link_id_mode": "composite:TARGETID,SURVEY,PROGRAM",
         "link_id_column": "_source_id",
         "native_id_column": "TARGETID,SURVEY,PROGRAM",
@@ -285,11 +285,11 @@ class TestEmbedLinkIdColumns:
         from data_lake.io.catalog import CatalogAccessor
 
         _write_catalog_with_link_ids(cutout_lake, SOURCES)
-        cat = CatalogAccessor(cutout_lake, SURVEY, norder=NORDER)
+        cat = CatalogAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         assert cat.link_id_component_columns == ["TARGETID", "SURVEY", "PROGRAM"]
 
         acc = CutoutAccessor(
-            cutout_lake, SURVEY, norder=NORDER, catalog_accessor=cat,
+            cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER, catalog_accessor=cat,
         )
         out = cutout_lake / "embed.zarr"
         result = acc.extract_subset_to_zarr(
@@ -321,9 +321,9 @@ class TestEmbedLinkIdColumns:
         from data_lake.io.catalog import CatalogAccessor
 
         _write_catalog_with_link_ids(cutout_lake, SOURCES)
-        cat = CatalogAccessor(cutout_lake, SURVEY, norder=NORDER)
+        cat = CatalogAccessor(cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         acc = CutoutAccessor(
-            cutout_lake, SURVEY, norder=NORDER, catalog_accessor=cat,
+            cutout_lake, SURVEY, healpix_order=HEALPIX_ORDER, catalog_accessor=cat,
         )
         out = cutout_lake / "embed.h5"
         result = acc.extract_subset_to_hdf5([1001], out, show_progress=False)

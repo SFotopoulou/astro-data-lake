@@ -1,5 +1,5 @@
 """
-data_lake – astronomy data lake: wide catalogs (Parquet/HATS) + cutout stacks (Zarr v3).
+data_lake – astronomy data lake: wide catalogs (HATS-style Parquet) + cutout stacks (Zarr v3).
 """
 
 from __future__ import annotations

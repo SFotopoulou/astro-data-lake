@@ -16,7 +16,7 @@ from data_lake.ingest.fits_to_spectra_zarr import (
 from data_lake.ingest.fits_to_parquet import assign_healpix, healpix_dir
 
 N_PIX = 32
-NORDER = 5
+HEALPIX_ORDER = 5
 SURVEY = "synthetic"
 
 SOURCES = [
@@ -61,13 +61,13 @@ def ingest_synthetic_spectrum_lake(lake_root: Path) -> dict[int, int]:
     }
     tile_groups: dict[int, list[SpectrumRecord]] = {}
     for rec in records:
-        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), NORDER)[0])
+        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), HEALPIX_ORDER)[0])
         tile_groups.setdefault(pix, []).append(rec)
 
     survey_root = lake_root / "spectra" / SURVEY
     index_map: dict[int, int] = {}
     for npix, recs in tile_groups.items():
-        tile_dir = survey_root / healpix_dir(NORDER, npix)
+        tile_dir = survey_root / healpix_dir(HEALPIX_ORDER, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
         root = _open_or_create_spectrum_tile(
@@ -91,7 +91,7 @@ def ingest_synthetic_spectrum_lake(lake_root: Path) -> dict[int, int]:
             index_map[r.source_id] = start_idx + i
 
     _write_spectrum_info(
-        survey_root, SURVEY, NORDER, N_PIX, "shared", "uint8", wcs_attrs,
+        survey_root, SURVEY, HEALPIX_ORDER, N_PIX, "shared", "uint8", wcs_attrs,
     )
     assert len(tile_groups) >= 2
     return index_map

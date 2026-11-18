@@ -89,7 +89,7 @@ source /path/to/data_lake/.venv/bin/activate
 # 2. Point all dl- CLIs at this deployment
 export DATA_LAKE_CONFIG="$(pwd)/lake_config.toml"
 
-# 3. Run an ingest – output_root, norder, etc. are read from the config
+# 3. Run an ingest – output_root, healpix_order, etc. are read from the config
 dl-ingest-spectra my_fits_dir/*.fits --fmt desi_coadd
 
 # Ingest operators only — export before dl-ingest-* (analysts do not need this):
@@ -131,7 +131,7 @@ def init_lake(
     *,
     root: Path | None = None,
     description: str = "",
-    norder: int = DEFAULT_HEALPIX_ORDER,
+    healpix_order: int = DEFAULT_HEALPIX_ORDER,
     chunks_per_shard: int = DEFAULT_CHUNKS_PER_SHARD,
     wavelength_mode: str = "shared",
     mask_dtype: str = "uint8",
@@ -154,7 +154,7 @@ def init_lake(
         Where the actual data tiles will live.  Defaults to
         ``<parent>/<name>/data``.  If relative, resolved against the
         deployment directory.
-    description, norder, ...:
+    description, healpix_order, ...:
         Values written to ``lake_config.toml``.
     force:
         If ``True``, overwrite an existing deployment directory.
@@ -209,7 +209,7 @@ def init_lake(
             created_utc=_dt.datetime.now(tz=_dt.timezone.utc)
                 .strftime("%Y-%m-%dT%H:%M:%SZ"),
         ),
-        partitioning=_Partitioning(healpix_order=norder, chunks_per_shard=chunks_per_shard),
+        partitioning=_Partitioning(healpix_order=healpix_order, chunks_per_shard=chunks_per_shard),
         defaults=_Defaults(
             wavelength_mode=wavelength_mode,
             mask_dtype=mask_dtype,
@@ -257,7 +257,7 @@ def init_lake(
     help="Free-text description of this lake.",
 )
 @healpix_order_option(default=DEFAULT_HEALPIX_ORDER, show_default=True, type=int,
-              help="Default HEALPix order for HATS partitioning.")
+              help="Default HEALPix order for HEALPix partitioning.")
 @click.option("--chunks-per-shard", default=DEFAULT_CHUNKS_PER_SHARD, show_default=True, type=int,
               help="Rows per Zarr shard.")
 @click.option("--wavelength-mode",
@@ -286,7 +286,7 @@ def dl_init(
     parent: Path,
     root: Path | None,
     description: str,
-    norder: int,
+    healpix_order: int,
     chunks_per_shard: int,
     wavelength_mode: str,
     mask_dtype: str,
@@ -324,7 +324,7 @@ def dl_init(
             parent=parent,
             root=root,
             description=description,
-            norder=norder,
+            healpix_order=healpix_order,
             chunks_per_shard=chunks_per_shard,
             wavelength_mode=wavelength_mode,
             mask_dtype=mask_dtype,

@@ -50,7 +50,7 @@ _MASTER_QA_COLUMNS = frozenset(
         "rank",
         "healpix_npix",
         "npix",
-        "norder",
+        "healpix_order",
         "primary_survey",
     }
 )
@@ -249,9 +249,9 @@ def _annotate_healpix_order_match(rows: list[dict[str, Any]]) -> None:
     for row in rows:
         survey = str(row["survey"])
         modality = str(row["modality"])
-        hats = row.get("healpix_order")
+        order = row.get("healpix_order")
         orders_by_survey.setdefault(survey, {})[modality] = (
-            int(hats) if hats is not None else None
+            int(order) if order is not None else None
         )
 
     for row in rows:
@@ -1071,14 +1071,14 @@ def format_lake_registry_table(
 
     if verbose:
         header = (
-            f"{'survey':<20} {'mod':<8} {'hats':>4} {'rows':>10} {'tiles':>6} "
+            f"{'survey':<20} {'mod':<8} {'order':>5} {'rows':>10} {'tiles':>6} "
             f"{'sky':<18} {'detail':<22} {'id_col':<14} {'link_mode':<20} "
             f"ckpt infl ovly man"
         )
         lines.extend([header, "-" * len(header)])
         for row in df.iter_rows(named=True):
             rows_s = f"{row['total_rows']:,}" if row.get("total_rows") is not None else "—"
-            hats_s = str(row["healpix_order"]) if row.get("healpix_order") is not None else "—"
+            order_s = str(row["healpix_order"]) if row.get("healpix_order") is not None else "—"
             tiles_s = str(row["n_tiles"]) if row.get("n_tiles") is not None else "—"
             ckpt = "Y" if row.get("has_ingest_checkpoint") else "."
             infl = "Y" if row.get("has_ingest_inflight") else "."
@@ -1086,7 +1086,7 @@ def format_lake_registry_table(
             manifest = "Y" if row.get("has_schema_manifest") else "."
             link_mode = _truncate_link_id_mode(row.get("link_id_mode"), max_len=18)
             lines.append(
-                f"{row['survey']:<20} {row['modality']:<8} {hats_s:>4} {rows_s:>10} "
+                f"{row['survey']:<20} {row['modality']:<8} {order_s:>5} {rows_s:>10} "
                 f"{tiles_s:>6} {_format_sky_columns(row):<18} "
                 f"{_format_modality_detail(row):<22} "
                 f"{str(row.get('link_id_column') or '—'):<14} {link_mode:<20} "
@@ -1114,17 +1114,17 @@ def format_lake_registry_table(
     else:
         survey_w = max(24, max((len(str(s)) for s in df["survey"].to_list()), default=0))
         header = (
-            f"{'survey':<{survey_w}} {'modality':<10} {'hats':>4} {'cols':>6} {'rows':>14}  "
+            f"{'survey':<{survey_w}} {'modality':<10} {'order':>5} {'cols':>6} {'rows':>14}  "
             f"{'sky':<16} {'detail':<18} {'id_col':<12} mf"
         )
         lines.extend([header, "-" * max(108, len(header))])
         for row in df.iter_rows(named=True):
             rows_s = f"{row['total_rows']:,}" if row.get("total_rows") is not None else "—"
             cols_s = str(row["n_columns"]) if row.get("n_columns") is not None else "—"
-            hats_s = str(row["healpix_order"]) if row.get("healpix_order") is not None else "—"
+            order_s = str(row["healpix_order"]) if row.get("healpix_order") is not None else "—"
             manifest = "Y" if row.get("has_schema_manifest") else "."
             lines.append(
-                f"{row['survey']:<{survey_w}} {row['modality']:<10} {hats_s:>4} {cols_s:>6} "
+                f"{row['survey']:<{survey_w}} {row['modality']:<10} {order_s:>5} {cols_s:>6} "
                 f"{rows_s:>14}  {_format_sky_columns(row):<16} "
                 f"{_format_modality_detail(row):<18} "
                 f"{str(row.get('link_id_column') or '—'):<12} {manifest}"

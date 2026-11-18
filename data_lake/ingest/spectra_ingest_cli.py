@@ -139,7 +139,7 @@ def cli(
     ra_col: str,
     dec_col: str,
     link_id_col: str | None,
-    norder: int | None,
+    healpix_order: int | None,
     wavelength_mode: str | None,
     mask_dtype: str | None,
     fmt: str | None,
@@ -173,7 +173,7 @@ def cli(
     )
     require_ingest_permission(cfg, ingest_token)
     resolved_output = require_output_root(output_root, cfg, kind="spectra")
-    resolved_norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+    resolved_healpix_order = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
 
     index_map = ingest_spectra_from_fits(
         source_path=source_path,
@@ -182,7 +182,7 @@ def cli(
         ra_col=ra_col,
         dec_col=dec_col,
         link_id_col=link_id_col,
-        norder=resolved_norder,
+        healpix_order=resolved_healpix_order,
         wavelength_mode=pick(wavelength_mode,
                              cfg.defaults.wavelength_mode if cfg else None,
                              "shared"),
@@ -211,7 +211,7 @@ def cli(
                 survey_name=survey_name,
                 source_id_to_index=index_map,
                 kind="spectrum",
-                norder=resolved_norder,
+                healpix_order=resolved_healpix_order,
                 link_id_col=None,
             )
             click.echo(f"Patched _spectrum_index in {n_modified} catalog tile(s).")

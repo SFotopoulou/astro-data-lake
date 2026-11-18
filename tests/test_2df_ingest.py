@@ -150,7 +150,7 @@ def _write_catalog_with_serial(
             "source_id": int(e["source_id"]),
             "ra": float(e["ra"]),
             "dec": float(e["dec"]),
-            "_healpix_norder5": 0,
+            "_healpix_order5": 0,
             "_spectrum_index": -1,
         }
         for e in entries
@@ -394,7 +394,7 @@ class TestIngest2df:
         index_map = ingest_spectra_from_fits(
             p, lake, "2DFG_DR3",
             fmt="2df",
-            norder=5,
+            healpix_order=5,
             on_duplicate_source_id="skip",
         )
 
@@ -419,7 +419,7 @@ class TestIngest2df:
         index_map = ingest_spectra_from_fits(
             p, lake, "2DFG_DR3",
             # No explicit fmt — relies on auto-detection
-            norder=5,
+            healpix_order=5,
         )
         expected_id = _expected_2df_source_id(spfile, 180)
         assert expected_id in index_map
@@ -433,11 +433,11 @@ class TestIngest2df:
         spfile = _write_2df_spectrum(p, seqnum=111111, ra=2.0, dec=-2.0)
 
         lake = tmp_path / "lake"
-        ingest_spectra_from_fits(p, lake, "2DFG_DR3", fmt="2df", norder=5)
+        ingest_spectra_from_fits(p, lake, "2DFG_DR3", fmt="2df", healpix_order=5)
         # Second ingest of same file should silently skip
         ingest_spectra_from_fits(
             p, lake, "2DFG_DR3",
-            fmt="2df", norder=5, on_duplicate_source_id="skip",
+            fmt="2df", healpix_order=5, on_duplicate_source_id="skip",
         )
 
         acc = SpectrumAccessor(lake, "2DFG_DR3")
@@ -482,7 +482,7 @@ class TestIngest2df:
                 "serial": pa.array([seqnum], type=pa.int64()),
                 "SPFILE": pa.array([spfile]),
                 "FIBRE": pa.array([fibre], type=pa.int32()),
-                "_healpix_norder5": pa.array([npix_val], type=pa.int64()),
+                "_healpix_order5": pa.array([npix_val], type=pa.int64()),
                 "_spectrum_index": pa.array([-1], type=pa.int64()),
             }),
             cat_file,
@@ -490,7 +490,7 @@ class TestIngest2df:
 
         index_map = ingest_spectra_from_fits(
             p, lake, "2DFG_DR3",
-            fmt="2df", norder=5,
+            fmt="2df", healpix_order=5,
         )
 
         # Patch catalog explicitly (the CLI does this automatically)
@@ -501,7 +501,7 @@ class TestIngest2df:
             survey_name="2DFG_DR3",
             source_id_to_index=index_map,
             kind="spectrum",
-            norder=5,
+            healpix_order=5,
             link_id_col=None,
         )
 
@@ -551,14 +551,14 @@ class TestIngest2df:
                 "serial": pa.array([seqnum, seqnum], type=pa.int64()),
                 "SPFILE": pa.array(spfiles),
                 "FIBRE": pa.array([fibre, fibre], type=pa.int32()),
-                "_healpix_norder5": pa.array([npix_val, npix_val], type=pa.int64()),
+                "_healpix_order5": pa.array([npix_val, npix_val], type=pa.int64()),
                 "_spectrum_index": pa.array([-1, -1], type=pa.int64()),
             }),
             cat_file,
         )
 
         index_map = ingest_spectra_from_fits(
-            p, lake, "2DFG_DR3", fmt="2df", norder=5,
+            p, lake, "2DFG_DR3", fmt="2df", healpix_order=5,
         )
         assert len(index_map) == 2
 
@@ -567,7 +567,7 @@ class TestIngest2df:
             survey_name="2DFG_DR3",
             source_id_to_index=index_map,
             kind="spectrum",
-            norder=5,
+            healpix_order=5,
             link_id_col=None,
         )
 
@@ -586,7 +586,7 @@ class TestIngest2df:
         p = repo_root / "data" / "389442.fits"
         lake = tmp_path / "lake"
         index_map = ingest_spectra_from_fits(
-            p, lake, "2DFG_DR3", fmt="2df", norder=5,
+            p, lake, "2DFG_DR3", fmt="2df", healpix_order=5,
         )
         expected = {
             _expected_2df_source_id("sgp805_001203_2z.fits", 132),

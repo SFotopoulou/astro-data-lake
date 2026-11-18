@@ -18,8 +18,8 @@ from data_lake.ingest.zarr_ids import create_zarr_join_array, zarr_join_array
 from data_lake.schema_registry import MODALITY_CROSSMATCH, MODALITY_SPECTRA
 
 
-def _write_catalog_tile(lake: Path, survey: str, norder: int, npix: int, n_rows: int) -> None:
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+def _write_catalog_tile(lake: Path, survey: str, healpix_order: int, npix: int, n_rows: int) -> None:
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(
         pa.table({"x": pa.array(list(range(n_rows)), type=pa.int64())}),
@@ -27,16 +27,16 @@ def _write_catalog_tile(lake: Path, survey: str, norder: int, npix: int, n_rows:
     )
 
 
-def _write_info(lake: Path, survey: str, norder: int, total_rows: int) -> None:
+def _write_info(lake: Path, survey: str, healpix_order: int, total_rows: int) -> None:
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
-        json.dumps({"healpix_order": norder, "total_rows": total_rows})
+        json.dumps({"healpix_order": healpix_order, "total_rows": total_rows})
     )
 
 
 def _write_crossmatch_tile(
-    lake: Path, tree: str, norder: int, npix: int, n_rows: int
+    lake: Path, tree: str, healpix_order: int, npix: int, n_rows: int
 ) -> None:
-    tile_dir = lake / "crossmatch" / tree / healpix_dir(norder, npix)
+    tile_dir = lake / "crossmatch" / tree / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(
         pa.table({
@@ -47,7 +47,7 @@ def _write_crossmatch_tile(
     )
 
 
-def _write_crossmatch_info(lake: Path, tree: str, norder: int, total_rows: int) -> None:
+def _write_crossmatch_info(lake: Path, tree: str, healpix_order: int, total_rows: int) -> None:
     (lake / "crossmatch" / tree / "crossmatch_info.json").write_text(
         json.dumps({
             "catalog_name": tree,
@@ -56,7 +56,7 @@ def _write_crossmatch_info(lake: Path, tree: str, norder: int, total_rows: int) 
             "survey_a": "A",
             "survey_b": "B",
             "match_radius_arcsec": 1.0,
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "total_rows": total_rows,
             "n_match_rows": total_rows,
             "schema_version": "1",
@@ -65,10 +65,10 @@ def _write_crossmatch_info(lake: Path, tree: str, norder: int, total_rows: int) 
 
 
 def _write_spectra_tile(
-    lake: Path, survey: str, norder: int, npix: int, source_ids: list[int]
+    lake: Path, survey: str, healpix_order: int, npix: int, source_ids: list[int]
 ) -> None:
     """Minimal Zarr tile with ``_source_id`` only (enough for row estimates)."""
-    tile_dir = lake / "spectra" / survey / healpix_dir(norder, npix)
+    tile_dir = lake / "spectra" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     tile_path = tile_dir / f"Npix={npix}.zarr"
     root = zarr.open_group(
@@ -83,12 +83,12 @@ def _write_spectra_tile(
 def _write_spectrum_info(
     lake: Path,
     survey: str,
-    norder: int,
+    healpix_order: int,
     *,
     total_rows: int | None = None,
     total_spectra: int | None = None,
 ) -> None:
-    info: dict = {"healpix_order": norder, "n_pix": 8, "wavelength_mode": "shared"}
+    info: dict = {"healpix_order": healpix_order, "n_pix": 8, "wavelength_mode": "shared"}
     if total_rows is not None:
         info["total_rows"] = total_rows
     if total_spectra is not None:
@@ -107,10 +107,10 @@ class TestRoundCount:
 class TestResolveRegion:
     def test_cone_overlap_single_tile(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        ra, dec, norder = 120.0, 45.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "ALLWISE", norder, npix, n_rows=100)
-        _write_info(lake, "ALLWISE", norder, total_rows=100)
+        ra, dec, healpix_order = 120.0, 45.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "ALLWISE", healpix_order, npix, n_rows=100)
+        _write_info(lake, "ALLWISE", healpix_order, total_rows=100)
         ti.write_tile_index(lake, "ALLWISE", "catalog")
 
         region = Region.cone(ra, dec, radius_arcsec=30.0)
@@ -124,10 +124,10 @@ class TestResolveRegion:
 
     def test_exact_count_footer_sum(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        ra, dec, norder = 10.0, -10.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "S", norder, npix, n_rows=42)
-        _write_info(lake, "S", norder, total_rows=999)  # deliberately wrong total
+        ra, dec, healpix_order = 10.0, -10.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "S", healpix_order, npix, n_rows=42)
+        _write_info(lake, "S", healpix_order, total_rows=999)  # deliberately wrong total
         ti.write_tile_index(lake, "S", "catalog")
 
         region = Region.cone(ra, dec, radius_arcsec=30.0)
@@ -137,10 +137,10 @@ class TestResolveRegion:
 
     def test_no_overlap_returns_empty(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        ra, dec, norder = 120.0, 45.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "S", norder, npix, n_rows=10)
-        _write_info(lake, "S", norder, total_rows=10)
+        ra, dec, healpix_order = 120.0, 45.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "S", healpix_order, npix, n_rows=10)
+        _write_info(lake, "S", healpix_order, total_rows=10)
         ti.write_tile_index(lake, "S", "catalog")
 
         # Opposite side of the sky.
@@ -150,11 +150,11 @@ class TestResolveRegion:
 
     def test_explicit_surveys(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        ra, dec, norder = 50.0, 5.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        ra, dec, healpix_order = 50.0, 5.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         for s in ("A", "B"):
-            _write_catalog_tile(lake, s, norder, npix, n_rows=5)
-            _write_info(lake, s, norder, total_rows=5)
+            _write_catalog_tile(lake, s, healpix_order, npix, n_rows=5)
+            _write_info(lake, s, healpix_order, total_rows=5)
             ti.write_tile_index(lake, s, "catalog")
 
         region = Region.cone(ra, dec, radius_arcsec=30.0)
@@ -165,16 +165,16 @@ class TestResolveRegion:
         """Two XM tiles (in/out of cone); exact count reports only in-area rows."""
         lake = tmp_path / "lake"
         tree = "A_x_B__r1.0"
-        norder = 5
+        healpix_order = 5
         ra_in, dec_in = 120.0, 45.0
         ra_out, dec_out = 300.0, -45.0
-        npix_in = int(assign_healpix(np.array([ra_in]), np.array([dec_in]), norder)[0])
-        npix_out = int(assign_healpix(np.array([ra_out]), np.array([dec_out]), norder)[0])
+        npix_in = int(assign_healpix(np.array([ra_in]), np.array([dec_in]), healpix_order)[0])
+        npix_out = int(assign_healpix(np.array([ra_out]), np.array([dec_out]), healpix_order)[0])
         assert npix_in != npix_out
 
-        _write_crossmatch_tile(lake, tree, norder, npix_in, n_rows=7)
-        _write_crossmatch_tile(lake, tree, norder, npix_out, n_rows=11)
-        _write_crossmatch_info(lake, tree, norder, total_rows=18)
+        _write_crossmatch_tile(lake, tree, healpix_order, npix_in, n_rows=7)
+        _write_crossmatch_tile(lake, tree, healpix_order, npix_out, n_rows=11)
+        _write_crossmatch_info(lake, tree, healpix_order, total_rows=18)
         ti.write_tile_index(lake, tree, MODALITY_CROSSMATCH)
 
         region = Region.cone(ra_in, dec_in, radius_arcsec=30.0)
@@ -193,10 +193,10 @@ class TestResolveRegion:
     ) -> None:
         """spectrum_info without total_rows must not yield est_rows=0 when tiles exist."""
         lake = tmp_path / "lake"
-        ra, dec, norder = 120.0, 45.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_spectra_tile(lake, "SPEC", norder, npix, source_ids=[1, 2, 3])
-        _write_spectrum_info(lake, "SPEC", norder)  # no total_rows / total_spectra
+        ra, dec, healpix_order = 120.0, 45.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_spectra_tile(lake, "SPEC", healpix_order, npix, source_ids=[1, 2, 3])
+        _write_spectrum_info(lake, "SPEC", healpix_order)  # no total_rows / total_spectra
         ti.write_tile_index(lake, "SPEC", MODALITY_SPECTRA)
 
         region = Region.cone(ra, dec, radius_arcsec=30.0)
@@ -209,10 +209,10 @@ class TestResolveRegion:
 
     def test_spectra_estimate_uses_total_spectra_key(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        ra, dec, norder = 10.0, -10.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_spectra_tile(lake, "SPEC", norder, npix, source_ids=[1])
-        _write_spectrum_info(lake, "SPEC", norder, total_spectra=50)
+        ra, dec, healpix_order = 10.0, -10.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_spectra_tile(lake, "SPEC", healpix_order, npix, source_ids=[1])
+        _write_spectrum_info(lake, "SPEC", healpix_order, total_spectra=50)
         ti.write_tile_index(lake, "SPEC", MODALITY_SPECTRA)
 
         region = Region.cone(ra, dec, radius_arcsec=30.0)
@@ -223,17 +223,17 @@ class TestResolveRegion:
     def test_spectra_exact_count_zarr_overlap(self, tmp_path: Path) -> None:
         """--count sums ``_source_id`` lengths over overlap tiles only."""
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra_in, dec_in = 120.0, 45.0
         ra_out, dec_out = 300.0, -45.0
-        npix_in = int(assign_healpix(np.array([ra_in]), np.array([dec_in]), norder)[0])
-        npix_out = int(assign_healpix(np.array([ra_out]), np.array([dec_out]), norder)[0])
+        npix_in = int(assign_healpix(np.array([ra_in]), np.array([dec_in]), healpix_order)[0])
+        npix_out = int(assign_healpix(np.array([ra_out]), np.array([dec_out]), healpix_order)[0])
         assert npix_in != npix_out
 
-        _write_spectra_tile(lake, "SPEC", norder, npix_in, source_ids=[1, 2, 3, 4])
-        _write_spectra_tile(lake, "SPEC", norder, npix_out, source_ids=[10, 11])
+        _write_spectra_tile(lake, "SPEC", healpix_order, npix_in, source_ids=[1, 2, 3, 4])
+        _write_spectra_tile(lake, "SPEC", healpix_order, npix_out, source_ids=[10, 11])
         # Deliberately wrong sidecar total; exact count must use Zarr metadata.
-        _write_spectrum_info(lake, "SPEC", norder, total_rows=999)
+        _write_spectrum_info(lake, "SPEC", healpix_order, total_rows=999)
         ti.write_tile_index(lake, "SPEC", MODALITY_SPECTRA)
 
         region = Region.cone(ra_in, dec_in, radius_arcsec=30.0)

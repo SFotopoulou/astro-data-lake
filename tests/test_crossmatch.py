@@ -40,7 +40,7 @@ def _write_catalog_tile(
     lake: Path,
     survey: str,
     *,
-    norder: int,
+    healpix_order: int,
     npix: int,
     source_ids: list[int],
     ra: list[float],
@@ -50,9 +50,9 @@ def _write_catalog_tile(
     id_col: str = LAKE_JOIN_ID_COLUMN,
     link_id_mode: str | None = None,
 ) -> None:
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     cols: dict = {
         LAKE_JOIN_ID_COLUMN: pa.array(source_ids, type=pa.int64()),
         ra_col: pa.array(ra, type=pa.float64()),
@@ -71,7 +71,7 @@ def _write_catalog_tile(
         f"column:{id_col}" if id_col != LAKE_JOIN_ID_COLUMN else "sequential"
     )
     info = {
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "ra_column": ra_col,
         "dec_column": dec_col,
         "link_id_mode": mode,
@@ -88,45 +88,45 @@ class TestCrossmatchHelpers:
     def test_iter_populated_tiles(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
         _write_catalog_tile(
-            lake, "A", norder=5, npix=100,
+            lake, "A", healpix_order=5, npix=100,
             source_ids=[1], ra=[10.0], dec=[0.0],
         )
         _write_catalog_tile(
-            lake, "A", norder=5, npix=200,
+            lake, "A", healpix_order=5, npix=200,
             source_ids=[2], ra=[11.0], dec=[0.1],
         )
         root = lake / "catalogs" / "A"
-        assert iter_populated_tile_npixels(root, norder=5) == [100, 200]
+        assert iter_populated_tile_npixels(root, healpix_order=5) == [100, 200]
 
     def test_resolve_per_survey_settings(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
         _write_catalog_tile(
-            lake, "A", norder=5, npix=1, source_ids=[1], ra=[0.0], dec=[0.0],
+            lake, "A", healpix_order=5, npix=1, source_ids=[1], ra=[0.0], dec=[0.0],
             ra_col="RA", dec_col="DEC",
         )
         _write_catalog_tile(
-            lake, "B", norder=6, npix=1, source_ids=[2], ra=[0.0], dec=[0.0],
+            lake, "B", healpix_order=6, npix=1, source_ids=[2], ra=[0.0], dec=[0.0],
             ra_col="RAJ2000", dec_col="DEJ2000",
         )
         settings = resolve_crossmatch_settings(lake, "A", "B")
         assert settings.survey_a.ra_col == "RA"
         assert settings.survey_b.ra_col == "RAJ2000"
-        assert settings.survey_a.norder == 5
-        assert settings.survey_b.norder == 6
+        assert settings.survey_a.healpix_order == 5
+        assert settings.survey_b.healpix_order == 6
 
     def test_resolve_sky_columns(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "A", norder=5, npix=1, source_ids=[1], ra=[0.0], dec=[0.0])
-        _write_catalog_tile(lake, "B", norder=5, npix=1, source_ids=[2], ra=[0.0], dec=[0.0])
+        _write_catalog_tile(lake, "A", healpix_order=5, npix=1, source_ids=[1], ra=[0.0], dec=[0.0])
+        _write_catalog_tile(lake, "B", healpix_order=5, npix=1, source_ids=[2], ra=[0.0], dec=[0.0])
         ra, dec, order = resolve_crossmatch_sky_columns(lake, "A", "B")
         assert (ra, dec, order) == ("ra", "dec", 5)
 
     def test_survey_b_pixels_use_edges(self) -> None:
         import healpy as hp
 
-        norder = 5
-        nside = hp.order2nside(norder)
-        npix = int(assign_healpix(np.array([120.0]), np.array([45.0]), norder)[0])
+        healpix_order = 5
+        nside = hp.order2nside(healpix_order)
+        npix = int(assign_healpix(np.array([120.0]), np.array([45.0]), healpix_order)[0])
         radius_rad = np.radians(1.0 / 3600.0)  # 1 arcsec
 
         pixels = survey_b_pixels_for_tile(nside, npix, radius_rad)
@@ -138,15 +138,15 @@ class TestCrossmatchHelpers:
 
         assert len(pixels) >= len(neighbours) + 1
 
-    def test_survey_b_pixels_different_norder(self) -> None:
+    def test_survey_b_pixels_different_healpix_order(self) -> None:
         import healpy as hp
 
         ra, dec = 120.0, 45.0
-        norder_a, norder_b = 5, 6
-        nside_a = hp.order2nside(norder_a)
-        nside_b = hp.order2nside(norder_b)
-        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), norder_a)[0])
-        npix_b = int(assign_healpix(np.array([ra]), np.array([dec]), norder_b)[0])
+        healpix_order_a, healpix_order_b = 5, 6
+        nside_a = hp.order2nside(healpix_order_a)
+        nside_b = hp.order2nside(healpix_order_b)
+        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order_a)[0])
+        npix_b = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order_b)[0])
         assert npix_a != npix_b
 
         pixels = survey_b_pixels_for_tile(
@@ -176,25 +176,25 @@ class TestCrossmatchHelpers:
         import healpy as hp
 
         lake = tmp_path / "lake"
-        norder = 5
-        nside = hp.order2nside(norder)
-        npix_overlap = int(assign_healpix(np.array([120.0]), np.array([45.0]), norder)[0])
-        npix_far = int(assign_healpix(np.array([10.0]), np.array([0.0]), norder)[0])
+        healpix_order = 5
+        nside = hp.order2nside(healpix_order)
+        npix_overlap = int(assign_healpix(np.array([120.0]), np.array([45.0]), healpix_order)[0])
+        npix_far = int(assign_healpix(np.array([10.0]), np.array([0.0]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "A", norder=norder, npix=npix_overlap,
+            lake, "A", healpix_order=healpix_order, npix=npix_overlap,
             source_ids=[1], ra=[120.0], dec=[45.0],
         )
         _write_catalog_tile(
-            lake, "A", norder=norder, npix=npix_far,
+            lake, "A", healpix_order=healpix_order, npix=npix_far,
             source_ids=[2], ra=[10.0], dec=[0.0],
         )
         _write_catalog_tile(
-            lake, "B", norder=norder, npix=npix_overlap,
+            lake, "B", healpix_order=healpix_order, npix=npix_overlap,
             source_ids=[100], ra=[120.0], dec=[45.0],
         )
 
-        b_pop = set(iter_populated_tile_npixels(lake / "catalogs" / "B", norder=norder))
+        b_pop = set(iter_populated_tile_npixels(lake / "catalogs" / "B", healpix_order=healpix_order))
         kept = filter_survey_a_tiles_overlapping_survey_b(
             [npix_overlap, npix_far],
             nside_a=nside,
@@ -207,14 +207,14 @@ class TestCrossmatchHelpers:
     def test_healpix_pixels_covering_tile(self) -> None:
         import healpy as hp
 
-        norder_a, norder_b = 6, 4
-        nside_a = hp.order2nside(norder_a)
-        nside_b = hp.order2nside(norder_b)
-        npix_a = int(assign_healpix(np.array([120.0]), np.array([45.0]), norder_a)[0])
+        healpix_order_a, healpix_order_b = 6, 4
+        nside_a = hp.order2nside(healpix_order_a)
+        nside_b = hp.order2nside(healpix_order_b)
+        npix_a = int(assign_healpix(np.array([120.0]), np.array([45.0]), healpix_order_a)[0])
         pixels = healpix_pixels_covering_tile(
             nside_a, npix_a, np.radians(0.5 / 3600.0), nside_b=nside_b,
         )
-        npix_b = int(assign_healpix(np.array([120.0]), np.array([45.0]), norder_b)[0])
+        npix_b = int(assign_healpix(np.array([120.0]), np.array([45.0]), healpix_order_b)[0])
         assert npix_b in pixels
         assert len(pixels) < hp.nside2npix(nside_b) // 10
 
@@ -222,16 +222,16 @@ class TestCrossmatchHelpers:
 class TestBuildCrossmatch:
     def test_nearest_match_within_radius(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder, npix=npix,
+            lake, "SURVEY_A", healpix_order=healpix_order, npix=npix,
             source_ids=[1001], ra=[ra], dec=[dec],
         )
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder, npix=npix,
+            lake, "SURVEY_B", healpix_order=healpix_order, npix=npix,
             source_ids=[2001], ra=[ra + 0.0001], dec=[dec + 0.0001],
         )
 
@@ -255,41 +255,41 @@ class TestBuildCrossmatch:
 
     def test_crossmatch_writes_healpix_npix_b(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder, npix=npix,
+            lake, "SURVEY_A", healpix_order=healpix_order, npix=npix,
             source_ids=[1001], ra=[ra], dec=[dec],
         )
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder, npix=npix,
+            lake, "SURVEY_B", healpix_order=healpix_order, npix=npix,
             source_ids=[2001], ra=[ra + 0.00001], dec=[dec + 0.00001],
         )
         build_crossmatch(lake, "SURVEY_A", "SURVEY_B", radius_arcsec=2.0)
         xm_path = (
             crossmatch_root(lake, "SURVEY_A", "SURVEY_B", 2.0)
-            / healpix_dir(norder, npix)
+            / healpix_dir(healpix_order, npix)
             / f"Npix={npix}.parquet"
         )
         table = pq.read_table(str(xm_path))
         assert CROSSMATCH_HEALPIX_NPIX_B in table.column_names
         assert table.column(CROSSMATCH_HEALPIX_NPIX_B)[0].as_py() == npix
 
-    def test_mixed_columns_and_norder(self, tmp_path: Path) -> None:
+    def test_mixed_columns_and_healpix_order(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
         ra, dec = 120.0, 45.0
-        norder_a, norder_b = 5, 6
-        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), norder_a)[0])
-        npix_b = int(assign_healpix(np.array([ra]), np.array([dec]), norder_b)[0])
+        healpix_order_a, healpix_order_b = 5, 6
+        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order_a)[0])
+        npix_b = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order_b)[0])
 
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder_a, npix=npix_a,
+            lake, "SURVEY_A", healpix_order=healpix_order_a, npix=npix_a,
             source_ids=[1001], ra=[ra], dec=[dec],
             ra_col="RA", dec_col="DEC",
         )
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder_b, npix=npix_b,
+            lake, "SURVEY_B", healpix_order=healpix_order_b, npix=npix_b,
             source_ids=[2001], ra=[ra + 0.0001], dec=[dec + 0.0001],
             ra_col="RAJ2000", dec_col="DEJ2000",
         )
@@ -305,18 +305,18 @@ class TestBuildCrossmatch:
 
     def test_native_id_column_names(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "EUCLID", norder=norder, npix=npix,
+            lake, "EUCLID", healpix_order=healpix_order, npix=npix,
             source_ids=[1001], ra=[ra], dec=[dec],
             ra_col="right_ascension", dec_col="declination",
             id_col="object_id",
         )
         _write_catalog_tile(
-            lake, "SDSS", norder=norder, npix=npix,
+            lake, "SDSS", healpix_order=healpix_order, npix=npix,
             source_ids=[2001], ra=[ra + 0.0001], dec=[dec + 0.0001],
             ra_col="PLUG_RA", dec_col="PLUG_DEC",
             id_col="TARGETID",
@@ -331,17 +331,17 @@ class TestBuildCrossmatch:
         """B at coarse Norder: distant sources in the same tile must not affect matching."""
         lake = tmp_path / "lake"
         ra, dec = 120.0, 45.0
-        norder_a, norder_b = 6, 4
-        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), norder_a)[0])
-        npix_b = int(assign_healpix(np.array([ra]), np.array([dec]), norder_b)[0])
+        healpix_order_a, healpix_order_b = 6, 4
+        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order_a)[0])
+        npix_b = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order_b)[0])
 
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder_a, npix=npix_a,
+            lake, "SURVEY_A", healpix_order=healpix_order_a, npix=npix_a,
             source_ids=[1001], ra=[ra], dec=[dec],
         )
         # Same coarse B tile holds a match and a far decoy (would dominate a full-tile load).
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder_b, npix=npix_b,
+            lake, "SURVEY_B", healpix_order=healpix_order_b, npix=npix_b,
             source_ids=[2001, 9999],
             ra=[ra + 0.0001, 50.0],
             dec=[dec + 0.0001, 0.0],
@@ -355,16 +355,16 @@ class TestBuildCrossmatch:
     def test_disjoint_footprints_skip_a_tiles(self, tmp_path: Path) -> None:
         """Survey-A tiles outside survey-B footprint are not processed."""
         lake = tmp_path / "lake"
-        norder = 5
-        npix_a = int(assign_healpix(np.array([10.0]), np.array([0.0]), norder)[0])
-        npix_b = int(assign_healpix(np.array([120.0]), np.array([45.0]), norder)[0])
+        healpix_order = 5
+        npix_a = int(assign_healpix(np.array([10.0]), np.array([0.0]), healpix_order)[0])
+        npix_b = int(assign_healpix(np.array([120.0]), np.array([45.0]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "A", norder=norder, npix=npix_a,
+            lake, "A", healpix_order=healpix_order, npix=npix_a,
             source_ids=[1], ra=[10.0], dec=[0.0],
         )
         _write_catalog_tile(
-            lake, "B", norder=norder, npix=npix_b,
+            lake, "B", healpix_order=healpix_order, npix=npix_b,
             source_ids=[2], ra=[120.0], dec=[45.0],
         )
 
@@ -374,16 +374,16 @@ class TestBuildCrossmatch:
 
     def test_no_match_beyond_radius(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
-        npix_a = int(assign_healpix(np.array([10.0]), np.array([0.0]), norder)[0])
-        npix_b = int(assign_healpix(np.array([50.0]), np.array([0.0]), norder)[0])
+        healpix_order = 5
+        npix_a = int(assign_healpix(np.array([10.0]), np.array([0.0]), healpix_order)[0])
+        npix_b = int(assign_healpix(np.array([50.0]), np.array([0.0]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "A", norder=norder, npix=npix_a,
+            lake, "A", healpix_order=healpix_order, npix=npix_a,
             source_ids=[1], ra=[10.0], dec=[0.0],
         )
         _write_catalog_tile(
-            lake, "B", norder=norder, npix=npix_b,
+            lake, "B", healpix_order=healpix_order, npix=npix_b,
             source_ids=[2], ra=[50.0], dec=[0.0],
         )
 
@@ -393,16 +393,16 @@ class TestBuildCrossmatch:
     def test_tile_worker(self, tmp_path: Path) -> None:
         """Exercise the parallel worker entry point without ProcessPoolExecutor."""
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder, npix=npix,
+            lake, "SURVEY_A", healpix_order=healpix_order, npix=npix,
             source_ids=[1001], ra=[ra], dec=[dec],
         )
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder, npix=npix,
+            lake, "SURVEY_B", healpix_order=healpix_order, npix=npix,
             source_ids=[2001], ra=[ra + 0.0001], dec=[dec + 0.0001],
         )
 
@@ -412,8 +412,8 @@ class TestBuildCrossmatch:
             survey_a="SURVEY_A",
             survey_b="SURVEY_B",
             npix_a_list=(npix,),
-            norder_a=norder,
-            norder_b=norder,
+            healpix_order_a=healpix_order,
+            healpix_order_b=healpix_order,
             ra_col_a="ra",
             dec_col_a="dec",
             ra_col_b="ra",
@@ -431,18 +431,18 @@ class TestCrossmatchNativeIdColumn:
     def test_crossmatch_uses_native_id_not_missing_source_id(self, tmp_path: Path) -> None:
         """Metadata may say sequential/source_id while tiles store survey-native ``id``."""
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder, npix=npix,
+            lake, "SURVEY_A", healpix_order=healpix_order, npix=npix,
             source_ids=[1001], ra=[ra], dec=[dec],
             id_col="id",
             link_id_mode="sequential",
         )
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder, npix=npix,
+            lake, "SURVEY_B", healpix_order=healpix_order, npix=npix,
             source_ids=[2001], ra=[ra + 0.0001], dec=[dec + 0.0001],
             id_col="id",
             link_id_mode="column:id",
@@ -461,16 +461,16 @@ class TestBuildCrossmatchRapids:
             pytest.skip("cuML/CuPy not installed (uv sync --extra rapids)")
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder, npix=npix,
+            lake, "SURVEY_A", healpix_order=healpix_order, npix=npix,
             source_ids=[1001], ra=[ra], dec=[dec],
         )
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder, npix=npix,
+            lake, "SURVEY_B", healpix_order=healpix_order, npix=npix,
             source_ids=[2001], ra=[ra + 0.0001], dec=[dec + 0.0001],
         )
 
@@ -500,16 +500,16 @@ class TestBuildCrossmatchRapids:
 class TestCrossmatchExport:
     def test_export_parquet_and_fits(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder, npix=npix,
+            lake, "SURVEY_A", healpix_order=healpix_order, npix=npix,
             source_ids=[1001], ra=[ra], dec=[dec],
         )
         _write_catalog_tile(
-            lake, "SURVEY_B", norder=norder, npix=npix,
+            lake, "SURVEY_B", healpix_order=healpix_order, npix=npix,
             source_ids=[2001], ra=[ra + 0.0001], dec=[dec + 0.0001],
         )
 
@@ -545,19 +545,19 @@ class TestCrossmatchPaddedColumnNames:
     def test_crossmatch_with_padded_survey_b(self, tmp_path: Path) -> None:
         """Survey B written with ' ra' / ' dec' should still match via resolve_column."""
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         # Survey A: clean column names
         _write_catalog_tile(
-            lake, "SURVEY_A", norder=norder, npix=npix,
+            lake, "SURVEY_A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
         )
         # Survey B: padded column names (' ra', ' dec') as produced by some FITS writers
-        tile_dir = lake / "catalogs" / "SURVEY_B" / healpix_dir(norder, npix)
+        tile_dir = lake / "catalogs" / "SURVEY_B" / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
-        hp_col = f"_healpix_norder{norder}"
+        hp_col = f"_healpix_order{healpix_order}"
         padded_tile = pa.table({
             LAKE_JOIN_ID_COLUMN: pa.array([101], type=pa.int64()),
             " ra": pa.array([ra + 0.00001], type=pa.float64()),
@@ -569,7 +569,7 @@ class TestCrossmatchPaddedColumnNames:
         pq.write_table(padded_tile, tile_dir / f"Npix={npix}.parquet")
         (lake / "catalogs" / "SURVEY_B" / "catalog_info.json").write_text(
             json.dumps({
-                "healpix_order": norder,
+                "healpix_order": healpix_order,
                 "ra_column": "ra",   # logical name (stripped) in catalog_info
                 "dec_column": "dec",
                 "link_id_mode": "sequential",
@@ -606,12 +606,12 @@ class TestCrossmatchNamingAndReuse:
         from data_lake.io.crossmatch import find_crossmatch_roots
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "A", norder=norder, npix=npix,
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "A", healpix_order=healpix_order, npix=npix,
                             source_ids=[1], ra=[ra], dec=[dec])
-        _write_catalog_tile(lake, "B", norder=norder, npix=npix,
+        _write_catalog_tile(lake, "B", healpix_order=healpix_order, npix=npix,
                             source_ids=[2], ra=[ra + 0.0001], dec=[dec + 0.0001])
 
         build_crossmatch(lake, "A", "B", radius_arcsec=1.0)
@@ -623,21 +623,21 @@ class TestCrossmatchNamingAndReuse:
         assert crossmatch_root(lake, "A", "B", 1.0).is_dir()
         assert crossmatch_root(lake, "A", "B", 2.0).is_dir()
 
-    def test_reuse_rejects_norder_mismatch(self, tmp_path: Path) -> None:
+    def test_reuse_rejects_healpix_order_mismatch(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "A", norder=norder, npix=npix,
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "A", healpix_order=healpix_order, npix=npix,
                             source_ids=[1], ra=[ra], dec=[dec])
-        _write_catalog_tile(lake, "B", norder=norder, npix=npix,
+        _write_catalog_tile(lake, "B", healpix_order=healpix_order, npix=npix,
                             source_ids=[2], ra=[ra + 0.0001], dec=[dec + 0.0001])
         build_crossmatch(lake, "A", "B", radius_arcsec=1.0)
 
         # Tamper with the sidecar to simulate a tree built at a different B order.
         info_path = crossmatch_root(lake, "A", "B", 1.0) / "crossmatch_info.json"
         info = json.loads(info_path.read_text())
-        info["survey_b_norder"] = norder + 1
+        info["survey_b_healpix_order"] = healpix_order + 1
         info_path.write_text(json.dumps(info))
 
         with pytest.raises(ValueError, match="different"):
@@ -650,14 +650,14 @@ class TestCrossmatchNamingAndReuse:
 
     def _two_partner_lake(self, tmp_path: Path):
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "EUCLID", norder=norder, npix=npix,
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "EUCLID", healpix_order=healpix_order, npix=npix,
                             source_ids=[1], ra=[ra], dec=[dec])
-        _write_catalog_tile(lake, "DESI_DR1", norder=norder, npix=npix,
+        _write_catalog_tile(lake, "DESI_DR1", healpix_order=healpix_order, npix=npix,
                             source_ids=[2], ra=[ra + 0.0001], dec=[dec + 0.0001])
-        _write_catalog_tile(lake, "ALLWISE", norder=norder, npix=npix,
+        _write_catalog_tile(lake, "ALLWISE", healpix_order=healpix_order, npix=npix,
                             source_ids=[3], ra=[ra + 0.0002], dec=[dec + 0.0002])
         return lake, ra, dec, npix
 
@@ -850,26 +850,26 @@ class TestCrossmatchNamingAndReuse:
         from data_lake.io.crossmatch import cli, recount_crossmatch_tree
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra1, dec1 = 120.0, 45.0
         ra2, dec2 = 10.0, 0.0
-        npix1 = int(assign_healpix(np.array([ra1]), np.array([dec1]), norder)[0])
-        npix2 = int(assign_healpix(np.array([ra2]), np.array([dec2]), norder)[0])
+        npix1 = int(assign_healpix(np.array([ra1]), np.array([dec1]), healpix_order)[0])
+        npix2 = int(assign_healpix(np.array([ra2]), np.array([dec2]), healpix_order)[0])
         assert npix1 != npix2
 
         for survey, sid_base in (("A", 1), ("B", 100)):
             _write_catalog_tile(
-                lake, survey, norder=norder, npix=npix1,
+                lake, survey, healpix_order=healpix_order, npix=npix1,
                 source_ids=[sid_base], ra=[ra1], dec=[dec1],
             )
             _write_catalog_tile(
-                lake, survey, norder=norder, npix=npix2,
+                lake, survey, healpix_order=healpix_order, npix=npix2,
                 source_ids=[sid_base + 1], ra=[ra2], dec=[dec2],
             )
 
         full = build_crossmatch(lake, "A", "B", radius_arcsec=1.0)
         root = crossmatch_root(lake, "A", "B", 1.0)
-        outside_tile = root / healpix_dir(norder, npix2) / f"Npix={npix2}.parquet"
+        outside_tile = root / healpix_dir(healpix_order, npix2) / f"Npix={npix2}.parquet"
         assert outside_tile.is_file()
         full_rows, full_tiles = recount_crossmatch_tree(root)
         assert full.tree_total_rows == full_rows
@@ -895,12 +895,12 @@ class TestCrossmatchNamingAndReuse:
 
     def test_accessor_autodiscovers_single_radius(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "A", norder=norder, npix=npix,
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "A", healpix_order=healpix_order, npix=npix,
                             source_ids=[1], ra=[ra], dec=[dec])
-        _write_catalog_tile(lake, "B", norder=norder, npix=npix,
+        _write_catalog_tile(lake, "B", healpix_order=healpix_order, npix=npix,
                             source_ids=[2], ra=[ra + 0.0001], dec=[dec + 0.0001])
         build_crossmatch(lake, "A", "B", radius_arcsec=1.0)
         build_crossmatch(lake, "A", "B", radius_arcsec=2.0)
@@ -922,7 +922,7 @@ def _write_catalog_tile_with_col(
     lake: Path,
     survey: str,
     *,
-    norder: int,
+    healpix_order: int,
     npix: int,
     source_ids: list[int],
     ra: list[float],
@@ -931,9 +931,9 @@ def _write_catalog_tile_with_col(
     extra_values: list,
 ) -> None:
     """Write a catalog tile with an additional match column."""
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     table = pa.table({
         "_source_id": pa.array(source_ids, type=pa.int64()),
         "ra": pa.array(ra, type=pa.float64()),
@@ -945,7 +945,7 @@ def _write_catalog_tile_with_col(
     })
     pq.write_table(table, tile_dir / f"Npix={npix}.parquet")
     (lake / "catalogs" / survey / "catalog_info.json").write_text(json.dumps({
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_mode": "sequential",
@@ -1003,17 +1003,17 @@ class TestColumnCrossmatchNaming:
 class TestColumnCrossmatchEngine:
     def test_basic_equality_join(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1, 2], ra=[ra, ra + 0.01], dec=[dec, dec + 0.01],
             extra_col="TARGETID", extra_values=[100, 200],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10, 20], ra=[ra, ra + 0.02], dec=[dec, dec + 0.02],
             extra_col="TARGETID", extra_values=[100, 999],
         )
@@ -1033,18 +1033,18 @@ class TestColumnCrossmatchEngine:
 
     def test_many_to_many(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         # A source 1 matches two B sources
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[42],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10, 20], ra=[ra, ra + 0.01], dec=[dec, dec + 0.01],
             extra_col="KEY", extra_values=[42, 42],
         )
@@ -1059,17 +1059,17 @@ class TestColumnCrossmatchEngine:
 
     def test_different_column_names(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="ID_A", extra_values=[777],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10], ra=[ra], dec=[dec],
             extra_col="ID_B", extra_values=[777],
         )
@@ -1079,17 +1079,17 @@ class TestColumnCrossmatchEngine:
 
     def test_null_keys_excluded(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1, 2], ra=[ra, ra + 0.01], dec=[dec, dec + 0.01],
             extra_col="TARGETID", extra_values=[100, None],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10], ra=[ra], dec=[dec],
             extra_col="TARGETID", extra_values=[100],
         )
@@ -1099,16 +1099,16 @@ class TestColumnCrossmatchEngine:
 
     def test_tree_name_contains_column_names(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[1],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[1],
         )
@@ -1120,16 +1120,16 @@ class TestColumnCrossmatchEngine:
 
     def test_crossmatch_info_written(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[5],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[5],
         )
@@ -1149,16 +1149,16 @@ class TestColumnCrossmatchEngine:
 
     def test_find_and_resolve_column_root(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[9],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[9],
         )
@@ -1174,16 +1174,16 @@ class TestColumnCrossmatchEngine:
 
     def test_reuse_guard_mismatch(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[1],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[1],
         )
@@ -1205,22 +1205,22 @@ class TestColumnCrossmatchEngine:
         """Key match only in a non-overlapping B tile → no association row (locality)."""
         import healpy as hp_lib
         lake = tmp_path / "lake"
-        norder = 3  # low order so pixels are large and far-apart pixels are unambiguous
+        healpix_order = 3  # low order so pixels are large and far-apart pixels are unambiguous
 
         ra_a, dec_a = 0.0, 0.0
         ra_b, dec_b = 180.0, 0.0  # antipodal — guaranteed non-overlapping
-        npix_a = int(assign_healpix(np.array([ra_a]), np.array([dec_a]), norder)[0])
-        npix_b = int(assign_healpix(np.array([ra_b]), np.array([dec_b]), norder)[0])
+        npix_a = int(assign_healpix(np.array([ra_a]), np.array([dec_a]), healpix_order)[0])
+        npix_b = int(assign_healpix(np.array([ra_b]), np.array([dec_b]), healpix_order)[0])
         assert npix_a != npix_b
 
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix_a,
+            lake, "A", healpix_order=healpix_order, npix=npix_a,
             source_ids=[1], ra=[ra_a], dec=[dec_a],
             extra_col="KEY", extra_values=[42],
         )
         # B tile placed at antipodal position — shares the key value but not the sky region
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix_b,
+            lake, "B", healpix_order=healpix_order, npix=npix_b,
             source_ids=[10], ra=[ra_b], dec=[dec_b],
             extra_col="KEY", extra_values=[42],
         )
@@ -1233,17 +1233,17 @@ class TestColumnCrossmatchEngine:
     def test_geometric_neighbour_match_found(self, tmp_path: Path) -> None:
         """Key match in geometrically overlapping tiles → association row produced."""
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="KEY", extra_values=[99],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[20], ra=[ra + 0.001], dec=[dec + 0.001],
             extra_col="KEY", extra_values=[99],
         )
@@ -1258,10 +1258,10 @@ class TestColumnCrossmatchEngine:
         import healpy as hp_lib
 
         lake = tmp_path / "lake"
-        norder = 5
-        nside = hp_lib.order2nside(norder)
+        healpix_order = 5
+        nside = hp_lib.order2nside(healpix_order)
         ra_a, dec_a = 120.0, 45.0
-        npix_a = int(assign_healpix(np.array([ra_a]), np.array([dec_a]), norder)[0])
+        npix_a = int(assign_healpix(np.array([ra_a]), np.array([dec_a]), healpix_order)[0])
 
         neighbours = [
             int(n) for n in hp_lib.get_all_neighbours(nside, npix_a, nest=True)
@@ -1274,12 +1274,12 @@ class TestColumnCrossmatchEngine:
         dec_b = float(90.0 - np.degrees(theta))
 
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix_a,
+            lake, "A", healpix_order=healpix_order, npix=npix_a,
             source_ids=[1], ra=[ra_a], dec=[dec_a],
             extra_col="KEY", extra_values=[77],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix_b,
+            lake, "B", healpix_order=healpix_order, npix=npix_b,
             source_ids=[20], ra=[ra_b], dec=[dec_b],
             extra_col="KEY", extra_values=[77],
         )
@@ -1302,16 +1302,16 @@ class TestColumnCrossmatchEngine:
     def test_n_workers_sequential_equivalence(self, tmp_path: Path) -> None:
         """n_workers=1 (default) and explicit n_workers=1 both give the same result."""
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile_with_col(
-            lake, "A", norder=norder, npix=npix,
+            lake, "A", healpix_order=healpix_order, npix=npix,
             source_ids=[1, 2], ra=[ra, ra + 0.01], dec=[dec, dec + 0.01],
             extra_col="K", extra_values=[1, 2],
         )
         _write_catalog_tile_with_col(
-            lake, "B", norder=norder, npix=npix,
+            lake, "B", healpix_order=healpix_order, npix=npix,
             source_ids=[10, 20], ra=[ra, ra + 0.01], dec=[dec, dec + 0.01],
             extra_col="K", extra_values=[1, 2],
         )
@@ -1323,16 +1323,16 @@ class TestColumnCrossmatchEngine:
 class TestColumnCrossmatchCLI:
     def _setup_lake(self, tmp_path: Path):
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile_with_col(
-            lake, "SRC", norder=norder, npix=npix,
+            lake, "SRC", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
             extra_col="OBJ_ID", extra_values=[42],
         )
         _write_catalog_tile_with_col(
-            lake, "PARTNER", norder=norder, npix=npix,
+            lake, "PARTNER", healpix_order=healpix_order, npix=npix,
             source_ids=[10], ra=[ra], dec=[dec],
             extra_col="OBJ_ID", extra_values=[42],
         )
@@ -1412,12 +1412,12 @@ class TestColumnCrossmatchCLI:
         from data_lake.io.crossmatch import cli
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_catalog_tile(lake, "A", norder=norder, npix=npix,
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_catalog_tile(lake, "A", healpix_order=healpix_order, npix=npix,
                             source_ids=[1], ra=[ra], dec=[dec])
-        _write_catalog_tile(lake, "B", norder=norder, npix=npix,
+        _write_catalog_tile(lake, "B", healpix_order=healpix_order, npix=npix,
                             source_ids=[2], ra=[ra + 0.0001], dec=[dec + 0.0001])
 
         result = CliRunner().invoke(cli, [
@@ -1437,14 +1437,14 @@ def _write_minimal_xm_tree(
     name: str,
     info: dict,
     *,
-    norder: int = 5,
+    healpix_order: int = 5,
     npix: int = 0,
     n_rows: int = 3,
 ) -> Path:
     root = lake / "crossmatch" / name
-    tile_dir = root / f"Norder={norder}" / "Dir=0"
+    tile_dir = root / f"Norder={healpix_order}" / "Dir=0"
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp = f"_healpix_norder{norder}"
+    hp = f"_healpix_order{healpix_order}"
     pq.write_table(
         pa.table({
             "source_id_a": pa.array(list(range(n_rows)), type=pa.int64()),

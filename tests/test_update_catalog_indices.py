@@ -34,7 +34,7 @@ def _write_mini_catalog(
     ids: list[int],
     ra: list[float],
     dec: list[float],
-    norder: int = 5,
+    healpix_order: int = 5,
     link_id_mode: str | None = None,
 ) -> None:
     """Write a minimal HEALPix-partitioned Parquet catalog for testing."""
@@ -48,8 +48,8 @@ def _write_mini_catalog(
     ids_arr = np.array(ids, dtype=np.int64)
     ra_arr = np.array(ra, dtype=np.float64)
     dec_arr = np.array(dec, dtype=np.float64)
-    pix_arr = assign_healpix(ra_arr, dec_arr, norder)
-    hp_col = f"_healpix_norder{norder}"
+    pix_arr = assign_healpix(ra_arr, dec_arr, healpix_order)
+    hp_col = f"_healpix_order{healpix_order}"
 
     cols: dict = {
         LAKE_JOIN_ID_COLUMN: pa.array(ids_arr, type=pa.int64()),
@@ -68,7 +68,7 @@ def _write_mini_catalog(
     for npix in unique_pixels.tolist():
         mask = pix_arr == npix
         tile_table = table.filter(pa.array(mask))
-        tile_dir = survey_dir / healpix_dir(norder, int(npix))
+        tile_dir = survey_dir / healpix_dir(healpix_order, int(npix))
         tile_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             tile_table,
@@ -82,7 +82,7 @@ def _write_mini_catalog(
     )
     info = {
         "catalog_name": survey_name,
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_mode": sid_mode,
@@ -100,7 +100,7 @@ def _write_mini_spectra_zarr(
     ids: list[int],
     ra: list[float],
     dec: list[float],
-    norder: int = 5,
+    healpix_order: int = 5,
 ) -> dict[int, int]:
     """Write synthetic Zarr spectrum tiles and return the expected index_map."""
     import zarr
@@ -110,7 +110,7 @@ def _write_mini_spectra_zarr(
     ids_arr = np.array(ids, dtype=np.int64)
     ra_arr = np.array(ra, dtype=np.float64)
     dec_arr = np.array(dec, dtype=np.float64)
-    pix_arr = assign_healpix(ra_arr, dec_arr, norder)
+    pix_arr = assign_healpix(ra_arr, dec_arr, healpix_order)
 
     survey_root = lake_root / "spectra" / survey_name
     index_map: dict[int, int] = {}
@@ -119,7 +119,7 @@ def _write_mini_spectra_zarr(
         tile_buffers.setdefault(npix, []).append(sid)
 
     for npix, tile_ids in tile_buffers.items():
-        tile_dir = survey_root / healpix_dir(norder, int(npix))
+        tile_dir = survey_root / healpix_dir(healpix_order, int(npix))
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={int(npix)}.zarr"
         store = zarr.storage.LocalStore(str(tile_path))
@@ -226,7 +226,7 @@ class TestResolveSourceIdColumn:
         (tmp_path / "catalog_info.json").write_text(json.dumps(info))
         schema_names = [
             "TARGETID", LAKE_JOIN_ID_COLUMN, "ra", "dec",
-            "_healpix_norder5", "_spectrum_index",
+            "_healpix_order5", "_spectrum_index",
         ]
         assert resolve_link_id_column(tmp_path, schema_names=schema_names) == LAKE_JOIN_ID_COLUMN
 
@@ -235,7 +235,7 @@ class TestResolveSourceIdColumn:
 
         info = {"link_id_mode": "sequential", "link_id_column": "source_id"}
         (tmp_path / "catalog_info.json").write_text(json.dumps(info))
-        schema_names = ["id", LAKE_JOIN_ID_COLUMN, "ALPHA_J2000", "DELTA_J2000", "_healpix_norder5"]
+        schema_names = ["id", LAKE_JOIN_ID_COLUMN, "ALPHA_J2000", "DELTA_J2000", "_healpix_order5"]
         assert resolve_link_id_column(tmp_path, schema_names=schema_names) == LAKE_JOIN_ID_COLUMN
 
     def test_recorded_link_id_column_in_info(self, tmp_path: Path) -> None:
@@ -401,8 +401,8 @@ class TestUpdateIndexFromZarrTiles:
         spec_idx = merged.column("_spectrum_index").to_pylist()
         assert all(v >= 0 for v in spec_idx)
 
-    def test_rebuild_uses_catalog_info_norder(self, tmp_path: Path) -> None:
-        """Rebuild reads healpix_order from catalog_info.json when --norder omitted."""
+    def test_rebuild_uses_catalog_info_healpix_order(self, tmp_path: Path) -> None:
+        """Rebuild reads healpix_order from catalog_info.json when --healpix-order omitted."""
         from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN
         from data_lake.ingest.update_catalog_indices import (
             update_index_column_from_zarr_tiles,
@@ -412,15 +412,15 @@ class TestUpdateIndexFromZarrTiles:
         ra = [50.0, 60.0]
         dec = [20.0, -20.0]
         _write_mini_catalog(
-            tmp_path, "zcosmos_like", LAKE_JOIN_ID_COLUMN, ids, ra, dec, norder=1,
+            tmp_path, "zcosmos_like", LAKE_JOIN_ID_COLUMN, ids, ra, dec, healpix_order=1,
         )
-        _write_mini_spectra_zarr(tmp_path, "zcosmos_like", ids, ra, dec, norder=1)
+        _write_mini_spectra_zarr(tmp_path, "zcosmos_like", ids, ra, dec, healpix_order=1)
 
         n_modified = update_index_column_from_zarr_tiles(
             lake_root=tmp_path,
             survey_name="zcosmos_like",
             kind="spectrum",
-            norder=None,
+            healpix_order=None,
         )
         assert n_modified > 0
 
@@ -442,16 +442,16 @@ class TestUpdateIndexFromZarrTiles:
         ids = [7_000_001]
         ra = [120.0]
         dec = [45.0]
-        norder = 1
-        npix = int(assign_healpix(np.array(ra), np.array(dec), norder)[0])
+        healpix_order = 1
+        npix = int(assign_healpix(np.array(ra), np.array(dec), healpix_order)[0])
         _write_mini_catalog(
-            tmp_path, "rglob_survey", LAKE_JOIN_ID_COLUMN, ids, ra, dec, norder=norder,
+            tmp_path, "rglob_survey", LAKE_JOIN_ID_COLUMN, ids, ra, dec, healpix_order=healpix_order,
         )
-        _write_mini_spectra_zarr(tmp_path, "rglob_survey", ids, ra, dec, norder=norder)
+        _write_mini_spectra_zarr(tmp_path, "rglob_survey", ids, ra, dec, healpix_order=healpix_order)
 
         # Move catalog tile off canonical HATS path (rglob must still find it).
         cat_root = tmp_path / "catalogs" / "rglob_survey"
-        canonical = cat_root / healpix_dir(norder, npix) / f"Npix={npix}.parquet"
+        canonical = cat_root / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
         alt = cat_root / "legacy_layout" / f"Npix={npix}.parquet"
         alt.parent.mkdir(parents=True)
         alt.write_bytes(canonical.read_bytes())
@@ -463,7 +463,7 @@ class TestUpdateIndexFromZarrTiles:
             lake_root=tmp_path,
             survey_name="rglob_survey",
             kind="spectrum",
-            norder=None,
+            healpix_order=None,
         )
         assert n_modified == 1
         tbl = pq.ParquetFile(alt).read()
@@ -481,10 +481,10 @@ class TestUpdateIndexFromZarrTiles:
             update_index_column_from_zarr_tiles,
         )
 
-        norder = 5
+        healpix_order = 5
         ra = [50.0, 50.0, 50.0]
         dec = [20.0, 20.0, 20.0]
-        npix = int(assign_healpix(np.array(ra), np.array(dec), norder)[0])
+        npix = int(assign_healpix(np.array(ra), np.array(dec), healpix_order)[0])
         in_zarr = 5_000_001
         only_catalog = 5_000_099
         ghost = 5_000_088
@@ -493,11 +493,11 @@ class TestUpdateIndexFromZarrTiles:
             LAKE_JOIN_ID_COLUMN: pa.array([in_zarr, only_catalog, ghost], type=pa.int64()),
             "ra": pa.array(ra, type=pa.float64()),
             "dec": pa.array(dec, type=pa.float64()),
-            f"_healpix_norder{norder}": pa.array([npix] * 3, type=pa.int64()),
+            f"_healpix_order{healpix_order}": pa.array([npix] * 3, type=pa.int64()),
             "_spectrum_index": pa.array([21_011, 76_10, -1], type=pa.int64()),
         }
         survey = "stale_clear"
-        tile_dir = tmp_path / "catalogs" / survey / healpix_dir(norder, npix)
+        tile_dir = tmp_path / "catalogs" / survey / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True)
         pq.write_table(
             pa.table(cols),
@@ -507,14 +507,14 @@ class TestUpdateIndexFromZarrTiles:
         )
         (tmp_path / "catalogs" / survey / "catalog_info.json").write_text(
             json.dumps({
-                "healpix_order": norder,
+                "healpix_order": healpix_order,
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
                 "link_id_mode": "sequential",
                 "ra_column": "ra",
                 "dec_column": "dec",
             })
         )
-        _write_mini_spectra_zarr(tmp_path, survey, [in_zarr], ra[:1], dec[:1], norder=norder)
+        _write_mini_spectra_zarr(tmp_path, survey, [in_zarr], ra[:1], dec[:1], healpix_order=healpix_order)
 
         n_modified = update_index_column_from_zarr_tiles(
             lake_root=tmp_path,
@@ -536,7 +536,7 @@ class TestUpdateIndexFromZarrTiles:
 
         caplog.set_level(logging.WARNING)
         ids = [8_000_001]
-        _write_mini_spectra_zarr(tmp_path, "no_cat", ids, [10.0], [0.0], norder=5)
+        _write_mini_spectra_zarr(tmp_path, "no_cat", ids, [10.0], [0.0], healpix_order=5)
         cat_root = tmp_path / "catalogs" / "no_cat"
         cat_root.mkdir(parents=True)
         (cat_root / "catalog_info.json").write_text(json.dumps({"healpix_order": 5}))
@@ -545,7 +545,7 @@ class TestUpdateIndexFromZarrTiles:
             lake_root=tmp_path,
             survey_name="no_cat",
             kind="spectrum",
-            norder=None,
+            healpix_order=None,
         )
         assert n_modified == 0
         assert any(
@@ -557,7 +557,7 @@ class TestUpdateIndexFromZarrTiles:
 
 
     def test_mixed_order_patches_across_different_npix(self, tmp_path: Path) -> None:
-        """Catalog at norder=5, spectra at norder=1 — Zarr Npix differs from catalog Npix.
+        """Catalog at healpix_order=5, spectra at healpix_order=1 — Zarr Npix differs from catalog Npix.
 
         After rebuild, catalog rows should have _spectrum_npix set to the Zarr
         tile pixel and _spectrum_index set to the local row index.
@@ -578,11 +578,11 @@ class TestUpdateIndexFromZarrTiles:
         ra = [50.0, 50.5]
         dec = [20.0, 20.5]
 
-        # Build catalog tiles at norder=5.
-        _write_mini_catalog(tmp_path, survey, LAKE_JOIN_ID_COLUMN, ids, ra, dec, norder=cat_order)
+        # Build catalog tiles at healpix_order=5.
+        _write_mini_catalog(tmp_path, survey, LAKE_JOIN_ID_COLUMN, ids, ra, dec, healpix_order=cat_order)
 
-        # Build spectrum Zarr at norder=1 (all fall in same coarse tile).
-        _write_mini_spectra_zarr(tmp_path, survey, ids, ra, dec, norder=spec_order)
+        # Build spectrum Zarr at healpix_order=1 (all fall in same coarse tile).
+        _write_mini_spectra_zarr(tmp_path, survey, ids, ra, dec, healpix_order=spec_order)
 
         n_modified = update_index_column_from_zarr_tiles(
             lake_root=tmp_path,
@@ -598,7 +598,7 @@ class TestUpdateIndexFromZarrTiles:
 
         assert all(v >= 0 for v in spec_idx), f"Unlinked _spectrum_index: {spec_idx}"
         assert all(v >= 0 for v in spec_npix), f"Unset _spectrum_npix: {spec_npix}"
-        # All rows in this survey map to the same Zarr tile (coarse norder=1).
+        # All rows in this survey map to the same Zarr tile (coarse healpix_order=1).
         assert len(set(spec_npix)) == 1, "Expected all rows in one Zarr tile"
 
     def test_parallel_matches_serial(self, tmp_path: Path) -> None:
@@ -727,7 +727,7 @@ class TestCutoutFileListParallelPatch:
                 str(file_list), str(tmp_path),
                 "--survey", "cut_par",
                 "--link-id-col", "TARGETID",
-                "--norder", "5",
+                "--healpix-order", "5",
                 "--n-workers", "2",
                 "--no-progress",
             ],

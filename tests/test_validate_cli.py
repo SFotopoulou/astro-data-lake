@@ -17,7 +17,7 @@ from data_lake.ingest.validate_cli import (
     resolve_validation_survey_names,
 )
 
-NORDER = 5
+HEALPIX_ORDER = 5
 N_PIX = 8
 SURVEY_A = "SURVEY_A"
 SURVEY_B = "SURVEY_B"
@@ -28,7 +28,7 @@ def _write_catalog_survey(lake: Path, name: str) -> None:
     root.mkdir(parents=True)
     (root / "catalog_info.json").write_text(
         json.dumps({
-            "healpix_order": NORDER,
+            "healpix_order": HEALPIX_ORDER,
             "total_rows": 1,
             "total_columns": 3,
             "ra_column": "ra",
@@ -49,13 +49,13 @@ def _write_spectra_survey(lake: Path, name: str) -> None:
     (root / "spectrum_info.json").write_text(
         json.dumps({
             "n_pix": N_PIX,
-            "healpix_order": NORDER,
+            "healpix_order": HEALPIX_ORDER,
             "wavelength_mode": "shared",
             "wcs": {},
         })
     )
     npix = 17
-    zpath = root / healpix_dir(NORDER, npix) / f"Npix={npix}.zarr"
+    zpath = root / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.zarr"
     zpath.parent.mkdir(parents=True)
     wcs_attrs = {
         "ctype": "WAVE",
@@ -82,7 +82,7 @@ def _write_cutout_survey(lake: Path, name: str) -> None:
     root.mkdir(parents=True)
     (root / "cutout_info.json").write_text(
         json.dumps({
-            "healpix_order": NORDER,
+            "healpix_order": HEALPIX_ORDER,
             "n_bands": 1,
             "height": 4,
             "width": 4,

@@ -90,13 +90,13 @@ def _homogenize_spectrum_tile(
     lake_root: Path,
     survey: str,
     out_survey: str,
-    norder: int,
+    healpix_order: int,
     factor: float,
 ) -> int:
-    src_root = lake_root / "spectra" / survey / healpix_dir(norder, npix) / f"Npix={npix}.zarr"
+    src_root = lake_root / "spectra" / survey / healpix_dir(healpix_order, npix) / f"Npix={npix}.zarr"
     if not src_root.is_dir():
         return 0
-    dst_root = lake_root / "spectra" / out_survey / healpix_dir(norder, npix) / f"Npix={npix}.zarr"
+    dst_root = lake_root / "spectra" / out_survey / healpix_dir(healpix_order, npix) / f"Npix={npix}.zarr"
     dst_root.parent.mkdir(parents=True, exist_ok=True)
     if dst_root.exists():
         shutil.rmtree(dst_root)
@@ -121,14 +121,14 @@ def _homogenize_cutout_tile(
     lake_root: Path,
     survey: str,
     out_survey: str,
-    norder: int,
+    healpix_order: int,
     factor: float,
     band_factors: np.ndarray | None = None,
 ) -> int:
-    src_root = lake_root / "cutouts" / survey / healpix_dir(norder, npix) / f"Npix={npix}.zarr"
+    src_root = lake_root / "cutouts" / survey / healpix_dir(healpix_order, npix) / f"Npix={npix}.zarr"
     if not src_root.is_dir():
         return 0
-    dst_root = lake_root / "cutouts" / out_survey / healpix_dir(norder, npix) / f"Npix={npix}.zarr"
+    dst_root = lake_root / "cutouts" / out_survey / healpix_dir(healpix_order, npix) / f"Npix={npix}.zarr"
     dst_root.parent.mkdir(parents=True, exist_ok=True)
     if dst_root.exists():
         shutil.rmtree(dst_root)
@@ -182,7 +182,7 @@ def _write_zarr_product_info(
         "flux_scale_factor": factor,
         "selection": {
             "base_survey": selection.base_survey,
-            "norder": selection.norder,
+            "healpix_order": selection.healpix_order,
             "n_npix": len(selection.npix),
         },
         "n_sources": n_sources,
@@ -254,7 +254,7 @@ def homogenize_zarr(
             elapsed_s=0.0,
         )
 
-    norder = selection.norder
+    healpix_order = selection.healpix_order
     t0 = time.perf_counter()
     n_sources = 0
     n_tiles = 0
@@ -267,7 +267,7 @@ def homogenize_zarr(
                 lake_root=lake_root,
                 survey=survey,
                 out_survey=materialize_as,
-                norder=norder,
+                healpix_order=healpix_order,
                 factor=factor,
             )
         return _homogenize_cutout_tile(
@@ -275,7 +275,7 @@ def homogenize_zarr(
             lake_root=lake_root,
             survey=survey,
             out_survey=materialize_as,
-            norder=norder,
+            healpix_order=healpix_order,
             factor=factor,
             band_factors=band_factors,
         )

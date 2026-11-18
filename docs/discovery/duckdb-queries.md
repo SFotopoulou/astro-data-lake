@@ -21,8 +21,8 @@ IDs are values of the catalog's `link_id_column`. Duplicates are ignored.
 
 ## ID lookups with `CatalogAccessor`
 
-`CatalogAccessor(lake_root, survey, norder=None, *, metadata_cache=None)` opens an in-memory
-DuckDB connection with a `catalog` view over `Norder=<norder>/**/*.parquet`. `norder` defaults
+`CatalogAccessor(lake_root, survey, healpix_order=None, *, metadata_cache=None)` opens an in-memory
+DuckDB connection with a `catalog` view over `Norder=<healpix_order>/**/*.parquet`. `healpix_order` defaults
 to `healpix_order` from `catalog_info.json`.
 
 | Method | Returns | How IDs are passed |
@@ -74,7 +74,7 @@ A master file is a flat Parquet, for example `<lake_root>/associations/master_de
 | `desi_targetid` (example) | Primary key for your science sample |
 | `euclid_source_id`, … | Partner survey IDs from the matcher |
 | `sep_arcsec` | Match separation (quality check) |
-| `desi_norder`, `desi_npix` | Optional; that survey's tile, for single-tile reads |
+| `desi_healpix_order`, `desi_npix` | Optional; that survey's tile, for single-tile reads |
 
 ### Generate the SQL from the master
 
@@ -167,7 +167,7 @@ SELECT d.TARGETID, d.Z
 FROM want w
 JOIN master m ON m.desi_targetid = w.id
 JOIN read_parquet(
-  'catalogs/DESI_DR1/Norder=' || m.desi_norder::VARCHAR
+  'catalogs/DESI_DR1/Norder=' || m.desi_healpix_order::VARCHAR
   || '/Dir=' || ((m.desi_npix // 10000) * 10000)::VARCHAR
   || '/Npix=' || m.desi_npix::VARCHAR || '.parquet'
 ) AS d ON d.TARGETID = w.id;

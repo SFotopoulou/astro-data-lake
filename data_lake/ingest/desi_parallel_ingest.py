@@ -151,7 +151,7 @@ class WorkerResult:
 
 def _decode_one_coadd(
     path_str: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None = None,
 ) -> WorkerResult:
     """Decode one DESI coadd FITS file into per-tile numpy batches.
@@ -182,7 +182,7 @@ def _decode_one_coadd(
 
     ras = np.fromiter((r.ra for r in records), dtype=np.float64, count=n)
     decs = np.fromiter((r.dec for r in records), dtype=np.float64, count=n)
-    npix_arr = assign_healpix(ras, decs, norder)
+    npix_arr = assign_healpix(ras, decs, healpix_order)
 
     sort_idx = np.argsort(npix_arr, kind="stable")
     npix_sorted = npix_arr[sort_idx]
@@ -226,12 +226,12 @@ def _decode_one_coadd(
 
 def _decode_one_coadd_safe(
     path_str: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None = None,
 ) -> WorkerResult:
     """Picklable wrapper: never raises, returns a failure-marked result instead."""
     try:
-        return _decode_one_coadd(path_str, norder, link_id_col=link_id_col)
+        return _decode_one_coadd(path_str, healpix_order, link_id_col=link_id_col)
     except Exception as exc:
         return WorkerResult(
             path=path_str,
@@ -305,7 +305,7 @@ class _TileGroupCache:
         self,
         *,
         survey_root: Path,
-        norder: int,
+        healpix_order: int,
         wcs_attrs: dict,
         mask_dtype: np.dtype,
         wavelength_mode: str,
@@ -314,7 +314,7 @@ class _TileGroupCache:
         max_open: int,
     ) -> None:
         self._survey_root = survey_root
-        self._norder = norder
+        self._healpix_order = healpix_order
         self._wcs_attrs = wcs_attrs
         self._mask_dtype = mask_dtype
         self._wavelength_mode = wavelength_mode
@@ -352,7 +352,7 @@ class _TileGroupCache:
                 entry.root = new_root
             return entry
 
-        tile_dir = self._survey_root / healpix_dir(self._norder, npix)
+        tile_dir = self._survey_root / healpix_dir(self._healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
         tile_exists = tile_path.exists() and (tile_path / "zarr.json").exists()
@@ -477,7 +477,7 @@ def _clear_parallel_inflight(path: Path) -> None:
 
 def _recover_stale_parallel_commit(
     survey_root: Path,
-    norder: int,
+    healpix_order: int,
     inflight_path: Path,
     completed: set[str],
 ) -> None:
@@ -527,12 +527,12 @@ def _recover_stale_parallel_commit(
         _clear_parallel_inflight(inflight_path)
         return
 
-    stored_norder = int(commit.get("norder", norder))
-    if stored_norder != int(norder):
+    stored_healpix_order = int(commit.get("healpix_order", healpix_order))
+    if stored_healpix_order != int(healpix_order):
         log.warning(
-            "Inflight journal norder=%s differs from this run (%s); "
-            "recovery uses this run's norder for tile paths.",
-            stored_norder, norder,
+            "Inflight journal healpix_order=%s differs from this run (%s); "
+            "recovery uses this run's healpix_order for tile paths.",
+            stored_healpix_order, healpix_order,
         )
 
     import zarr
@@ -543,7 +543,7 @@ def _recover_stale_parallel_commit(
             nrow = int(start_rows)
         except (TypeError, ValueError):
             continue
-        tile_dir = survey_root / healpix_dir(norder, npix)
+        tile_dir = survey_root / healpix_dir(healpix_order, npix)
         tile_path = tile_dir / f"Npix={npix}.zarr"
         if not (tile_path / "zarr.json").exists():
             continue
@@ -571,7 +571,7 @@ def ingest_spectra_parallel(
     survey_name: str,
     *,
     n_workers: int,
-    norder: int = 5,
+    healpix_order: int = 5,
     checkpoint_path: Path | str | None = None,
     failures_log: Path | str | None = None,
     show_progress: bool = True,
@@ -603,7 +603,7 @@ def ingest_spectra_parallel(
     n_workers:
         Number of decoder processes.  No default by design — callers should
         pick this consciously (typical: ``cpu_count - 1``).
-    norder:
+    healpix_order:
         HEALPix partitioning order (default 5).
     checkpoint_path:
         Optional JSON checkpoint file; completed file paths are persisted
@@ -615,7 +615,7 @@ def ingest_spectra_parallel(
     show_progress:
         Show a tqdm progress bar on the writer side.
     decoder:
-        Worker decode function accepting ``(path_str, norder)``.  Default
+        Worker decode function accepting ``(path_str, healpix_order)``.  Default
         ``None`` uses :func:`_decode_one_coadd_safe` with *link_id_col* bound.
     executor_factory:
         Callable taking ``n_workers`` and returning an ``Executor``.  Defaults
@@ -680,7 +680,7 @@ def ingest_spectra_parallel(
         if inflight_path is not None
         else survey_root / ".ingest_inflight.json"
     )
-    _recover_stale_parallel_commit(survey_root, norder, resolved_inflight, completed)
+    _recover_stale_parallel_commit(survey_root, healpix_order, resolved_inflight, completed)
 
     requested = [_canonical_fits_path(p) for p in file_paths]
     n_requested = len(requested)
@@ -789,9 +789,9 @@ def ingest_spectra_parallel(
             if batch is None:
                 break
             if len(batch) == 1:
-                fut = pool.submit(decoder, batch[0], norder)
+                fut = pool.submit(decoder, batch[0], healpix_order)
             else:
-                fut = pool.submit(decode_path_batch, decoder, batch, norder)
+                fut = pool.submit(decode_path_batch, decoder, batch, healpix_order)
             in_flight[fut] = batch
 
     def _process_result(path_str: str, res: WorkerResult) -> None:
@@ -857,7 +857,7 @@ def ingest_spectra_parallel(
         if tile_cache is None:
             tile_cache = _TileGroupCache(
                 survey_root=survey_root,
-                norder=norder,
+                healpix_order=healpix_order,
                 wcs_attrs=wcs_attrs_known or {},
                 mask_dtype=np.dtype(np.uint8),
                 wavelength_mode=wavelength_mode_run,
@@ -878,7 +878,7 @@ def ingest_spectra_parallel(
                 "commit": {
                     "path": res.path,
                     "tiles": {str(k): v for k, v in snap.items()},
-                    "norder": int(norder),
+                    "healpix_order": int(healpix_order),
                 },
             },
         )
@@ -974,7 +974,7 @@ def ingest_spectra_parallel(
         _write_spectrum_info(
             survey_root,
             survey_name,
-            norder,
+            healpix_order,
             info_n_pix,
             wavelength_mode_run,
             "uint8",
@@ -1121,7 +1121,7 @@ try:
         max_in_flight: int | None,
         max_open_tiles: int,
         files_per_worker: int,
-        norder: int | None,
+        healpix_order: int | None,
         checkpoint_path: Path | None,
         failures_log: Path | None,
         log_file: Path | None,
@@ -1160,8 +1160,8 @@ try:
         cfg = load_optional_config(config_path)
         require_ingest_permission(cfg, ingest_token)
         resolved_output = require_output_root(output_root, cfg, kind="spectra")
-        resolved_norder = pick(
-            norder, cfg.partitioning.healpix_order if cfg else None, 5,
+        resolved_healpix_order = pick(
+            healpix_order, cfg.partitioning.healpix_order if cfg else None, 5,
         )
 
         # Build file list (relative paths are anchored to the list file, not cwd)
@@ -1199,7 +1199,7 @@ try:
             output_root=resolved_output,
             survey_name=survey_name,
             n_workers=n_workers,
-            norder=resolved_norder,
+            healpix_order=resolved_healpix_order,
             checkpoint_path=checkpoint_path,
             failures_log=failures_log,
             worker_log_file=log_file,
@@ -1232,7 +1232,7 @@ try:
                     lake_root=resolved_output,
                     survey_name=survey_name,
                     kind="spectrum",
-                    norder=resolved_norder,
+                    healpix_order=resolved_healpix_order,
                 )
                 click.echo(f"Patched _spectrum_index in {n_modified} catalog tile(s).")
             except FileNotFoundError as exc:

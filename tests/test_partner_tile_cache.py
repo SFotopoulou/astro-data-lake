@@ -14,15 +14,15 @@ from data_lake.discovery.partner_tile_cache import PartnerTileCache, PartnerTile
 from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, assign_healpix, healpix_dir
 from data_lake.io.catalog import CatalogAccessor
 
-NORDER = 5
+HEALPIX_ORDER = 5
 RA, DEC = 120.0, 45.0
-NPIX = int(assign_healpix(np.array([RA]), np.array([DEC]), NORDER)[0])
+NPIX = int(assign_healpix(np.array([RA]), np.array([DEC]), HEALPIX_ORDER)[0])
 
 
-def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extra=None):
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+def _write_catalog_tile(lake, survey, *, healpix_order, npix, source_ids, ra, dec, extra=None):
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     cols = {
         LAKE_JOIN_ID_COLUMN: pa.array(source_ids, type=pa.int64()),
         "ra": pa.array(ra, type=pa.float64()),
@@ -35,7 +35,7 @@ def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extr
     pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",
@@ -63,12 +63,12 @@ def tile_reads(monkeypatch) -> list[list[int]]:
 def lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
     _write_catalog_tile(
-        lake, "DESI_DR1", norder=NORDER, npix=NPIX,
+        lake, "DESI_DR1", healpix_order=HEALPIX_ORDER, npix=NPIX,
         source_ids=[101, 102], ra=[RA, RA + 0.001], dec=[DEC, DEC + 0.001],
         extra={"z": [0.5, 1.2]},
     )
     _write_catalog_tile(
-        lake, "DESI_DR1", norder=NORDER, npix=NPIX + 1,
+        lake, "DESI_DR1", healpix_order=HEALPIX_ORDER, npix=NPIX + 1,
         source_ids=[103], ra=[RA + 0.01], dec=[DEC + 0.01], extra={"z": [2.0]},
     )
     return lake

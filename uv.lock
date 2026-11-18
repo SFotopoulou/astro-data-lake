@@ -139,7 +139,7 @@ wheels = [
 
 [[package]]
 name = "astro-data-lake"
-version = "0.9.0"
+version = "0.10.0"
 source = { editable = "." }
 dependencies = [
     { name = "astropy" },
@@ -153,7 +153,6 @@ dependencies = [
     { name = "polars" },
     { name = "pyarrow" },
     { name = "scipy" },
-    { name = "torch" },
     { name = "tqdm" },
     { name = "zarr" },
 ]
@@ -175,6 +174,9 @@ fitsio = [
 ]
 mcp = [
     { name = "mcp" },
+]
+ml = [
+    { name = "torch" },
 ]
 moc = [
     { name = "mocpy", extra = ["plots"] },
@@ -211,11 +213,11 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "scipy", specifier = ">=1.11" },
-    { name = "torch", specifier = ">=2.2" },
+    { name = "torch", marker = "extra == 'ml'", specifier = ">=2.2" },
     { name = "tqdm", specifier = ">=4.66" },
     { name = "zarr", specifier = ">=3.0" },
 ]
-provides-extras = ["desi", "fitsio", "dev", "mcp", "moc", "viz", "rapids"]
+provides-extras = ["desi", "fitsio", "dev", "mcp", "ml", "moc", "viz", "rapids"]
 
 [[package]]
 name = "astropy"

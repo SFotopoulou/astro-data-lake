@@ -16,13 +16,13 @@ def _write_catalog_tile(
     lake: Path,
     survey: str,
     *,
-    norder: int,
+    healpix_order: int,
     npix: int,
     ids: list[int],
 ) -> None:
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     pq.write_table(
         pa.table({
             "id": pa.array(ids, type=pa.int64()),
@@ -36,7 +36,7 @@ def _write_catalog_tile(
         tile_dir / f"Npix={npix}.parquet",
     )
     info = {
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_mode": "column:id",
@@ -50,7 +50,7 @@ def _write_catalog_tile(
 class TestRepairCatalogMetadata:
     def test_refreshes_metadata_from_tiles(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "SURVEY_X", norder=5, npix=42, ids=[1, 2, 3])
+        _write_catalog_tile(lake, "SURVEY_X", healpix_order=5, npix=42, ids=[1, 2, 3])
 
         catalog_root = lake / "catalogs" / "SURVEY_X"
         (catalog_root / "catalog_info.json").write_text(
@@ -82,11 +82,11 @@ class TestRebuildLinkId:
         from data_lake.ingest.fits_to_parquet import stable_object_id_from_string
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         npix = 42
-        tile_dir = lake / "catalogs" / "ZCOS" / healpix_dir(norder, npix)
+        tile_dir = lake / "catalogs" / "ZCOS" / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True)
-        hp_col = f"_healpix_norder{norder}"
+        hp_col = f"_healpix_order{healpix_order}"
         filenames = ["foo.fits", "bar.fits"]
         expected = [stable_object_id_from_string(n) for n in filenames]
         pq.write_table(
@@ -104,7 +104,7 @@ class TestRebuildLinkId:
         )
         (lake / "catalogs" / "ZCOS" / "catalog_info.json").write_text(
             json.dumps({
-                "healpix_order": norder,
+                "healpix_order": healpix_order,
                 "ra_column": "ra",
                 "dec_column": "dec",
                 "link_id_mode": "column:id",
@@ -133,7 +133,7 @@ class TestRebuildLinkId:
 
     def test_rebuild_link_id_missing_column(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "Y", norder=5, npix=1, ids=[1])
+        _write_catalog_tile(lake, "Y", healpix_order=5, npix=1, ids=[1])
 
         res = repair_catalog_metadata(
             lake / "catalogs" / "Y",

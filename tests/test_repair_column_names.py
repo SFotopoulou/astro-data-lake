@@ -17,12 +17,12 @@ from data_lake.ingest.fits_to_parquet import (
 )
 
 
-def _write_padded_tile(catalog_root: Path, norder: int, npix: int) -> Path:
+def _write_padded_tile(catalog_root: Path, healpix_order: int, npix: int) -> Path:
     """Write one Npix=*.parquet tile with padded column names."""
-    tile_dir = catalog_root / healpix_dir(norder, npix)
+    tile_dir = catalog_root / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     tile_path = tile_dir / f"Npix={npix}.parquet"
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     table = pa.table({
         LAKE_JOIN_ID_COLUMN: pa.array([1, 2], type=pa.int64()),
         " ra": pa.array([120.0, 121.0], type=pa.float64()),
@@ -39,11 +39,11 @@ class TestReconcileCatalogColumnNames:
     def test_rewrites_padded_tiles(self, tmp_path: Path) -> None:
         from data_lake.ingest.fits_to_parquet import reconcile_catalog_column_names
 
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         catalog_root = tmp_path / "catalogs" / "ALLWISE"
-        tile_path = _write_padded_tile(catalog_root, norder, npix)
+        tile_path = _write_padded_tile(catalog_root, healpix_order, npix)
 
         assert pq.read_schema(str(tile_path)).names[1] == " ra"
 
@@ -58,11 +58,11 @@ class TestReconcileCatalogColumnNames:
     def test_check_only_does_not_rewrite(self, tmp_path: Path) -> None:
         from data_lake.ingest.fits_to_parquet import reconcile_catalog_column_names
 
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         catalog_root = tmp_path / "catalogs" / "ALLWISE"
-        tile_path = _write_padded_tile(catalog_root, norder, npix)
+        tile_path = _write_padded_tile(catalog_root, healpix_order, npix)
 
         n = reconcile_catalog_column_names(catalog_root, check_only=True)
         assert n == 1
@@ -72,11 +72,11 @@ class TestReconcileCatalogColumnNames:
     def test_no_op_on_clean_names(self, tmp_path: Path) -> None:
         from data_lake.ingest.fits_to_parquet import reconcile_catalog_column_names
 
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         catalog_root = tmp_path / "catalogs" / "DESI"
-        tile_dir = catalog_root / healpix_dir(norder, npix)
+        tile_dir = catalog_root / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.parquet"
         clean = pa.table({"_source_id": pa.array([1], type=pa.int64()),
@@ -89,11 +89,11 @@ class TestReconcileCatalogColumnNames:
     def test_has_padded_column_names(self, tmp_path: Path) -> None:
         from data_lake.ingest.fits_to_parquet import has_padded_column_names
 
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         catalog_root = tmp_path / "catalogs" / "ALLWISE"
-        _write_padded_tile(catalog_root, norder, npix)
+        _write_padded_tile(catalog_root, healpix_order, npix)
 
         padded = has_padded_column_names(catalog_root)
         assert " ra" in padded
@@ -104,13 +104,13 @@ class TestRepairCatalogMetadataNormalizeFlag:
     def test_normalize_column_names_flag(self, tmp_path: Path) -> None:
         from data_lake.ingest.repair_catalog_metadata import repair_catalog_metadata
 
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         catalog_root = tmp_path / "catalogs" / "ALLWISE"
-        _write_padded_tile(catalog_root, norder, npix)
+        _write_padded_tile(catalog_root, healpix_order, npix)
         catalog_root.joinpath("catalog_info.json").write_text(json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",
@@ -126,7 +126,7 @@ class TestRepairCatalogMetadataNormalizeFlag:
         assert result.ok
         assert result.tiles_column_renamed == 1
         names = pq.read_schema(str(
-            catalog_root / healpix_dir(norder, npix) / f"Npix={npix}.parquet"
+            catalog_root / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
         )).names
         assert "ra" in names
         assert " ra" not in names

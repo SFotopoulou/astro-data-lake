@@ -60,7 +60,7 @@ _KIND_DIR: dict[str, str] = {"spectrum": "spectra", "cutout": "cutouts"}
 _MODALITY_INFO: dict[str, str] = {"spectrum": "spectrum_info.json", "cutout": "cutout_info.json"}
 
 
-def _resolve_catalog_norder(
+def _resolve_catalog_healpix_order(
     catalog_root: Path,
     modality_root: Path | None = None,
     *,
@@ -92,11 +92,11 @@ def _resolve_catalog_norder(
 
 def _catalog_tile_for_npix(
     catalog_root: Path,
-    norder: int,
+    healpix_order: int,
     npix: int,
 ) -> Path | None:
     """Resolve catalog Parquet path for one HEALPix pixel (with rglob fallback)."""
-    primary = catalog_root / healpix_dir(norder, npix) / f"Npix={npix}.parquet"
+    primary = catalog_root / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
     if primary.is_file():
         return primary
     fallback = next(catalog_root.rglob(f"Npix={npix}.parquet"), None)
@@ -389,7 +389,7 @@ def update_index_column_from_zarr_tiles(
     lake_root: Path | str,
     survey_name: str,
     kind: IndexKind = "spectrum",
-    norder: int | None = None,
+    healpix_order: int | None = None,
     link_id_col: str | None = None,
     *,
     n_workers: int = 1,
@@ -425,12 +425,12 @@ def update_index_column_from_zarr_tiles(
     sid_col = resolve_link_id_column(
         catalog_root, schema_names=schema_names, override=link_id_col,
     )
-    resolved_cat_norder = _resolve_catalog_norder(
-        catalog_root, zarr_root, kind=kind, override=norder,
+    resolved_cat_healpix_order = _resolve_catalog_healpix_order(
+        catalog_root, zarr_root, kind=kind, override=healpix_order,
     )
     log.info(
         "Rebuilding %s/%s using catalog healpix_order=%d (id_col=%r)",
-        index_col, npix_col, resolved_cat_norder, sid_col,
+        index_col, npix_col, resolved_cat_healpix_order, sid_col,
     )
 
     index_map = build_index_map_from_zarr(
@@ -478,7 +478,7 @@ def update_index_column(
     survey_name: str,
     source_id_to_index: dict[int, tuple[int, int]] | dict[int, int],
     kind: IndexKind = "spectrum",
-    norder: int | None = None,
+    healpix_order: int | None = None,
     link_id_col: str | None = None,
 ) -> int:
     """
@@ -507,7 +507,7 @@ def update_index_column(
         ``{source_id: (zarr_npix, local_index)}`` mapping.
     kind:
         Which columns to update: ``"cutout"`` or ``"spectrum"``.
-    norder:
+    healpix_order:
         Kept for backward compatibility; ignored when map values are tuples.
     link_id_col:
         Force the catalog ID column.  When omitted, resolved from
@@ -737,7 +737,7 @@ try:
     def cli_rebuild(
         survey_name: str,
         kind: str,
-        norder: int | None,
+        healpix_order: int | None,
         link_id_col: str | None,
         n_workers: int,
         show_progress: bool,
@@ -786,7 +786,7 @@ try:
             lake_root=resolved_root,
             survey_name=survey_name,
             kind=kind,  # type: ignore[arg-type]
-            norder=norder,
+            healpix_order=healpix_order,
             link_id_col=link_id_col,
             n_workers=n_workers,
             show_progress=effective_progress,

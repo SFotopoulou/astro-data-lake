@@ -13,7 +13,7 @@ from data_lake.io.spectra import SpectrumAccessor
 
 # Re-use synthetic lake helpers from extract_subset tests
 from synthetic_lake_helpers import (
-    NORDER,
+    HEALPIX_ORDER,
     SOURCES,
     SURVEY,
     ingest_synthetic_spectrum_lake,
@@ -46,20 +46,20 @@ class TestBulkTileIndexFromCatalog:
             npix, lidx = lookup[sid]
             rows.append({
                 "_source_id": sid,
-                "_healpix_norder5": npix,
+                "_healpix_order5": npix,
                 "_spectrum_index": lidx,
                 "_spectrum_npix": npix,
             })
         table = pa.Table.from_pylist(rows)
-        npix = int(rows[0]["_healpix_norder5"])
-        out_dir = cat_root / healpix_dir(NORDER, npix)
+        npix = int(rows[0]["_healpix_order5"])
+        out_dir = cat_root / healpix_dir(HEALPIX_ORDER, npix)
         out_dir.mkdir(parents=True)
         pq.write_table(table, out_dir / f"Npix={npix}.parquet")
         (cat_root / "catalog_info.json").write_text(
             '{"healpix_order": 5, "link_id_column": "_source_id"}'
         )
 
-        cat = CatalogAccessor(synthetic_lake, SURVEY, norder=NORDER)
+        cat = CatalogAccessor(synthetic_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         result = bulk_tile_index_from_catalog(
             cat, [101, 201], "spectrum", show_progress=False,
         )
@@ -76,13 +76,13 @@ class TestBulkTileIndexFromCatalog:
         cat_root = synthetic_lake / "catalogs" / "empty_idx"
         cat_root.mkdir(parents=True)
         table = pa.table({"_source_id": pa.array([1], type=pa.int64())})
-        out_dir = cat_root / healpix_dir(NORDER, 1)
+        out_dir = cat_root / healpix_dir(HEALPIX_ORDER, 1)
         out_dir.mkdir(parents=True)
         pq.write_table(table, out_dir / "Npix=1.parquet")
         (cat_root / "catalog_info.json").write_text(
             '{"healpix_order": 5, "link_id_column": "_source_id"}'
         )
-        cat = CatalogAccessor(synthetic_lake, "empty_idx", norder=NORDER)
+        cat = CatalogAccessor(synthetic_lake, "empty_idx", healpix_order=HEALPIX_ORDER)
         assert bulk_tile_index_from_catalog(cat, [1], "spectrum") == {}
 
 
@@ -118,23 +118,23 @@ class TestSpectrumGetBatchBulkLookup:
             npix, lidx = base_lookup[sid]
             rows.append({
                 "_source_id": sid,
-                "_healpix_norder5": npix,
+                "_healpix_order5": npix,
                 "_spectrum_index": lidx,
                 "_spectrum_npix": npix,
             })
         table = pa.Table.from_pylist(rows)
-        for npix in sorted({r["_healpix_norder5"] for r in rows}):
+        for npix in sorted({r["_healpix_order5"] for r in rows}):
             sub = table.filter(
-                pa.compute.equal(table["_healpix_norder5"], npix)
+                pa.compute.equal(table["_healpix_order5"], npix)
             )
-            out_dir = cat_root / healpix_dir(NORDER, npix)
+            out_dir = cat_root / healpix_dir(HEALPIX_ORDER, npix)
             out_dir.mkdir(parents=True, exist_ok=True)
             pq.write_table(sub, out_dir / f"Npix={npix}.parquet")
         (cat_root / "catalog_info.json").write_text(
             '{"healpix_order": 5, "link_id_column": "_source_id"}'
         )
 
-        cat = CatalogAccessor(synthetic_lake, SURVEY, norder=NORDER)
+        cat = CatalogAccessor(synthetic_lake, SURVEY, healpix_order=HEALPIX_ORDER)
         acc_cat = SpectrumAccessor(synthetic_lake, SURVEY, catalog_accessor=cat)
 
         with patch.object(cat, "get_tile_index", wraps=cat.get_tile_index) as spy:

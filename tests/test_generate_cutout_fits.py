@@ -77,7 +77,7 @@ def test_generate_multiband_and_ingest(tmp_path: Path) -> None:
         ra_col="TARGET_RA",
         dec_col="TARGET_DEC",
         link_id_col="TARGETID",
-        norder=5,
+        healpix_order=5,
         band_names=["r", "i", "z"],
     )
     assert m[1001][1] == 0   # local_index

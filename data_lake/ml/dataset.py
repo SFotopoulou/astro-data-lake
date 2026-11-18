@@ -61,9 +61,9 @@ Transform = Callable[[np.ndarray], Any]
 # ---------------------------------------------------------------------------
 
 
-def _make_accessor(lake_root: Path, survey: str, norder: int) -> CutoutAccessor:
+def _make_accessor(lake_root: Path, survey: str, healpix_order: int) -> CutoutAccessor:
     """Create a CutoutAccessor; called once per DataLoader worker."""
-    return CutoutAccessor(lake_root, survey, norder=norder)
+    return CutoutAccessor(lake_root, survey, healpix_order=healpix_order)
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ class CutoutDataset(Dataset):
         Survey name.
     source_ids:
         Ordered collection of source IDs to include.
-    norder:
+    healpix_order:
         HEALPix partitioning order. Default: the lake's stored ``healpix_order``.
     transform:
         Optional callable applied to each image array (NumPy → any).
@@ -120,7 +120,7 @@ class CutoutDataset(Dataset):
         lake_root: Path | str,
         survey: str,
         source_ids: Sequence[int],
-        norder: int | None = None,
+        healpix_order: int | None = None,
         transform: Transform | None = None,
         target_transform: Callable | None = None,
         tile_sort: bool = True,
@@ -135,10 +135,10 @@ class CutoutDataset(Dataset):
         self.return_wcs = return_wcs
 
         with CutoutAccessor(
-            self.lake_root, survey, norder=norder, catalog_accessor=catalog_accessor,
+            self.lake_root, survey, healpix_order=healpix_order, catalog_accessor=catalog_accessor,
         ) as acc:
             self._npix, self._local = acc.locate(self.source_ids)
-            self.norder = acc.norder
+            self.healpix_order = acc.healpix_order
         n_missing = int((self._npix < 0).sum())
         if n_missing:
             log.warning(
@@ -178,7 +178,7 @@ class CutoutDataset(Dataset):
         worker_id = worker.id if worker is not None else -1
         if self._accessor is None or worker_id != self._worker_id:
             self._accessor = CutoutAccessor(
-                self.lake_root, self.survey, norder=self.norder,
+                self.lake_root, self.survey, healpix_order=self.healpix_order,
             )
             self._worker_id = worker_id
         return self._accessor
@@ -215,7 +215,7 @@ class CutoutDataset(Dataset):
     def __repr__(self) -> str:
         return (
             f"CutoutDataset(survey={self.survey!r}, n={len(self)}, "
-            f"norder={self.norder}, return_wcs={self.return_wcs})"
+            f"healpix_order={self.healpix_order}, return_wcs={self.return_wcs})"
         )
 
 
@@ -296,7 +296,7 @@ class TileCutoutDataset(IterableDataset):
 
     Parameters
     ----------
-    lake_root, survey, norder:
+    lake_root, survey, healpix_order:
         Standard data lake parameters.
     tile_pixels:
         Optional explicit list of HEALPix pixel indices to include.
@@ -311,7 +311,7 @@ class TileCutoutDataset(IterableDataset):
         self,
         lake_root: Path | str,
         survey: str,
-        norder: int | None = None,
+        healpix_order: int | None = None,
         tile_pixels: list[int] | None = None,
         transform: Transform | None = None,
         shuffle_tiles: bool = False,
@@ -322,8 +322,8 @@ class TileCutoutDataset(IterableDataset):
         self.shuffle_tiles = shuffle_tiles
 
         # Discover tiles at construction time (cheap directory scan)
-        acc = CutoutAccessor(lake_root, survey, norder=norder)
-        self.norder = acc.norder
+        acc = CutoutAccessor(lake_root, survey, healpix_order=healpix_order)
+        self.healpix_order = acc.healpix_order
         self._all_tiles: list[int] = tile_pixels if tile_pixels is not None else acc.available_tiles()
         del acc
 
@@ -338,7 +338,7 @@ class TileCutoutDataset(IterableDataset):
         if worker is not None:
             tiles = tiles[worker.id :: worker.num_workers]
 
-        acc = CutoutAccessor(self.lake_root, self.survey, norder=self.norder)
+        acc = CutoutAccessor(self.lake_root, self.survey, healpix_order=self.healpix_order)
 
         for npix in tiles:
             try:

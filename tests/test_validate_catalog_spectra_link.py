@@ -19,7 +19,7 @@ from data_lake.ingest.validate_catalog_spectra_link import (
 )
 
 
-NORDER = 5
+HEALPIX_ORDER = 5
 N_PIX = 8
 SURVEY = "LINK_TEST"
 
@@ -75,7 +75,7 @@ def _write_catalog_tile(
     pq.write_table(
         pa.table({
             LAKE_JOIN_ID_COLUMN: pa.array(source_ids, type=pa.int64()),
-            f"_healpix_norder{NORDER}": pa.array([npix] * len(source_ids), type=pa.int64()),
+            f"_healpix_order{HEALPIX_ORDER}": pa.array([npix] * len(source_ids), type=pa.int64()),
             "_spectrum_index": pa.array(spectrum_indices, type=pa.int64()),
         }),
         cat_path,
@@ -95,7 +95,7 @@ def _write_catalog_tile_with_npix(
     pq.write_table(
         pa.table({
             LAKE_JOIN_ID_COLUMN: pa.array(source_ids, type=pa.int64()),
-            f"_healpix_norder{NORDER}": pa.array([cat_npix] * len(source_ids), type=pa.int64()),
+            f"_healpix_order{HEALPIX_ORDER}": pa.array([cat_npix] * len(source_ids), type=pa.int64()),
             "_spectrum_index": pa.array(spectrum_indices, type=pa.int64()),
             "_spectrum_npix": pa.array(spec_npix_values, type=pa.int64()),
         }),
@@ -107,11 +107,11 @@ def _make_lake(tmp_path: Path, npix: int = 42) -> Path:
     lake = tmp_path / "lake"
     spec_root = lake / "spectra" / SURVEY
     _write_spectrum_info(spec_root)
-    zarr_path = spec_root / healpix_dir(NORDER, npix) / f"Npix={npix}.zarr"
+    zarr_path = spec_root / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.zarr"
     _write_min_zarr(zarr_path, source_ids=[101, 102])
 
     cat_root = lake / "catalogs" / SURVEY
-    cat_path = cat_root / healpix_dir(NORDER, npix) / f"Npix={npix}.parquet"
+    cat_path = cat_root / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.parquet"
     _write_catalog_tile(
         cat_path,
         source_ids=[101, 102],
@@ -137,7 +137,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         cat_path = (
-            lake / "catalogs" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.parquet"
+            lake / "catalogs" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.parquet"
         )
         _write_catalog_tile(
             cat_path,
@@ -153,7 +153,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         zarr_path = (
-            lake / "spectra" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.zarr"
+            lake / "spectra" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.zarr"
         )
         _write_min_zarr(zarr_path, source_ids=[101, 102, 777])
         rep = run_validation(lake, SURVEY)
@@ -164,7 +164,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         zarr_path = (
-            lake / "spectra" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.zarr"
+            lake / "spectra" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.zarr"
         )
         _write_min_zarr(zarr_path, source_ids=[101, 102, 777, 888])
         rep_verbose = run_validation(lake, SURVEY, quiet=False)
@@ -184,7 +184,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         zarr_path = (
-            lake / "spectra" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.zarr"
+            lake / "spectra" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.zarr"
         )
         _write_min_zarr(zarr_path, source_ids=[101, 102, 777])
 
@@ -201,7 +201,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         cat_path = (
-            lake / "catalogs" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.parquet"
+            lake / "catalogs" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.parquet"
         )
         _write_catalog_tile(
             cat_path,
@@ -225,7 +225,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         cat_path = (
-            lake / "catalogs" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.parquet"
+            lake / "catalogs" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.parquet"
         )
         _write_catalog_tile(
             cat_path,
@@ -243,7 +243,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         cat_path = (
-            lake / "catalogs" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.parquet"
+            lake / "catalogs" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.parquet"
         )
         _write_catalog_tile(
             cat_path,
@@ -290,7 +290,7 @@ class TestValidateCatalogSpectraLink:
         lake = _make_lake(tmp_path)
         npix = 42
         cat_path = (
-            lake / "catalogs" / SURVEY / healpix_dir(NORDER, npix) / f"Npix={npix}.parquet"
+            lake / "catalogs" / SURVEY / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.parquet"
         )
         _write_catalog_tile(
             cat_path,
@@ -309,11 +309,11 @@ class TestValidateCatalogSpectraLink:
         assert "OK (with" in result.output
 
     def test_mixed_order_with_spectrum_npix_col(self, tmp_path: Path) -> None:
-        """Catalog at norder=5, spectra at norder=1 — different Npix values.
+        """Catalog at healpix_order=5, spectra at healpix_order=1 — different Npix values.
 
         The catalog tile uses _spectrum_npix (the new format) to record which
         Zarr tile each row belongs to.  Validation must pass even though the
-        catalog _healpix_norder5 pixel differs from the Zarr tile Npix.
+        catalog _healpix_order5 pixel differs from the Zarr tile Npix.
         """
         import json
 
@@ -340,7 +340,7 @@ class TestValidateCatalogSpectraLink:
         pq.write_table(
             pa.table({
                 LAKE_JOIN_ID_COLUMN: pa.array([201, 202], type=pa.int64()),
-                f"_healpix_norder{cat_order}": pa.array([cat_npix, cat_npix], type=pa.int64()),
+                f"_healpix_order{cat_order}": pa.array([cat_npix, cat_npix], type=pa.int64()),
                 "_spectrum_index": pa.array([0, 1], type=pa.int64()),
                 "_spectrum_npix": pa.array([spec_npix, spec_npix], type=pa.int64()),
             }),
@@ -383,19 +383,19 @@ def _make_indexed_lake(tmp_path: Path) -> tuple[Path, int]:
     spec_root = lake / "spectra" / SURVEY
     spec_root.mkdir(parents=True, exist_ok=True)
     (spec_root / "spectrum_info.json").write_text(
-        json.dumps({"n_pix": N_PIX, "healpix_order": NORDER, "wavelength_mode": "shared", "wcs": {}})
+        json.dumps({"n_pix": N_PIX, "healpix_order": HEALPIX_ORDER, "wavelength_mode": "shared", "wcs": {}})
     )
 
     for spec_npix, ids in [(10, [1, 2, 3]), (20, [4, 5])]:
         _write_min_zarr(
-            spec_root / healpix_dir(NORDER, spec_npix) / f"Npix={spec_npix}.zarr",
+            spec_root / healpix_dir(HEALPIX_ORDER, spec_npix) / f"Npix={spec_npix}.zarr",
             source_ids=ids,
         )
 
     cat_root = lake / "catalogs" / SURVEY
     cat_root.mkdir(parents=True, exist_ok=True)
     (cat_root / "catalog_info.json").write_text(json.dumps({
-        "healpix_order": NORDER,
+        "healpix_order": HEALPIX_ORDER,
         "link_id_mode": "sequential",
         "link_id_column": "_source_id",
         "ra_column": "ra",
@@ -403,21 +403,21 @@ def _make_indexed_lake(tmp_path: Path) -> tuple[Path, int]:
     }))
 
     _write_catalog_tile_with_npix(
-        cat_root / healpix_dir(NORDER, 100) / "Npix=100.parquet",
+        cat_root / healpix_dir(HEALPIX_ORDER, 100) / "Npix=100.parquet",
         source_ids=[1, 4],
         spectrum_indices=[0, 0],
         cat_npix=100,
         spec_npix_values=[10, 20],
     )
     _write_catalog_tile_with_npix(
-        cat_root / healpix_dir(NORDER, 101) / "Npix=101.parquet",
+        cat_root / healpix_dir(HEALPIX_ORDER, 101) / "Npix=101.parquet",
         source_ids=[2, 3],
         spectrum_indices=[1, 2],
         cat_npix=101,
         spec_npix_values=[10, 10],
     )
     _write_catalog_tile_with_npix(
-        cat_root / healpix_dir(NORDER, 102) / "Npix=102.parquet",
+        cat_root / healpix_dir(HEALPIX_ORDER, 102) / "Npix=102.parquet",
         source_ids=[5],
         spectrum_indices=[1],
         cat_npix=102,
@@ -436,7 +436,7 @@ class TestIndexedPathRegression:
         all_parquet = sorted(cat_root.rglob("Npix=*.parquet"))
 
         idx: CatalogLinkIndex = build_catalog_link_index(
-            all_parquet, "_source_id", NORDER, has_npix_col=True
+            all_parquet, "_source_id", HEALPIX_ORDER, has_npix_col=True
         )
 
         # Three catalog tiles → five rows total, split across two spec_npix keys.
@@ -480,18 +480,18 @@ class TestIndexedPathRegression:
         spec_root = lake / "spectra" / SURVEY
         spec_root.mkdir(parents=True, exist_ok=True)
         (spec_root / "spectrum_info.json").write_text(
-            json.dumps({"n_pix": N_PIX, "healpix_order": NORDER, "wavelength_mode": "shared", "wcs": {}})
+            json.dumps({"n_pix": N_PIX, "healpix_order": HEALPIX_ORDER, "wavelength_mode": "shared", "wcs": {}})
         )
         total_spectra = n_cat_tiles * n_rows_each
         _write_min_zarr(
-            spec_root / healpix_dir(NORDER, spec_npix) / f"Npix={spec_npix}.zarr",
+            spec_root / healpix_dir(HEALPIX_ORDER, spec_npix) / f"Npix={spec_npix}.zarr",
             source_ids=list(range(total_spectra)),
         )
 
         cat_root = lake / "catalogs" / SURVEY
         cat_root.mkdir(parents=True, exist_ok=True)
         (cat_root / "catalog_info.json").write_text(json.dumps({
-            "healpix_order": NORDER,
+            "healpix_order": HEALPIX_ORDER,
             "link_id_mode": "sequential",
             "link_id_column": "_source_id",
             "ra_column": "ra",
@@ -503,7 +503,7 @@ class TestIndexedPathRegression:
             base = tile_i * n_rows_each
             cat_npix = 200 + tile_i
             _write_catalog_tile_with_npix(
-                cat_root / healpix_dir(NORDER, cat_npix) / f"Npix={cat_npix}.parquet",
+                cat_root / healpix_dir(HEALPIX_ORDER, cat_npix) / f"Npix={cat_npix}.parquet",
                 source_ids=list(range(base, base + n_rows_each)),
                 spectrum_indices=list(range(base, base + n_rows_each)),
                 cat_npix=cat_npix,
@@ -552,7 +552,7 @@ class TestIndexedPathRegression:
         # Corrupt one catalog tile: row 0 has id=1 but spectrum_index=2
         # (Zarr[2]=3, so 1 != 3 → wrong_id).
         cat_root = lake / "catalogs" / SURVEY
-        tile100 = cat_root / healpix_dir(NORDER, 100) / "Npix=100.parquet"
+        tile100 = cat_root / healpix_dir(HEALPIX_ORDER, 100) / "Npix=100.parquet"
         _write_catalog_tile_with_npix(
             tile100,
             source_ids=[1, 4],

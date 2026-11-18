@@ -26,10 +26,10 @@ from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, assign_healpix
 from data_lake.schema_registry import PRODUCT_SUBTYPE_HOMOGENIZED
 
 
-def _write_wise_tile(lake: Path, norder: int, npix: int, w1: float) -> None:
-    tile_dir = lake / "catalogs" / "ALLWISE" / healpix_dir(norder, npix)
+def _write_wise_tile(lake: Path, healpix_order: int, npix: int, w1: float) -> None:
+    tile_dir = lake / "catalogs" / "ALLWISE" / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp = f"_healpix_norder{norder}"
+    hp = f"_healpix_order{healpix_order}"
     pq.write_table(
         pa.table({
             LAKE_JOIN_ID_COLUMN: pa.array([1, 2], type=pa.int64()),
@@ -42,7 +42,7 @@ def _write_wise_tile(lake: Path, norder: int, npix: int, w1: float) -> None:
         tile_dir / f"Npix={npix}.parquet",
     )
     (lake / "catalogs" / "ALLWISE" / "catalog_info.json").write_text(json.dumps({
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -320,7 +320,7 @@ class TestHomogenizeSourceColumns:
             target_uncertainty_column="phot_ab_w1_err",
         )
         cols = _homogenize_source_columns(
-            norder=5,
+            healpix_order=5,
             ra_col="ra",
             dec_col="dec",
             rules=[rule],
@@ -330,7 +330,7 @@ class TestHomogenizeSourceColumns:
             LAKE_JOIN_ID_COLUMN,
             "ra",
             "dec",
-            "_healpix_norder5",
+            "_healpix_order5",
             "class",
             "w1mpro",
             "w1sigmpro",
@@ -340,10 +340,10 @@ class TestHomogenizeSourceColumns:
 class TestHomogenizeCatalog:
     def test_region_homogenize(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_wise_tile(lake, norder, npix, w1=10.0)
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_wise_tile(lake, healpix_order, npix, w1=10.0)
         ti.write_tile_index(lake, "ALLWISE", "catalog")
 
         region = Region.cone(ra, dec, 60.0)
@@ -360,19 +360,19 @@ class TestHomogenizeCatalog:
         assert info["provenance"]["transform_id"] == "phot_ab_v1"
 
         tile = pq.read_table(
-            lake / "products" / "ALLWISE_ab_test" / healpix_dir(norder, npix) / f"Npix={npix}.parquet"
+            lake / "products" / "ALLWISE_ab_test" / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
         )
         assert "phot_ab_w1" in tile.column_names
         assert tile.column("phot_ab_w1")[0].as_py() == pytest.approx(12.699)
 
     def test_check_only(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         npix = 0
-        _write_wise_tile(lake, norder, npix, w1=11.0)
+        _write_wise_tile(lake, healpix_order, npix, w1=11.0)
         ti.write_tile_index(lake, "ALLWISE", "catalog")
         sel = selection_from_region(
-            lake, "ALLWISE", Region.from_npix([npix], norder),
+            lake, "ALLWISE", Region.from_npix([npix], healpix_order),
         )
         result = homogenize_catalog(
             lake, "ALLWISE", "phot_ab_v1", sel,
@@ -409,10 +409,10 @@ class TestHomogenizeCli:
         from data_lake.homogenize.homogenize_cli import cli
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_wise_tile(lake, norder, npix, w1=10.0)
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_wise_tile(lake, healpix_order, npix, w1=10.0)
         ti.write_tile_index(lake, "ALLWISE", "catalog")
 
         area = make_area(
@@ -439,10 +439,10 @@ class TestHomogenizeCli:
         from data_lake.homogenize.homogenize_cli import cli
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-        _write_wise_tile(lake, norder, npix, w1=10.0)
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+        _write_wise_tile(lake, healpix_order, npix, w1=10.0)
         ti.write_tile_index(lake, "ALLWISE", "catalog")
 
         area = make_area(
@@ -461,10 +461,10 @@ class TestHomogenizeCli:
         assert (lake / "products" / "ALLWISE_from_area").is_dir()
 
 
-def _write_gather_like_product(lake: Path, norder: int, npix: int, w1: float) -> None:
-    tile_dir = lake / "catalogs" / "EUCLID_wise_native" / healpix_dir(norder, npix)
+def _write_gather_like_product(lake: Path, healpix_order: int, npix: int, w1: float) -> None:
+    tile_dir = lake / "catalogs" / "EUCLID_wise_native" / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp = f"_healpix_norder{norder}"
+    hp = f"_healpix_order{healpix_order}"
     pq.write_table(
         pa.table({
             LAKE_JOIN_ID_COLUMN: pa.array([1], type=pa.int64()),
@@ -478,7 +478,7 @@ def _write_gather_like_product(lake: Path, norder: int, npix: int, w1: float) ->
     )
     (lake / "catalogs" / "EUCLID_wise_native" / "catalog_info.json").write_text(
         json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -498,9 +498,9 @@ class TestHomogenizeProduct:
         from data_lake.homogenize.engine import homogenize_product
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         npix = 0
-        _write_gather_like_product(lake, norder, npix, w1=10.0)
+        _write_gather_like_product(lake, healpix_order, npix, w1=10.0)
         sel = selection_from_all_tiles(lake, "EUCLID_wise_native")
         result = homogenize_product(
             lake, "EUCLID_wise_native", "phot_ab_v1", sel,
@@ -523,13 +523,13 @@ class TestHomogenizeProduct:
         from data_lake.homogenize.engine import homogenize_product
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         product = "EUCLID_wise_native"
-        hp = f"_healpix_norder{norder}"
+        hp = f"_healpix_order{healpix_order}"
         root = lake / "catalogs" / product
 
         # Tile with partner photometry
-        rich_dir = root / healpix_dir(norder, 0)
+        rich_dir = root / healpix_dir(healpix_order, 0)
         rich_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
@@ -543,7 +543,7 @@ class TestHomogenizeProduct:
             rich_dir / "Npix=0.parquet",
         )
         # Tile without partner columns (sparse gather)
-        sparse_dir = root / healpix_dir(norder, 10_500)
+        sparse_dir = root / healpix_dir(healpix_order, 10_500)
         sparse_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
@@ -555,7 +555,7 @@ class TestHomogenizeProduct:
             sparse_dir / "Npix=10500.parquet",
         )
         (root / "catalog_info.json").write_text(json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -589,12 +589,12 @@ class TestHomogenizeProduct:
         from data_lake.homogenize.engine import homogenize_product
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         product = "EUCLID_wise_native"
-        hp = f"_healpix_norder{norder}"
+        hp = f"_healpix_order{healpix_order}"
         root = lake / "catalogs" / product
 
-        typed_dir = root / healpix_dir(norder, 0)
+        typed_dir = root / healpix_dir(healpix_order, 0)
         typed_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
@@ -607,7 +607,7 @@ class TestHomogenizeProduct:
             }),
             typed_dir / "Npix=0.parquet",
         )
-        null_dir = root / healpix_dir(norder, 10_500)
+        null_dir = root / healpix_dir(healpix_order, 10_500)
         null_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
@@ -621,7 +621,7 @@ class TestHomogenizeProduct:
             null_dir / "Npix=10500.parquet",
         )
         (root / "catalog_info.json").write_text(json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -652,13 +652,13 @@ class TestHomogenizeProduct:
         from data_lake.homogenize.engine import homogenize_product, union_product_tile_schema
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         product = "EUCLID_sdss_native"
-        hp = f"_healpix_norder{norder}"
+        hp = f"_healpix_order{healpix_order}"
         root = lake / "catalogs" / product
 
         def _write(npix: int, *, klass, w1: float | None) -> None:
-            tile_dir = root / healpix_dir(norder, npix)
+            tile_dir = root / healpix_dir(healpix_order, npix)
             tile_dir.mkdir(parents=True, exist_ok=True)
             if klass is None:
                 class_arr = pa.array([None], type=pa.null())
@@ -689,7 +689,7 @@ class TestHomogenizeProduct:
         _write(10_500, klass="STAR  ", w1=11.0)
 
         (root / "catalog_info.json").write_text(json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -726,12 +726,12 @@ class TestHomogenizeProduct:
         from data_lake.homogenize.engine import homogenize_product, union_product_tile_schema
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         product = "EUCLID_sdss_legacy"
-        hp = f"_healpix_norder{norder}"
+        hp = f"_healpix_order{healpix_order}"
         root = lake / "catalogs" / product
 
-        float_dir = root / healpix_dir(norder, 0)
+        float_dir = root / healpix_dir(healpix_order, 0)
         float_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
@@ -746,7 +746,7 @@ class TestHomogenizeProduct:
             }),
             float_dir / "Npix=0.parquet",
         )
-        str_dir = root / healpix_dir(norder, 10_500)
+        str_dir = root / healpix_dir(healpix_order, 10_500)
         str_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
@@ -761,7 +761,7 @@ class TestHomogenizeProduct:
             str_dir / "Npix=10500.parquet",
         )
         (root / "catalog_info.json").write_text(json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -830,7 +830,7 @@ class TestZarrHomogenize:
     def test_spectra_flux_scale(self, tmp_path: Path) -> None:
         from data_lake.discovery.selection import selection_from_all_tiles
         from data_lake.homogenize.zarr_engine import homogenize_zarr
-        from synthetic_lake_helpers import NORDER, SURVEY, ingest_synthetic_spectrum_lake
+        from synthetic_lake_helpers import HEALPIX_ORDER, SURVEY, ingest_synthetic_spectrum_lake
 
         lake = tmp_path / "lake"
         ingest_synthetic_spectrum_lake(lake)

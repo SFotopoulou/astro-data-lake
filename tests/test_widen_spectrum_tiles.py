@@ -13,7 +13,7 @@ from data_lake.ingest.fits_to_parquet import healpix_dir
 from data_lake.ingest.widen_spectrum_tiles import widen_survey_tiles
 
 
-NORDER = 5
+HEALPIX_ORDER = 5
 N_PIX_NARROW = 8
 N_PIX_SURVEY = 12
 SURVEY = "WIDEN_TEST"
@@ -36,7 +36,7 @@ def _write_survey_with_tile(
     (survey_root / "spectrum_info.json").write_text(
         json.dumps({
             "n_pix": survey_n_pix,
-            "healpix_order": NORDER,
+            "healpix_order": HEALPIX_ORDER,
             "wavelength_mode": "shared",
             "mask_dtype": "uint8",
             "wcs": {
@@ -51,7 +51,7 @@ def _write_survey_with_tile(
         })
     )
     npix = 34
-    zpath = survey_root / healpix_dir(NORDER, npix) / f"Npix={npix}.zarr"
+    zpath = survey_root / healpix_dir(HEALPIX_ORDER, npix) / f"Npix={npix}.zarr"
     zpath.parent.mkdir(parents=True)
     wcs_attrs = {
         "ctype": "WAVE",

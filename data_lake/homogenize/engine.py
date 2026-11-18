@@ -90,7 +90,7 @@ def _homogenize_target_fields(rules: Sequence[TransformRule]) -> list[pa.Field]:
 
 def build_homogenize_catalog_schema(
     *,
-    norder: int,
+    healpix_order: int,
     ra_col: str,
     dec_col: str,
     rules: Sequence[TransformRule],
@@ -101,7 +101,7 @@ def build_homogenize_catalog_schema(
         pa.field(LAKE_JOIN_ID_COLUMN, pa.int64()),
         pa.field(ra_col, pa.float64()),
         pa.field(dec_col, pa.float64()),
-        pa.field(f"_healpix_norder{norder}", pa.int64()),
+        pa.field(f"_healpix_order{healpix_order}", pa.int64()),
     ]
     seen = {f.name for f in fields}
     for col in passthrough:
@@ -231,7 +231,7 @@ def _read_source_info(lake_root: Path, survey: str) -> dict[str, Any]:
 
 def _homogenize_source_columns(
     *,
-    norder: int,
+    healpix_order: int,
     ra_col: str,
     dec_col: str,
     rules: Sequence[TransformRule],
@@ -242,7 +242,7 @@ def _homogenize_source_columns(
         LAKE_JOIN_ID_COLUMN,
         ra_col,
         dec_col,
-        f"_healpix_norder{norder}",
+        f"_healpix_order{healpix_order}",
     ]
     cols.extend(passthrough)
     for rule in rules:
@@ -263,7 +263,7 @@ def _homogenize_tile(
     *,
     lake_root: Path,
     source_catalog: str,
-    norder: int,
+    healpix_order: int,
     rules: Sequence[TransformRule],
     ra_col: str,
     dec_col: str,
@@ -274,7 +274,7 @@ def _homogenize_tile(
     import polars as pl
 
     tile_path = (
-        resolve_catalog_root(lake_root, source_catalog) / healpix_dir(norder, npix) / f"Npix={npix}.parquet"
+        resolve_catalog_root(lake_root, source_catalog) / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
     )
     if not tile_path.is_file():
         return 0, None, []
@@ -285,7 +285,7 @@ def _homogenize_tile(
     else:
         available = set(pq.read_schema(tile_path).names)
         want = _homogenize_source_columns(
-            norder=norder,
+            healpix_order=healpix_order,
             ra_col=ra_col,
             dec_col=dec_col,
             rules=rules,
@@ -301,7 +301,7 @@ def _homogenize_tile(
             return 0, None, []
 
     transformed, lineage = apply_rules_to_frame(df, rules)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     if keep_native:
         out = transformed
     else:
@@ -343,7 +343,7 @@ def _write_product_info(
     resolution: RuleResolution,
     lineage: list[dict[str, Any]],
     n_rows: int,
-    norder: int,
+    healpix_order: int,
 ) -> None:
     ra = source_info.get("ra_column") or "ra"
     dec = source_info.get("dec_column") or "dec"
@@ -352,7 +352,7 @@ def _write_product_info(
         "transform_version": transform_version,
         "selection": {
             "survey": selection.base_survey,
-            "norder": selection.norder,
+            "healpix_order": selection.healpix_order,
             "n_npix": len(selection.npix),
             "n_source_ids": (
                 None if selection.source_ids is None else len(selection.source_ids)
@@ -371,7 +371,7 @@ def _write_product_info(
         "kind": CATALOG_KIND_PRODUCT,
         "product_subtype": PRODUCT_SUBTYPE_HOMOGENIZED,
         "modality": MODALITY_CATALOG,
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "ra_column": ra,
         "dec_column": dec,
         "link_id_mode": source_info.get("link_id_mode", f"column:{LAKE_JOIN_ID_COLUMN}"),
@@ -427,7 +427,7 @@ def homogenize_catalog(
     ra_col = str(source_info.get("ra_column", "ra"))
     dec_col = str(source_info.get("dec_column", "dec"))
     from data_lake.schema_registry import catalog_write_root
-    norder = selection.norder
+    healpix_order = selection.healpix_order
     npix_list = sorted(selection.npix)
     selection_ids = set(selection.source_ids) if selection.source_ids is not None else None
 
@@ -453,7 +453,7 @@ def homogenize_catalog(
     passthrough_cols = list(passthrough or [])
     rules = resolution.applied
     out_schema = build_homogenize_catalog_schema(
-        norder=norder,
+        healpix_order=healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
         rules=rules,
@@ -471,7 +471,7 @@ def homogenize_catalog(
             npix,
             lake_root=lake_root,
             source_catalog=survey,
-            norder=norder,
+            healpix_order=healpix_order,
             rules=rules,
             ra_col=ra_col,
             dec_col=dec_col,
@@ -515,8 +515,8 @@ def homogenize_catalog(
         if table is None or n == 0:
             continue
         table = prepare_homogenize_tile(table, out_schema)
-        npix_val = int(table.column(f"_healpix_norder{norder}")[0].as_py())
-        tile_dir = out_root / healpix_dir(norder, npix_val)
+        npix_val = int(table.column(f"_healpix_order{healpix_order}")[0].as_py())
+        tile_dir = out_root / healpix_dir(healpix_order, npix_val)
         tile_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             table,
@@ -541,12 +541,12 @@ def homogenize_catalog(
         resolution=resolution,
         lineage=all_lineage,
         n_rows=n_rows,
-        norder=norder,
+        healpix_order=healpix_order,
     )
     finalize_catalog_survey(
         out_root,
         materialize_as,
-        norder,
+        healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
     )
@@ -609,7 +609,7 @@ def homogenize_product(
         )
 
     from data_lake.schema_registry import catalog_write_root as _cwr
-    norder = selection.norder
+    healpix_order = selection.healpix_order
     npix_list = sorted(selection.npix)
     selection_ids = set(selection.source_ids) if selection.source_ids is not None else None
     out_root = _cwr(lake_root, materialize_as)
@@ -644,7 +644,7 @@ def homogenize_product(
             npix,
             lake_root=lake_root,
             source_catalog=from_product,
-            norder=norder,
+            healpix_order=healpix_order,
             rules=rules,
             ra_col=ra_col,
             dec_col=dec_col,
@@ -688,8 +688,8 @@ def homogenize_product(
         if table is None or n == 0:
             continue
         table = prepare_homogenize_tile(table, out_schema)
-        npix_val = int(table.column(f"_healpix_norder{norder}")[0].as_py())
-        tile_dir = out_root / healpix_dir(norder, npix_val)
+        npix_val = int(table.column(f"_healpix_order{healpix_order}")[0].as_py())
+        tile_dir = out_root / healpix_dir(healpix_order, npix_val)
         tile_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             table,
@@ -714,12 +714,12 @@ def homogenize_product(
         resolution=resolution,
         lineage=all_lineage,
         n_rows=n_rows,
-        norder=norder,
+        healpix_order=healpix_order,
     )
     finalize_catalog_survey(
         out_root,
         materialize_as,
-        norder,
+        healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
     )

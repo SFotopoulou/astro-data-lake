@@ -54,7 +54,6 @@ coverage.xml
 *.swo
 *~
 .cursor/
-docs/talks/
 # --------------------------------------------------------------------
 # OS
 # --------------------------------------------------------------------
@@ -80,3 +79,5 @@ notebooks/_output/
 temp/
 # uv lockfile is fine to commit, but keep its cache out
 .uv-cache/
+# other
+.private/

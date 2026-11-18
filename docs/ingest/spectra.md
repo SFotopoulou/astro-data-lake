@@ -335,7 +335,7 @@ sbatch scripts/slurm_ingest_2df_spectra.sh
 The script runs `dl-ingest-spectra-from-list --fmt 2df` with a checkpoint and failures log,
 then runs `dl-finalize-catalog` and `dl-validate-spectra-ingest`. It decodes sequentially by
 default; export `N_WORKERS` (for example `export N_WORKERS=8`) for parallel decode. Optional
-variables `SURVEY`, `NORDER` and `WAVELENGTH_MODE` are documented at the top of the script.
+variables `SURVEY`, `HEALPIX_ORDER` and `WAVELENGTH_MODE` are documented at the top of the script.
 The checkpoint and failures log are written to `ingest_state/2df/` in the directory that
 contains `$DATA_LAKE_CONFIG`.
 

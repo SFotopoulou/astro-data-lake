@@ -93,7 +93,7 @@ class CatalogAccessor:
         Data lake root directory (contains ``catalogs/`` sub-tree).
     survey_name:
         Survey identifier (must match the directory under ``catalogs/``).
-    norder:
+    healpix_order:
         HEALPix order used for partitioning.  Read from ``catalog_info.json``
         if not supplied.
     metadata_cache:
@@ -106,7 +106,7 @@ class CatalogAccessor:
         self,
         lake_root: Path | str,
         survey_name: str,
-        norder: int | None = None,
+        healpix_order: int | None = None,
         *,
         metadata_cache: bool | None = None,
     ) -> None:
@@ -120,8 +120,8 @@ class CatalogAccessor:
             )
 
         self._info = self._load_info()
-        self.norder: int = (
-            norder if norder is not None
+        self.healpix_order: int = (
+            healpix_order if healpix_order is not None
             else require_healpix_order(self._info, str(self._catalog_root / "catalog_info.json"))
         )
         tile_schema = catalog_tile_schema_names(self._catalog_root)
@@ -137,7 +137,7 @@ class CatalogAccessor:
             metadata_cache = parquet_metadata_cache_default()
         self._con = connect_duckdb(":memory:", parquet_metadata_cache=metadata_cache)
         # Register the full Parquet glob as a view once so queries are cheap
-        self._glob = str(self._catalog_root / f"Norder={self.norder}" / "**" / "*.parquet")
+        self._glob = str(self._catalog_root / f"Norder={self.healpix_order}" / "**" / "*.parquet")
         self._con.execute(f"CREATE OR REPLACE VIEW catalog AS SELECT * FROM parquet_scan('{self._glob}')")
         log.debug("Registered view 'catalog' → %s", self._glob)
         self._id_column_cache: dict[int, str] = {}
@@ -332,7 +332,7 @@ class CatalogAccessor:
 
     def _tile_parquet_path(self, npix: int) -> Path | None:
         """Return the on-disk Parquet path for a HEALPix tile, or ``None`` if absent."""
-        path = self._catalog_root / healpix_dir(self.norder, int(npix)) / f"Npix={int(npix)}.parquet"
+        path = self._catalog_root / healpix_dir(self.healpix_order, int(npix)) / f"Npix={int(npix)}.parquet"
         return path if path.is_file() else None
 
     def resolve_id_column_for_tile(self, npix: int) -> str:
@@ -486,7 +486,7 @@ class CatalogAccessor:
 
         try:
             import healpy as hp
-            nside = hp.order2nside(self.norder)
+            nside = hp.order2nside(self.healpix_order)
             vec = hp.ang2vec(np.radians(90.0 - dec), np.radians(ra))
             radius_rad = np.radians(radius_deg)
             tiles = hp.query_disc(nside, vec, radius_rad, nest=True, inclusive=True).tolist()
@@ -494,7 +494,7 @@ class CatalogAccessor:
             tiles = None
 
         col_expr = ", ".join(_quote_sql_ident(c) for c in columns) if columns else "*"
-        hp_col = f"_healpix_norder{self.norder}"
+        hp_col = f"_healpix_order{self.healpix_order}"
 
         if tiles is not None:
             tile_list = ", ".join(str(t) for t in tiles)
@@ -668,7 +668,7 @@ class CatalogAccessor:
         When ``_spectrum_npix`` / ``_cutout_npix`` is present (new-format
         catalog), the modality-specific pixel is returned so the caller can
         open the correct Zarr tile regardless of HEALPix order differences.
-        In the legacy path (column absent), ``_healpix_norder{N}`` is used.
+        In the legacy path (column absent), ``_healpix_order{N}`` is used.
 
         Parameters
         ----------
@@ -683,7 +683,7 @@ class CatalogAccessor:
             raise ValueError(f"kind must be 'cutout' or 'spectrum', got {kind!r}")
         index_col = f"_{kind}_index"
         npix_col = f"_{kind}_npix"
-        hp_col = f"_healpix_norder{self.norder}"
+        hp_col = f"_healpix_order{self.healpix_order}"
         sid_col = self._link_id_column
 
         cols_available = self.columns
@@ -748,7 +748,7 @@ class CatalogAccessor:
     def __repr__(self) -> str:
         return (
             f"CatalogAccessor(survey={self.survey_name!r}, "
-            f"norder={self.norder}, root={self.lake_root})"
+            f"healpix_order={self.healpix_order}, root={self.lake_root})"
         )
 
 
@@ -778,7 +778,7 @@ class MultiCatalogAccessor:
         )
         for name in surveys:
             acc = CatalogAccessor(lake_root, name)
-            glob = str(acc._catalog_root / f"Norder={acc.norder}" / "**" / "*.parquet")
+            glob = str(acc._catalog_root / f"Norder={acc.healpix_order}" / "**" / "*.parquet")
             self._con.execute(
                 f"CREATE OR REPLACE VIEW {name} AS SELECT * FROM parquet_scan('{glob}')"
             )

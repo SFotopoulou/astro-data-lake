@@ -19,16 +19,16 @@ from data_lake.ingest.fits_to_parquet import assign_healpix, healpix_dir
 @pytest.fixture
 def lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
-    ra, dec, norder = 120.0, 45.0, 5
-    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-    tile_dir = lake / "catalogs" / "ALLWISE" / healpix_dir(norder, npix)
+    ra, dec, healpix_order = 120.0, 45.0, 5
+    npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+    tile_dir = lake / "catalogs" / "ALLWISE" / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(
         pa.table({"x": pa.array(list(range(100)), type=pa.int64())}),
         tile_dir / f"Npix={npix}.parquet",
     )
     (lake / "catalogs" / "ALLWISE" / "catalog_info.json").write_text(
-        json.dumps({"healpix_order": norder, "total_rows": 100})
+        json.dumps({"healpix_order": healpix_order, "total_rows": 100})
     )
     ti.write_tile_index(lake, "ALLWISE", "catalog")
     return lake
@@ -72,7 +72,7 @@ class TestRegionCli:
         assert result.exit_code != 0
         assert "exactly one region selector" in result.output
 
-    def test_npix_requires_norder(self, lake: Path) -> None:
+    def test_npix_requires_healpix_order(self, lake: Path) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, [str(lake), "--npix", "1,2,3"])
         assert result.exit_code != 0
@@ -80,17 +80,17 @@ class TestRegionCli:
 
     def test_from_area_crossmatch_modality(self, lake: Path) -> None:
         """CLI smoke: --from-area + --modalities crossmatch discovers XM trees."""
-        ra, dec, norder = 120.0, 45.0, 5
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        ra, dec, healpix_order = 120.0, 45.0, 5
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         tree = "A_x_B__r1.0"
-        xm_dir = lake / "crossmatch" / tree / healpix_dir(norder, npix)
+        xm_dir = lake / "crossmatch" / tree / healpix_dir(healpix_order, npix)
         xm_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({"x": pa.array([1, 2, 3], type=pa.int64())}),
             xm_dir / f"Npix={npix}.parquet",
         )
         (lake / "crossmatch" / tree / "crossmatch_info.json").write_text(
-            json.dumps({"healpix_order": norder, "total_rows": 3})
+            json.dumps({"healpix_order": healpix_order, "total_rows": 3})
         )
         ti.write_tile_index(lake, tree, "crossmatch")
 

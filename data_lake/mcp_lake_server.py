@@ -45,7 +45,7 @@ def _region_from_params(
     *,
     from_area: str | None = None,
     npix: str | None = None,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     cone_ra: float | None = None,
     cone_dec: float | None = None,
     radius_arcsec: float | None = None,
@@ -55,9 +55,9 @@ def _region_from_params(
     if from_area is not None:
         return load_area(lake_root, from_area).region
     if npix is not None:
-        if norder is None:
-            raise ValueError("npix requires norder (source HEALPix order)")
-        return Region.from_npix(parse_npix_arg(npix), norder)
+        if healpix_order is None:
+            raise ValueError("npix requires healpix_order (source HEALPix order)")
+        return Region.from_npix(parse_npix_arg(npix), healpix_order)
     if cone_ra is not None and cone_dec is not None:
         if radius_arcsec is None:
             raise ValueError("cone requires radius_arcsec")
@@ -67,7 +67,7 @@ def _region_from_params(
     if moc is not None:
         return Region.from_moc(path=moc)
     raise ValueError(
-        "Provide exactly one region selector: from_area, npix+norder, "
+        "Provide exactly one region selector: from_area, npix+healpix_order, "
         "cone_ra/cone_dec+radius_arcsec, bbox, or moc"
     )
 
@@ -96,7 +96,7 @@ def tool_discover_region(
     *,
     from_area: str | None = None,
     npix: str | None = None,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     cone_ra: float | None = None,
     cone_dec: float | None = None,
     radius_arcsec: float | None = None,
@@ -117,7 +117,7 @@ def tool_discover_region(
         root,
         from_area=from_area,
         npix=npix,
-        norder=norder,
+        healpix_order=healpix_order,
         cone_ra=cone_ra,
         cone_dec=cone_dec,
         radius_arcsec=radius_arcsec,
@@ -425,29 +425,29 @@ def tool_lake_health(lake_root: str | None = None) -> dict[str, Any]:
     }
 
 
-def tool_recommend_norder(
+def tool_recommend_healpix_order(
     paths: list[str] | None = None,
     *,
     file_list: str | None = None,
     ra_col: str = "ra",
     dec_col: str = "dec",
 ) -> dict[str, Any]:
-    from data_lake.ingest.recommend_norder import (
+    from data_lake.ingest.recommend_healpix_order import (
         format_recommendation_report,
-        recommend_catalog_norder,
+        recommend_catalog_healpix_order,
     )
 
     path_objs = [Path(p) for p in (paths or [])]
     if not path_objs and not file_list:
         raise ValueError("Provide paths (sample files) or file_list")
-    rec = recommend_catalog_norder(
+    rec = recommend_catalog_healpix_order(
         path_objs,
         file_list=Path(file_list) if file_list else None,
         ra_col=ra_col,
         dec_col=dec_col,
     )
     return {
-        "recommended_norder": rec.recommended,
+        "recommended_healpix_order": rec.recommended,
         "report": format_recommendation_report(rec),
         "details": asdict(rec),
     }
@@ -517,7 +517,7 @@ def tool_estimate_operation_cost(
     *,
     from_area: str | None = None,
     npix: str | None = None,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     cone_ra: float | None = None,
     cone_dec: float | None = None,
     radius_arcsec: float | None = None,
@@ -538,7 +538,7 @@ def tool_estimate_operation_cost(
         root,
         from_area=from_area,
         npix=npix,
-        norder=norder,
+        healpix_order=healpix_order,
         cone_ra=cone_ra,
         cone_dec=cone_dec,
         radius_arcsec=radius_arcsec,
@@ -579,7 +579,7 @@ def tool_recommend_ingest(
     streaming: bool = False,
     layout: str | None = None,
     file_area_deg2: float | None = None,
-    norder: int | None = None,
+    healpix_order: int | None = None,
 ) -> dict[str, Any]:
     rec = recommend_ingest(
         modality,  # type: ignore[arg-type]
@@ -593,7 +593,7 @@ def tool_recommend_ingest(
         streaming=streaming,
         layout=layout,  # type: ignore[arg-type]
         file_area_deg2=file_area_deg2,
-        norder=norder,
+        healpix_order=healpix_order,
     )
     return rec.to_dict()
 
@@ -609,7 +609,7 @@ def create_lake_mcp_app() -> Any:
         lake_root: str | None = None,
         from_area: str | None = None,
         npix: str | None = None,
-        norder: int | None = None,
+        healpix_order: int | None = None,
         cone_ra: float | None = None,
         cone_dec: float | None = None,
         radius_arcsec: float | None = None,
@@ -627,7 +627,7 @@ def create_lake_mcp_app() -> Any:
             lake_root,
             from_area=from_area,
             npix=npix,
-            norder=norder,
+            healpix_order=healpix_order,
             cone_ra=cone_ra,
             cone_dec=cone_dec,
             radius_arcsec=radius_arcsec,
@@ -720,14 +720,14 @@ def create_lake_mcp_app() -> Any:
         return json_dumps(tool_lake_health(lake_root))
 
     @mcp.tool()
-    def recommend_norder(
+    def recommend_healpix_order(
         paths: list[str] | None = None,
         file_list: str | None = None,
         ra_col: str = "ra",
         dec_col: str = "dec",
     ) -> str:
-        """Recommend HEALPix norder for catalog ingest from sample files."""
-        return json_dumps(tool_recommend_norder(
+        """Recommend HEALPix healpix_order for catalog ingest from sample files."""
+        return json_dumps(tool_recommend_healpix_order(
             paths, file_list=file_list, ra_col=ra_col, dec_col=dec_col,
         ))
 
@@ -737,7 +737,7 @@ def create_lake_mcp_app() -> Any:
         operation: str = "crossmatch",
         from_area: str | None = None,
         npix: str | None = None,
-        norder: int | None = None,
+        healpix_order: int | None = None,
         cone_ra: float | None = None,
         cone_dec: float | None = None,
         radius_arcsec: float | None = None,
@@ -753,7 +753,7 @@ def create_lake_mcp_app() -> Any:
             operation,
             from_area=from_area,
             npix=npix,
-            norder=norder,
+            healpix_order=healpix_order,
             cone_ra=cone_ra,
             cone_dec=cone_dec,
             radius_arcsec=radius_arcsec,
@@ -777,14 +777,14 @@ def create_lake_mcp_app() -> Any:
         streaming: bool = False,
         layout: str | None = None,
         file_area_deg2: float | None = None,
-        norder: int | None = None,
+        healpix_order: int | None = None,
     ) -> str:
         """Recommend dl-* ingest command and Slurm script for a survey.
 
         Catalog file lists: pass layout ('spatial' for bricks / RA-Dec patches,
         'unsorted' for files not grouped on the sky, 'partitioned' for files
         already aligned with lake tiles) or file_area_deg2 (sky area per file,
-        with norder) to choose between batch append and dl-ingest-from-shard.
+        with healpix_order) to choose between batch append and dl-ingest-from-shard.
         Shard recommendations return the reduce job in extra_slurm_scripts.
         """
         return json_dumps(tool_recommend_ingest(
@@ -799,7 +799,7 @@ def create_lake_mcp_app() -> Any:
             streaming=streaming,
             layout=layout,
             file_area_deg2=file_area_deg2,
-            norder=norder,
+            healpix_order=healpix_order,
         ))
 
     # --- Inventory tools (mirrored from dl-mcp-docs so the explorer alone suffices) ---

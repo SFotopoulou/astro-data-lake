@@ -176,7 +176,7 @@ class SpectrumDataset(Dataset):
         Survey identifier.
     source_ids:
         Ordered list of source IDs to include.
-    norder:
+    healpix_order:
         HEALPix partitioning order.
     transform:
         Optional callable ``(Spectrum) -> any``.  Applied after loading.
@@ -200,7 +200,7 @@ class SpectrumDataset(Dataset):
         lake_root: Path | str,
         survey: str,
         source_ids: Sequence[int],
-        norder: int | None = None,
+        healpix_order: int | None = None,
         transform: Transform | None = None,
         return_full: bool = False,
         catalog_accessor=None,
@@ -211,10 +211,10 @@ class SpectrumDataset(Dataset):
         self.transform = transform
         self.return_full = return_full
         with SpectrumAccessor(
-            self.lake_root, survey, norder=norder, catalog_accessor=catalog_accessor,
+            self.lake_root, survey, healpix_order=healpix_order, catalog_accessor=catalog_accessor,
         ) as acc:
             self._npix, self._local = acc.locate(self.source_ids)
-            self.norder = acc.norder
+            self.healpix_order = acc.healpix_order
         n_missing = int((self._npix < 0).sum())
         if n_missing:
             log.warning(
@@ -235,7 +235,7 @@ class SpectrumDataset(Dataset):
         if self._accessor is None or worker_id != self._worker_id:
             self._accessor = SpectrumAccessor(
                 self.lake_root, self.survey,
-                norder=self.norder,
+                healpix_order=self.healpix_order,
             )
             self._worker_id = worker_id
         return self._accessor
@@ -264,7 +264,7 @@ class SpectrumDataset(Dataset):
     def __repr__(self) -> str:
         return (
             f"SpectrumDataset(survey={self.survey!r}, n={len(self)}, "
-            f"norder={self.norder})"
+            f"healpix_order={self.healpix_order})"
         )
 
 
@@ -283,7 +283,7 @@ class TileSpectrumDataset(IterableDataset):
 
     Parameters
     ----------
-    lake_root, survey, norder:
+    lake_root, survey, healpix_order:
         Standard data lake parameters.
     tile_pixels:
         Optional explicit list of HEALPix pixel indices to include.
@@ -298,7 +298,7 @@ class TileSpectrumDataset(IterableDataset):
         self,
         lake_root: Path | str,
         survey: str,
-        norder: int | None = None,
+        healpix_order: int | None = None,
         tile_pixels: list[int] | None = None,
         transform: Transform | None = None,
         shuffle_tiles: bool = False,
@@ -308,8 +308,8 @@ class TileSpectrumDataset(IterableDataset):
         self.transform = transform
         self.shuffle_tiles = shuffle_tiles
 
-        acc = SpectrumAccessor(lake_root, survey, norder=norder)
-        self.norder = acc.norder
+        acc = SpectrumAccessor(lake_root, survey, healpix_order=healpix_order)
+        self.healpix_order = acc.healpix_order
         self._all_tiles: list[int] = (
             tile_pixels if tile_pixels is not None else acc.available_tiles()
         )
@@ -324,7 +324,7 @@ class TileSpectrumDataset(IterableDataset):
         if worker is not None:
             tiles = tiles[worker.id :: worker.num_workers]
 
-        acc = SpectrumAccessor(self.lake_root, self.survey, norder=self.norder)
+        acc = SpectrumAccessor(self.lake_root, self.survey, healpix_order=self.healpix_order)
 
         for npix in tiles:
             try:

@@ -26,7 +26,7 @@ from data_lake.ingest.fits_to_parquet import (
     catalog_source_row_count,
     ingest_catalog,
 )
-from data_lake.ingest.recommend_norder import recommend_catalog_norder
+from data_lake.ingest.recommend_healpix_order import recommend_catalog_healpix_order
 from data_lake.io.fits_read import (
     FitsReadPolicy,
     default_fits_read_policy,
@@ -87,7 +87,7 @@ def _catalog_info(lake: Path, survey: str = SURVEY) -> dict:
 
 def _ingest(src: Path, lake: Path, **kw) -> None:
     ingest_catalog(
-        src, lake, SURVEY, ra_col="RA", dec_col="DEC", norder=3, link_id_col="OBJID", **kw,
+        src, lake, SURVEY, ra_col="RA", dec_col="DEC", healpix_order=3, link_id_col="OBJID", **kw,
     )
 
 
@@ -199,7 +199,7 @@ class TestParallelAndShard:
         lake = tmp_path / "lake"
         result = ingest_catalogs_parallel(
             files, output_root=lake, survey_name=SURVEY, n_workers=2,
-            ra_col="RA", dec_col="DEC", norder=3, link_id_col="OBJID",
+            ra_col="RA", dec_col="DEC", healpix_order=3, link_id_col="OBJID",
             executor_factory=lambda n: ThreadPoolExecutor(max_workers=n),
             show_progress=False, fits_hdu="all",
         )
@@ -246,8 +246,8 @@ class TestPreflightTools:
         bad = CliRunner().invoke(check_cli, [str(mef), "--hdu", "-3"])
         assert bad.exit_code == 2 and "--hdu" in bad.output
 
-    def test_recommend_norder(self, mef: Path) -> None:
-        rec = recommend_catalog_norder([mef], ra_col="RA", dec_col="DEC", fits_hdu="all")
+    def test_recommend_healpix_order(self, mef: Path) -> None:
+        rec = recommend_catalog_healpix_order([mef], ra_col="RA", dec_col="DEC", fits_hdu="all")
         assert rec.total_rows == 20
 
 

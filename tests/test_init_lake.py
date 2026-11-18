@@ -45,7 +45,7 @@ def test_init_lake_writes_valid_loadable_config(tmp_path: Path) -> None:
         name="lake_alpha",
         parent=tmp_path,
         description="hello",
-        norder=7,
+        healpix_order=7,
         with_resolution=True,
         ingest_token=_TEST_TOKEN,
     )
@@ -106,7 +106,7 @@ def test_cli_creates_deployment(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         dl_init,
-        ["my_lake", str(tmp_path), "--description", "from CLI", "--norder", "6",
+        ["my_lake", str(tmp_path), "--description", "from CLI", "--healpix-order", "6",
          "--ingest-token", _TEST_TOKEN],
     )
     assert result.exit_code == 0, result.output

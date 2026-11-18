@@ -20,10 +20,10 @@ from data_lake.io.crossmatch import build_crossmatch
 from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, assign_healpix, healpix_dir
 
 
-def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extra=None):
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+def _write_catalog_tile(lake, survey, *, healpix_order, npix, source_ids, ra, dec, extra=None):
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     cols = {
         LAKE_JOIN_ID_COLUMN: pa.array(source_ids, type=pa.int64()),
         "ra": pa.array(ra, type=pa.float64()),
@@ -36,7 +36,7 @@ def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extr
     pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",
@@ -49,12 +49,12 @@ def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extr
 @pytest.fixture
 def joined_lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
-    norder = 5
+    healpix_order = 5
     ra, dec = 120.0, 45.0
-    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-    _write_catalog_tile(lake, "EUCLID", norder=norder, npix=npix,
+    npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+    _write_catalog_tile(lake, "EUCLID", healpix_order=healpix_order, npix=npix,
                         source_ids=[1, 2], ra=[ra, ra + 0.0005], dec=[dec, dec + 0.0005])
-    _write_catalog_tile(lake, "DESI_DR1", norder=norder, npix=npix,
+    _write_catalog_tile(lake, "DESI_DR1", healpix_order=healpix_order, npix=npix,
                         source_ids=[101, 102], ra=[ra + 0.00001, ra + 0.00051],
                         dec=[dec + 0.00001, dec + 0.00051],
                         extra={"z": [0.5, 1.2]})
@@ -136,17 +136,17 @@ class TestGatherProduct:
     def test_tile_bounded_partner_lookup(self, tmp_path: Path) -> None:
         """Partner fetch reads only the requested HEALPix tiles."""
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix_a = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         npix_b = npix_a + 1 if npix_a < 100 else npix_a - 1
 
         _write_catalog_tile(
-            lake, "DESI_DR1", norder=norder, npix=npix_a,
+            lake, "DESI_DR1", healpix_order=healpix_order, npix=npix_a,
             source_ids=[101], ra=[ra], dec=[dec], extra={"z": [0.42]},
         )
         _write_catalog_tile(
-            lake, "DESI_DR1", norder=norder, npix=npix_b,
+            lake, "DESI_DR1", healpix_order=healpix_order, npix=npix_b,
             source_ids=[999], ra=[ra + 1.0], dec=[dec + 1.0], extra={"z": [9.99]},
         )
 
@@ -166,11 +166,11 @@ class TestGatherProduct:
         partner_npix = int(assign_healpix(np.array([ra]), np.array([dec]), partner_order)[0])
 
         _write_catalog_tile(
-            lake, "EUCLID", norder=base_order, npix=base_npix,
+            lake, "EUCLID", healpix_order=base_order, npix=base_npix,
             source_ids=[1], ra=[ra], dec=[dec],
         )
         _write_catalog_tile(
-            lake, "DESI_DR1", norder=partner_order, npix=partner_npix,
+            lake, "DESI_DR1", healpix_order=partner_order, npix=partner_npix,
             source_ids=[101], ra=[ra + 0.00001], dec=[dec + 0.00001],
             extra={"z": [1.7]},
         )
@@ -191,15 +191,15 @@ class TestGatherProduct:
 
     def test_matches_only_drops_unmatched_base_rows(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile(
-            lake, "EUCLID", norder=norder, npix=npix,
+            lake, "EUCLID", healpix_order=healpix_order, npix=npix,
             source_ids=[1, 2], ra=[ra, ra + 0.5], dec=[dec, dec + 0.5],
         )
         _write_catalog_tile(
-            lake, "DESI_DR1", norder=norder, npix=npix,
+            lake, "DESI_DR1", healpix_order=healpix_order, npix=npix,
             source_ids=[101], ra=[ra + 0.00001], dec=[dec + 0.00001],
             extra={"z": [0.5]},
         )
@@ -226,28 +226,28 @@ class TestGatherProduct:
         from data_lake.discovery import tile_index as ti
 
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         ra, dec = 120.0, 45.0
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         _write_catalog_tile(
-            lake, "EUCLID", norder=norder, npix=npix,
+            lake, "EUCLID", healpix_order=healpix_order, npix=npix,
             source_ids=[1], ra=[ra], dec=[dec],
         )
-        partner_dir = lake / "catalogs" / "SDSS_DR17" / healpix_dir(norder, npix)
+        partner_dir = lake / "catalogs" / "SDSS_DR17" / healpix_dir(healpix_order, npix)
         partner_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
                 LAKE_JOIN_ID_COLUMN: pa.array([501], type=pa.int64()),
                 "ra": pa.array([ra + 0.00001], type=pa.float64()),
                 "dec": pa.array([dec + 0.00001], type=pa.float64()),
-                f"_healpix_norder{norder}": pa.array([npix], type=pa.int64()),
+                f"_healpix_order{healpix_order}": pa.array([npix], type=pa.int64()),
                 "CLASS": pa.array(["STAR  "], type=pa.large_string()),
             }),
             partner_dir / f"Npix={npix}.parquet",
         )
         (lake / "catalogs" / "SDSS_DR17" / "catalog_info.json").write_text(
             json.dumps({
-                "healpix_order": norder,
+                "healpix_order": healpix_order,
                 "ra_column": "ra",
                 "dec_column": "dec",
                 "link_id_mode": "sequential",
@@ -318,14 +318,14 @@ class TestGatherProduct:
         _ingest_synthetic_lake(lake)
 
         # Hand-build a product catalog whose _source_id references SURVEY sources.
-        norder = 5
+        healpix_order = 5
         ids = [s[0] for s in SOURCES[:2]]
         ras = [s[1] for s in SOURCES[:2]]
         decs = [s[2] for s in SOURCES[:2]]
-        npix = int(assign_healpix(np.array([ras[0]]), np.array([decs[0]]), norder)[0])
-        tile_dir = lake / "catalogs" / "PROD" / healpix_dir(norder, npix)
+        npix = int(assign_healpix(np.array([ras[0]]), np.array([decs[0]]), healpix_order)[0])
+        tile_dir = lake / "catalogs" / "PROD" / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
-        hp_col = f"_healpix_norder{norder}"
+        hp_col = f"_healpix_order{healpix_order}"
         pq.write_table(
             pa.table({
                 LAKE_JOIN_ID_COLUMN: pa.array(ids, type=pa.int64()),
@@ -335,7 +335,7 @@ class TestGatherProduct:
         )
         (lake / "catalogs" / "PROD" / "catalog_info.json").write_text(
             json.dumps({
-                "healpix_order": norder,
+                "healpix_order": healpix_order,
                 "kind": "product",
                 "link_id_mode": "column:" + LAKE_JOIN_ID_COLUMN,
                 "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -357,7 +357,7 @@ class TestGatherProduct:
         pq.write_table(
             pa.table({
                 LAKE_JOIN_ID_COLUMN: pa.array([1], type=pa.int64()),
-                "_healpix_norder5": pa.array([1], type=pa.int64()),
+                "_healpix_order5": pa.array([1], type=pa.int64()),
             }),
             tile_dir / "Npix=1.parquet",
         )

@@ -3,7 +3,7 @@ pack_tile – bundle a HEALPix tile's Parquet + Zarr into a shareable .tar archi
 
 Each archive contains
 ---------------------
-  tile_<norder>_<npix>/
+  tile_<healpix_order>_<npix>/
     catalog/<survey>/Norder=N/Dir=D/Npix=P.parquet  (one or more surveys)
     cutouts/<survey>/Norder=N/Npix=P.zarr/           (optional)
     spectra/<survey>/Norder=N/Npix=P.zarr/           (optional)
@@ -24,7 +24,7 @@ Usage
 
     pack_tile(
         lake_root="/data/lake",
-        norder=5,
+        healpix_order=5,
         npix=1234,
         surveys=["des_dr2", "kids_dr4"],
         output_dir="/data/share",
@@ -55,7 +55,7 @@ log = logging.getLogger(__name__)
 
 def pack_tile(
     lake_root: Path | str,
-    norder: int,
+    healpix_order: int,
     npix: int,
     surveys: Sequence[str],
     output_dir: Path | str,
@@ -73,7 +73,7 @@ def pack_tile(
     ----------
     lake_root:
         Data lake root.
-    norder:
+    healpix_order:
         HEALPix order.
     npix:
         HEALPix pixel index.
@@ -96,18 +96,18 @@ def pack_tile(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    archive_name = f"tile_{norder}_{npix}.tar"
+    archive_name = f"tile_{healpix_order}_{npix}.tar"
     archive_path = output_dir / archive_name
 
     if archive_path.exists() and not overwrite:
         log.info("Archive already exists: %s (skip)", archive_path.name)
         return archive_path
 
-    tile_dir_fragment = healpix_dir(norder, npix)
+    tile_dir_fragment = healpix_dir(healpix_order, npix)
 
     with tarfile.open(archive_path, "w") as tar:
         for survey in surveys:
-            prefix = f"tile_{norder}_{npix}"
+            prefix = f"tile_{healpix_order}_{npix}"
 
             # ---- Catalog Parquet file ----
             from data_lake.schema_registry import resolve_catalog_root
@@ -172,7 +172,7 @@ def _add_directory_to_tar(tar: tarfile.TarFile, src: Path, arcname_prefix: str) 
 
 def pack_tiles_batch(
     lake_root: Path | str,
-    norder: int,
+    healpix_order: int,
     surveys: Sequence[str],
     output_dir: Path | str,
     npix_list: Sequence[int] | None = None,
@@ -188,17 +188,17 @@ def pack_tiles_batch(
     lake_root = Path(lake_root)
     if npix_list is None:
         survey = surveys[0]
-        catalog_norder_dir = resolve_catalog_root(lake_root, survey) / f"Norder={norder}"
+        catalog_healpix_order_dir = resolve_catalog_root(lake_root, survey) / f"Norder={healpix_order}"
         npix_list = [
             int(p.stem.split("=")[-1])
-            for p in catalog_norder_dir.rglob("Npix=*.parquet")
+            for p in catalog_healpix_order_dir.rglob("Npix=*.parquet")
         ]
 
     archives = []
     for npix in npix_list:
         path = pack_tile(
             lake_root=lake_root,
-            norder=norder,
+            healpix_order=healpix_order,
             npix=npix,
             surveys=surveys,
             output_dir=output_dir,
@@ -233,7 +233,7 @@ def _parquet_row_count(path: Path) -> int | None:
         return None
 
 
-def _count_spectra_in_archive(arc: Path, norder: int, npix: int) -> int | None:
+def _count_spectra_in_archive(arc: Path, healpix_order: int, npix: int) -> int | None:
     """
     Peek inside the .tar archive to count spectra in the Zarr source_id array.
 
@@ -244,7 +244,7 @@ def _count_spectra_in_archive(arc: Path, norder: int, npix: int) -> int | None:
         import tarfile as _tar
         import json as _json
 
-        zarr_prefix = f"tile_{norder}_{npix}/spectra/"
+        zarr_prefix = f"tile_{healpix_order}_{npix}/spectra/"
         sid_array_meta = None
 
         with _tar.open(arc, "r") as t:
@@ -279,7 +279,7 @@ def build_manifest(
     - ``size_bytes``
     - ``sha256``
     - ``created_utc``
-    - ``norder``, ``npix`` (parsed from filename ``tile_<norder>_<npix>.tar``)
+    - ``healpix_order``, ``npix`` (parsed from filename ``tile_<healpix_order>_<npix>.tar``)
 
     Parameters
     ----------
@@ -304,23 +304,23 @@ def build_manifest(
     }
 
     for arc in archives:
-        stem = arc.stem  # tile_<norder>_<npix>
+        stem = arc.stem  # tile_<healpix_order>_<npix>
         parts = stem.split("_")
         try:
-            norder = int(parts[1])
+            healpix_order = int(parts[1])
             npix = int(parts[2])
         except (IndexError, ValueError):
             log.warning("Unexpected archive name: %s", arc.name)
-            norder, npix = -1, -1
+            healpix_order, npix = -1, -1
 
         log.info("Checksumming %s …", arc.name)
         entry = {
             "filename": arc.name,
             "size_bytes": arc.stat().st_size,
             "sha256": _sha256(arc),
-            "norder": norder,
+            "healpix_order": healpix_order,
             "npix": npix,
-            "n_spectra": _count_spectra_in_archive(arc, norder, npix),
+            "n_spectra": _count_spectra_in_archive(arc, healpix_order, npix),
             "created_utc": time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ",
                 time.gmtime(arc.stat().st_mtime),
@@ -391,7 +391,7 @@ try:
     def cli(
         lake_root: Path,
         output_dir: Path,
-        norder: int,
+        healpix_order: int,
         npix: int | None,
         surveys: tuple[str, ...],
         include_cutouts: bool,
@@ -415,10 +415,10 @@ try:
             log_file=log_file,
         )
         if npix is not None:
-            pack_tile(lake_root, norder, npix, list(surveys), output_dir,
+            pack_tile(lake_root, healpix_order, npix, list(surveys), output_dir,
                       include_cutouts, include_spectra, overwrite)
         else:
-            pack_tiles_batch(lake_root, norder, list(surveys), output_dir,
+            pack_tiles_batch(lake_root, healpix_order, list(surveys), output_dir,
                              include_cutouts=include_cutouts,
                              include_spectra=include_spectra,
                              overwrite=overwrite)

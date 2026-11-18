@@ -37,7 +37,7 @@ class BaseSelection:
     """A resolved selection of base-catalog sources."""
 
     base_survey: str
-    norder: int
+    healpix_order: int
     npix: set[int]
     #: Explicit base source-ids, or ``None`` for a tile-granular region selection.
     source_ids: list[int] | None
@@ -48,7 +48,7 @@ class BaseSelection:
 
 
 def _base_hp_column(acc: CatalogAccessor) -> str:
-    return f"_healpix_norder{acc.norder}"
+    return f"_healpix_order{acc.healpix_order}"
 
 
 def selection_from_region(
@@ -70,11 +70,11 @@ def selection_from_region(
     if healpix_order is None:
         # Fall back to the accessor's order if the index lacks it.
         with CatalogAccessor(lake_root, base_survey) as acc:
-            healpix_order = acc.norder
+            healpix_order = acc.healpix_order
     overlap = region.to_npix(healpix_order) & npix_set
     return BaseSelection(
         base_survey=base_survey,
-        norder=healpix_order,
+        healpix_order=healpix_order,
         npix=set(overlap),
         source_ids=None,
     )
@@ -87,13 +87,13 @@ def selection_from_ids(
 ) -> BaseSelection:
     """Base selection from an explicit list of source-ids.
 
-    Looks up the tile (``_healpix_norder<N>``) of each id to bound downstream
+    Looks up the tile (``_healpix_order<N>``) of each id to bound downstream
     reads.
     """
     ids = [int(s) for s in source_ids]
     if not ids:
         with CatalogAccessor(lake_root, base_survey) as acc:
-            return BaseSelection(base_survey, acc.norder, set(), [])
+            return BaseSelection(base_survey, acc.healpix_order, set(), [])
     with CatalogAccessor(lake_root, base_survey) as acc:
         hp_col = _base_hp_column(acc)
         sid_col = acc.link_id_column
@@ -110,7 +110,7 @@ def selection_from_ids(
             for sid_raw, npix_raw in acc._con.execute(sql).fetchall():
                 found.append(int(sid_raw))
                 npix.add(int(npix_raw))
-        return BaseSelection(base_survey, acc.norder, npix, found)
+        return BaseSelection(base_survey, acc.healpix_order, npix, found)
 
 
 def selection_from_where(
@@ -133,7 +133,7 @@ def selection_from_where(
         rows = acc._con.execute(sql).fetchall()
         ids = [int(r[0]) for r in rows]
         npix = {int(r[1]) for r in rows}
-        return BaseSelection(base_survey, acc.norder, npix, ids)
+        return BaseSelection(base_survey, acc.healpix_order, npix, ids)
 
 
 def selection_from_all_tiles(
@@ -149,10 +149,10 @@ def selection_from_all_tiles(
     )
     if healpix_order is None:
         with CatalogAccessor(lake_root, base_survey) as acc:
-            healpix_order = acc.norder
+            healpix_order = acc.healpix_order
     return BaseSelection(
         base_survey=base_survey,
-        norder=healpix_order,
+        healpix_order=healpix_order,
         npix=set(npix_set),
         source_ids=None,
     )

@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "astro-data-lake"
+version: 0.10.0
+date-released: 2026-11-18
+type: software
+authors:
+  - family-names: Fotopoulou
+    given-names: Sotiria
+license: MIT
+repository-code: "https://github.com/SFotopoulou/astro-data-lake"
+abstract: "Astronomy data lake: wide multi-survey catalogs stored as HEALPix-partitioned Parquet, and galaxy cutout stacks and spectra stored as Zarr v3."
+keywords:
+  - astronomy
+  - HEALPix
+  - data lake
+  - Parquet
+  - Zarr
+  - cross-match
+  - catalogs

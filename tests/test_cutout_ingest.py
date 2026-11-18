@@ -41,11 +41,11 @@ def test_ingest_cutouts_writes_zarr_and_passes_validation(tmp_path: Path) -> Non
 
     m1 = ingest_cutouts_from_fits(
         f1, tmp_path, "test_survey", ra_col="RA", dec_col="DEC",
-        norder=3,
+        healpix_order=3,
     )
     m2 = ingest_cutouts_from_fits(
         f2, tmp_path, "test_survey", ra_col="RA", dec_col="DEC",
-        norder=3,
+        healpix_order=3,
     )
     assert m1[1001][1] == 0   # local_index
     assert m2[1002][1] == 1   # local_index (second file appended to same tile)
@@ -63,12 +63,12 @@ def test_on_duplicate_error(tmp_path: Path) -> None:
     _write_cutout_fits(f, sid=2001, ra=15.0, dec=25.0)
     ingest_cutouts_from_fits(
         f, tmp_path, "dup_survey", ra_col="RA", dec_col="DEC",
-        norder=3, on_duplicate_source_id="append",
+        healpix_order=3, on_duplicate_source_id="append",
     )
     with pytest.raises(ValueError, match="already exists"):
         ingest_cutouts_from_fits(
             f, tmp_path, "dup_survey", ra_col="RA", dec_col="DEC",
-            norder=3, on_duplicate_source_id="error",
+            healpix_order=3, on_duplicate_source_id="error",
         )
 
 
@@ -98,7 +98,7 @@ def test_link_id_col_targetid(tmp_path: Path) -> None:
         f, tmp_path, "tid_survey",
         ra_col="TARGET_RA", dec_col="TARGET_DEC",
         link_id_col="TARGETID",
-        norder=3,
+        healpix_order=3,
     )
     assert m[tid][1] == 0   # local_index
 
@@ -110,7 +110,7 @@ def test_link_id_col_missing_raises(tmp_path: Path) -> None:
         ingest_cutouts_from_fits(
             f, tmp_path, "x",
             link_id_col="TARGETID",
-            norder=3,
+            healpix_order=3,
         )
 
 
@@ -119,10 +119,10 @@ def test_on_duplicate_skip(tmp_path: Path) -> None:
     _write_cutout_fits(f, sid=3001, ra=50.0, dec=12.0)
     ingest_cutouts_from_fits(
         f, tmp_path, "skip_survey", ra_col="RA", dec_col="DEC",
-        norder=3, on_duplicate_source_id="append",
+        healpix_order=3, on_duplicate_source_id="append",
     )
     m = ingest_cutouts_from_fits(
         f, tmp_path, "skip_survey", ra_col="RA", dec_col="DEC",
-        norder=3, on_duplicate_source_id="skip",
+        healpix_order=3, on_duplicate_source_id="skip",
     )
     assert m == {}

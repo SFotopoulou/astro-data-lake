@@ -138,7 +138,7 @@ def _link_id_columns(catalog_info: dict[str, Any]) -> list[str]:
 
 def _lookup_id_columns(
     catalog_root: Path,
-    norder: int,
+    healpix_order: int,
     source_ids: np.ndarray,
     id_cols: list[str],
 ) -> dict[str, np.ndarray]:
@@ -158,7 +158,7 @@ def _lookup_id_columns(
     # Determine column dtypes from the first tile
     result: dict[str, list] = {c: [None] * n for c in id_cols}
 
-    glob_root = catalog_root / f"Norder={norder}"
+    glob_root = catalog_root / f"Norder={healpix_order}"
     tiles = list(glob_root.rglob("Npix=*.parquet"))
     if not tiles:
         print(f"  WARNING: no Parquet tiles found under {glob_root}", file=sys.stderr)
@@ -282,11 +282,11 @@ def resolve_id_columns_from_lake(
 
     if "healpix_order" not in catalog_info:
         raise SystemExit(f"{info_path}: missing 'healpix_order'; reingest the catalog.")
-    norder = int(catalog_info["healpix_order"])
+    healpix_order = int(catalog_info["healpix_order"])
     print(f"  Resolving {id_cols} from lake catalog {cat_root.name} "
-          f"(norder={norder}; legacy extract without embedded IDs) …",
+          f"(healpix_order={healpix_order}; legacy extract without embedded IDs) …",
           file=sys.stderr)
-    col_arrays = _lookup_id_columns(cat_root, norder, source_ids, id_cols)
+    col_arrays = _lookup_id_columns(cat_root, healpix_order, source_ids, id_cols)
     return id_cols, col_arrays
 
 

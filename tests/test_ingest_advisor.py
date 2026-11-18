@@ -43,10 +43,10 @@ def test_files_per_tile_legacy_bricks() -> None:
         ({"layout": "spatial"}, True),
         ({"layout": "unsorted"}, True),
         ({"layout": "partitioned"}, False),
-        ({"file_area_deg2": 0.0625, "norder": 4}, True),
-        ({"file_area_deg2": 0.0625, "norder": 8}, False),
+        ({"file_area_deg2": 0.0625, "healpix_order": 4}, True),
+        ({"file_area_deg2": 0.0625, "healpix_order": 8}, False),
         # Area estimate wins over a contradicting layout hint.
-        ({"layout": "partitioned", "file_area_deg2": 0.0625, "norder": 4}, True),
+        ({"layout": "partitioned", "file_area_deg2": 0.0625, "healpix_order": 4}, True),
     ],
 )
 def test_catalog_layout_selects_helper(kwargs, shard) -> None:
@@ -61,7 +61,7 @@ def test_catalog_layout_selects_helper(kwargs, shard) -> None:
 def test_shard_recommendation_commands_and_scripts() -> None:
     rec = recommend_ingest(
         "catalog", "LEGACY_DR11", n_files=93_000, file_list="bricks.txt",
-        layout="spatial", norder=7,
+        layout="spatial", healpix_order=7,
     )
     assert "--phase map" in rec.command and "--phase reduce" in rec.command
     assert "--healpix-order 7" in rec.command

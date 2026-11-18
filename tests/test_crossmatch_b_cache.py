@@ -93,14 +93,14 @@ class TestCrossmatchBTileCache:
             "id": [1, 2],
             "ra": [10.0, 11.0],
             "dec": [0.0, 0.1],
-            "_healpix_norder5": [7, 7],
+            "_healpix_order5": [7, 7],
         })
         acc = MagicMock()
         acc.sources_in_healpix_pixels.return_value = df
         acc._empty_result.return_value = pl.DataFrame()
 
         cache = CrossmatchBTileCache(CrossmatchBTileCacheConfig(max_tiles=8))
-        cols = ["id", "ra", "dec", "_healpix_norder5"]
+        cols = ["id", "ra", "dec", "_healpix_order5"]
         a = cache.get_tiles(acc, [7], cols)
         b = cache.get_tiles(acc, [7], cols)
         assert a.height == 2
@@ -114,12 +114,12 @@ class TestCrossmatchBTileCache:
             "id": [1],
             "ra": [10.0],
             "dec": [0.0],
-            "_healpix_norder5": [3],
+            "_healpix_order5": [3],
         })
         acc = MagicMock()
         acc.sources_in_healpix_pixels.return_value = df
         cache = CrossmatchBTileCache(CrossmatchBTileCacheConfig(enabled=False))
-        cols = ["id", "ra", "dec", "_healpix_norder5"]
+        cols = ["id", "ra", "dec", "_healpix_order5"]
         cache.get_tiles(acc, [3], cols)
         cache.get_tiles(acc, [3], cols)
         assert acc.sources_in_healpix_pixels.call_count == 2
@@ -132,17 +132,17 @@ class TestCrossmatchBTileCacheReporting:
         from data_lake.io.catalog import CatalogAccessor
 
         lake = tmp_path / "lake"
-        norder = 5
-        hp_col = f"_healpix_norder{norder}"
+        healpix_order = 5
+        hp_col = f"_healpix_order{healpix_order}"
         for npix in (100, 101):
             _write_catalog_tile(
-                lake, "B", norder=norder, npix=npix,
+                lake, "B", healpix_order=healpix_order, npix=npix,
                 source_ids=[npix], ra=[30.0], dec=[5.0],
             )
         cache = CrossmatchBTileCache(CrossmatchBTileCacheConfig(max_tiles=1))
         cols = [LAKE_JOIN_ID_COLUMN, "ra", "dec", hp_col]
         with caplog.at_level(logging.DEBUG, logger="data_lake.io.crossmatch_b_cache"):
-            with CatalogAccessor(lake, "B", norder=norder) as acc:
+            with CatalogAccessor(lake, "B", healpix_order=healpix_order) as acc:
                 cache.get_tiles(acc, [100], cols)
                 cache.get_tiles(acc, [101], cols)
                 cache.get_tiles(acc, [999], cols)
@@ -197,15 +197,15 @@ class TestCrossmatchBTileCachePerTileReads:
 class TestBuildCrossmatchBCacheParity:
     def test_cache_on_vs_off_same_matches(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        norder = 5
+        healpix_order = 5
         # Two nearby A tiles that share covering B sky
         ra0, dec0 = 30.0, 5.0
-        npix_a0 = int(assign_healpix_one(ra0, dec0, norder))
-        npix_a1 = int(assign_healpix_one(ra0 + 0.5, dec0 + 0.5, norder))
-        npix_b = int(assign_healpix_one(ra0, dec0, norder))
+        npix_a0 = int(assign_healpix_one(ra0, dec0, healpix_order))
+        npix_a1 = int(assign_healpix_one(ra0 + 0.5, dec0 + 0.5, healpix_order))
+        npix_b = int(assign_healpix_one(ra0, dec0, healpix_order))
 
         _write_catalog_tile(
-            lake, "A", norder=norder, npix=npix_a0,
+            lake, "A", healpix_order=healpix_order, npix=npix_a0,
             source_ids=[101], ra=[ra0], dec=[dec0],
         )
         # Append second A tile without clobbering catalog_info
@@ -214,9 +214,9 @@ class TestBuildCrossmatchBCacheParity:
         import pyarrow as pa
         import pyarrow.parquet as pq
 
-        tile_dir = lake / "catalogs" / "A" / healpix_dir(norder, npix_a1)
+        tile_dir = lake / "catalogs" / "A" / healpix_dir(healpix_order, npix_a1)
         tile_dir.mkdir(parents=True, exist_ok=True)
-        hp_col = f"_healpix_norder{norder}"
+        hp_col = f"_healpix_order{healpix_order}"
         pq.write_table(
             pa.table({
                 LAKE_JOIN_ID_COLUMN: pa.array([102], type=pa.int64()),
@@ -234,7 +234,7 @@ class TestBuildCrossmatchBCacheParity:
         info_path.write_text(json.dumps(info))
 
         _write_catalog_tile(
-            lake, "B", norder=norder, npix=npix_b,
+            lake, "B", healpix_order=healpix_order, npix=npix_b,
             source_ids=[201, 202],
             ra=[ra0 + 0.0001, ra0 + 0.5001],
             dec=[dec0 + 0.0001, dec0 + 0.5001],
@@ -255,7 +255,7 @@ class TestBuildCrossmatchBCacheParity:
         assert tbl.num_rows == on.n_match_rows
 
 
-def assign_healpix_one(ra: float, dec: float, norder: int) -> int:
+def assign_healpix_one(ra: float, dec: float, healpix_order: int) -> int:
     from data_lake.ingest.fits_to_parquet import assign_healpix
 
-    return int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+    return int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])

@@ -91,7 +91,7 @@ def footprint_npix_for_survey(
         from data_lake.io.catalog import CatalogAccessor
 
         with CatalogAccessor(lake_root, survey) as acc:
-            healpix_order = int(acc.norder)
+            healpix_order = int(acc.healpix_order)
     if region is not None:
         npix_set &= region.to_npix(int(healpix_order))
     return sorted(int(p) for p in npix_set), int(healpix_order)
@@ -101,14 +101,14 @@ def write_footprint_regions(
     fh: TextIO,
     npix: Iterable[int],
     *,
-    norder: int,
+    healpix_order: int,
     color: str = _DEFAULT_COLOR_FOOTPRINT,
     write_header: bool = True,
 ) -> int:
     """Write HEALPix tile polygons; return number of polygons written."""
     import healpy as hp
 
-    nside = hp.order2nside(int(norder))
+    nside = hp.order2nside(int(healpix_order))
     if write_header:
         _write_header(fh, color=color)
     else:
@@ -176,7 +176,7 @@ def iter_catalog_sky_rows(
                     np.asarray([], dtype=np.float64),
                     np.asarray([], dtype=np.float64),
                 )
-            hp_col = f"_healpix_norder{acc.norder}"
+            hp_col = f"_healpix_order{acc.healpix_order}"
             if hp_col not in names:
                 raise ValueError(
                     f"Region clip requires {hp_col!r} on catalog {survey!r}"
@@ -274,13 +274,13 @@ def export_ds9_region(
     with open(out, "w", encoding="utf-8") as fh:
         header_done = False
         if mode in ("footprint", "both"):
-            npix_list, norder = footprint_npix_for_survey(
+            npix_list, healpix_order = footprint_npix_for_survey(
                 lake_root, survey, region=region,
             )
             n_foot = write_footprint_regions(
                 fh,
                 npix_list,
-                norder=norder,
+                healpix_order=healpix_order,
                 color=color_footprint,
                 write_header=True,
             )

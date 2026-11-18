@@ -85,7 +85,7 @@ def _default_master_columns(
         mc = p.get("master_column")
         if mc and mc in available and mc not in cols:
             cols.append(mc)
-    for qa in ("sep_arcsec", "match_rank", "healpix_npix", "norder"):
+    for qa in ("sep_arcsec", "match_rank", "healpix_npix", "healpix_order"):
         if qa in available and qa not in cols:
             cols.append(qa)
     return cols
@@ -95,7 +95,7 @@ def build_catalog_view_ddl(
     lake_root: Path | str,
     survey: str,
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     hive_partitioning: bool = False,
     view_name: str | None = None,
 ) -> str:
@@ -109,11 +109,11 @@ def build_catalog_view_ddl(
             f"(checked catalogs/{survey} and products/{survey})"
         )
 
-    if norder is None:
-        norder = require_healpix_order_file(catalog_root / "catalog_info.json")
+    if healpix_order is None:
+        healpix_order = require_healpix_order_file(catalog_root / "catalog_info.json")
 
     view = view_name or survey
-    glob = catalog_root / f"Norder={norder}" / "**" / "*.parquet"
+    glob = catalog_root / f"Norder={healpix_order}" / "**" / "*.parquet"
     hp = "true" if hive_partitioning else "false"
     return (
         f"CREATE OR REPLACE VIEW {_quote_ident(view)} AS\n"

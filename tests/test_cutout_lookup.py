@@ -9,7 +9,7 @@ import pytest
 
 from data_lake.io.cutouts import CutoutAccessor
 
-from synthetic_lake_helpers import NORDER, SURVEY
+from synthetic_lake_helpers import HEALPIX_ORDER, SURVEY
 
 
 def _make_cutout_tile(lake_root: Path, npix: int, source_ids: list[int]) -> None:
@@ -19,7 +19,7 @@ def _make_cutout_tile(lake_root: Path, npix: int, source_ids: list[int]) -> None
     from data_lake.ingest.zarr_ids import create_zarr_join_array
 
     n = len(source_ids)
-    tile_dir = lake_root / "cutouts" / SURVEY / healpix_dir(NORDER, npix)
+    tile_dir = lake_root / "cutouts" / SURVEY / healpix_dir(HEALPIX_ORDER, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     path = tile_dir / f"Npix={npix}.zarr"
     root = zarr.open_group(store=zarr.storage.LocalStore(str(path)), mode="w", zarr_format=3)
@@ -32,7 +32,7 @@ def _make_cutout_tile(lake_root: Path, npix: int, source_ids: list[int]) -> None
     root.create_array("wcs", shape=(n,), dtype="S100")
     root["wcs"][:] = [b""] * n
     (lake_root / "cutouts" / SURVEY / "cutout_info.json").write_text(
-        f'{{"healpix_order": {NORDER}, "band_names": ["r"]}}'
+        f'{{"healpix_order": {HEALPIX_ORDER}, "band_names": ["r"]}}'
     )
 
 

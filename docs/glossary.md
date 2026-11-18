@@ -25,15 +25,15 @@ Building a joined "wide" product catalog from one base survey and one or more pa
 See [Gather](discovery/gather.md).
 
 **HATS (HEALPix Adaptive Tiling Scheme)**
-The community standard for partitioning catalogs into HEALPix-indexed Parquet tiles, with a standard directory layout and metadata files. The standard allows tiles to be adaptive: dense regions can be split to finer orders. This lake follows the HATS-style layout, with one fixed `norder` per catalog (tiles are not adaptive), and does not guarantee full HATS compliance.
+The community standard for partitioning catalogs into HEALPix-indexed Parquet tiles, with a standard directory layout and metadata files. The standard allows tiles to be adaptive: dense regions can be split to finer orders. This lake follows the HATS-style layout, with one fixed `healpix_order` per catalog (tiles are not adaptive), and does not guarantee full HATS compliance.
 See [hats.readthedocs.io](https://hats.readthedocs.io/en/stable/).
 
 **LSDB**
 The Python library for querying and crossmatching HATS catalogs. This lake does not use LSDB; it reads and writes its own Parquet tiles in a HATS-style layout.
 See [lsdb.readthedocs.io](https://lsdb.readthedocs.io/en/stable/).
 
-**HEALPix / norder**
-HEALPix (Hierarchical Equal Area isoLatitude Pixelisation) divides the sphere into equal-area pixels. `norder` (also `healpix_order`) sets the resolution: the sky has \(12 \times 4^{\text{norder}}\) pixels, so `norder=5` gives 12,288 pixels and `norder=7` gives 196,608. A higher norder means smaller pixels and more tiles. The default catalog norder is 5.
+**HEALPix / healpix_order**
+HEALPix (Hierarchical Equal Area isoLatitude Pixelisation) divides the sphere into equal-area pixels. `healpix_order` sets the resolution: the sky has \(12 \times 4^{\text{order}}\) pixels, so `healpix_order=5` gives 12,288 pixels and `healpix_order=7` gives 196,608. A higher order means smaller pixels and more tiles. The default catalog healpix_order is 5.
 
 **homogenize / product catalog (homogenized)**
 Converting native survey columns (Vega magnitudes, Jy fluxes and so on) to a common system, such as AB magnitudes or uniform flux units, using versioned per-survey recipes. Run it with `dl-homogenize`. The output has `kind: product` and `product_subtype: homogenized`.

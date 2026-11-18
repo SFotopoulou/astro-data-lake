@@ -90,7 +90,7 @@ FILE_MAP: dict[str, list[tuple[int, int, float]]] = {
 }
 
 
-def _fake_decoder(path_str: str, norder: int) -> WorkerResult:
+def _fake_decoder(path_str: str, healpix_order: int) -> WorkerResult:
     """Lookup the file label and synthesise its payload."""
     label = Path(path_str).stem
     if label == "BOOM":
@@ -133,7 +133,7 @@ class TestParallelIngestBasic:
             output_root=out,
             survey_name="syn",
             n_workers=2,
-            norder=5,
+            healpix_order=5,
             checkpoint_path=tmp_path / "ckpt.json",
             failures_log=tmp_path / "fail.jsonl",
             show_progress=False,
@@ -235,9 +235,9 @@ class TestCheckpoint:
         # Track which files the decoder is invoked for in the second run
         seen: list[str] = []
 
-        def tracking_decoder(path_str, norder):
+        def tracking_decoder(path_str, healpix_order):
             seen.append(path_str)
-            return _fake_decoder(path_str, norder)
+            return _fake_decoder(path_str, healpix_order)
 
         # Second run: all three files; A should be skipped via checkpoint
         second = ingest_spectra_parallel(
@@ -370,7 +370,7 @@ class TestInflightJournal:
             output_root=lake,
             survey_name="syn",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             checkpoint_path=ckpt,
             failures_log=tmp_path / "fail.jsonl",
             show_progress=False,
@@ -390,7 +390,7 @@ class TestInflightJournal:
                 "commit": {
                     "path": p_a,
                     "tiles": {"100": 0, "200": 0},
-                    "norder": 5,
+                    "healpix_order": 5,
                 },
             },
         )
@@ -408,7 +408,7 @@ class TestInflightJournal:
             output_root=lake,
             survey_name="syn",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             checkpoint_path=ckpt,
             failures_log=tmp_path / "fail.jsonl",
             show_progress=False,
@@ -445,7 +445,7 @@ class TestInflightJournal:
         p_a = _canonical_fits_path(fake_files[0])
         _atomic_write_json(
             inflight,
-            {"commit": {"path": p_a, "tiles": {"100": 0}, "norder": 5}},
+            {"commit": {"path": p_a, "tiles": {"100": 0}, "healpix_order": 5}},
         )
         _recover_stale_parallel_commit(survey_root, 5, inflight, completed={p_a})
 
@@ -464,7 +464,7 @@ class TestInconsistentNPix:
         for p in files:
             p.touch()
 
-        def mismatch_decoder(path_str, norder):
+        def mismatch_decoder(path_str, healpix_order):
             if "MISMATCH" in path_str:
                 wavelength = np.linspace(3600.0, 9800.0, N_PIX * 2)
                 flux = np.zeros((1, N_PIX * 2), dtype=np.float32)
@@ -483,7 +483,7 @@ class TestInconsistentNPix:
                     )],
                     wavelength=wavelength, wcs_attrs=wcs, n_pix=N_PIX * 2, n_spectra=1,
                 )
-            return _fake_decoder(path_str, norder)
+            return _fake_decoder(path_str, healpix_order)
 
         result = ingest_spectra_parallel(
             file_paths=files,
@@ -575,7 +575,7 @@ def test_default_decoder_binds_link_id_col(monkeypatch, tmp_path: Path):
 
     seen: dict[str, object] = {}
 
-    def fake_decode(path_str: str, norder: int, link_id_col: str | None = None):
+    def fake_decode(path_str: str, healpix_order: int, link_id_col: str | None = None):
         seen["link_id_col"] = link_id_col
         seen["path"] = path_str
         return dpi.WorkerResult(path=path_str, ok=True, elapsed_s=0.0)

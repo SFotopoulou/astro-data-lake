@@ -317,7 +317,7 @@ class TestFormatDetection:
             ra_col="RAdeg",
             dec_col="DEdeg",
             link_id_col="WISEA",
-            norder=5,
+            healpix_order=5,
             tile_mode="overwrite",
         )
         tiles = list((lake / "catalogs" / "csv_gz_survey").rglob("Npix=*.parquet"))
@@ -409,7 +409,7 @@ class TestIngestCatalogEndToEnd:
             survey_name="syn_str",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="overwrite",
             streaming=False,
@@ -435,7 +435,7 @@ class TestIngestCatalogEndToEnd:
             survey_name="syn_str",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="overwrite",
             streaming=True,
@@ -459,7 +459,7 @@ class TestIngestCatalogEndToEnd:
             survey_name="syn_desi",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="overwrite",
         )
@@ -486,7 +486,7 @@ class TestIngestCatalogEndToEnd:
         names = set(merged.schema.names)
         assert "_spectrum_index" in names
         assert "_cutout_index" in names
-        assert "_healpix_norder5" in names
+        assert "_healpix_order5" in names
 
 
 class TestColumnNameResolution:
@@ -553,7 +553,7 @@ class TestColumnNameResolution:
                 ra_col="ra",
                 dec_col="dec",
                 link_id_col="source_id",
-                norder=5,
+                healpix_order=5,
                 tile_mode="overwrite",
                 streaming=streaming,
             )
@@ -596,14 +596,14 @@ class TestStreamingIngest:
         mem_root = tmp_path / "mem"
         ingest_catalog(
             source_path=fits_path, output_root=mem_root, survey_name="syn",
-            ra_col="TARGET_RA", dec_col="TARGET_DEC", norder=5,
+            ra_col="TARGET_RA", dec_col="TARGET_DEC", healpix_order=5,
             link_id_col="TARGETID", tile_mode="overwrite", streaming=False,
         )
 
         stream_root = tmp_path / "stream"
         ingest_catalog(
             source_path=fits_path, output_root=stream_root, survey_name="syn",
-            ra_col="TARGET_RA", dec_col="TARGET_DEC", norder=5,
+            ra_col="TARGET_RA", dec_col="TARGET_DEC", healpix_order=5,
             link_id_col="TARGETID", tile_mode="overwrite", streaming=True,
         )
 
@@ -625,7 +625,7 @@ class TestStreamingIngest:
 
         # Required bookkeeping columns
         for col in (
-            "_healpix_norder5",
+            "_healpix_order5",
             "_cutout_index", "_cutout_npix",
             "_spectrum_index", "_spectrum_npix",
         ):
@@ -675,7 +675,7 @@ class TestStreamingIngest:
             survey_name="syn_parallel",
             ra_col="alpha",
             dec_col="delta",
-            norder=1,
+            healpix_order=1,
             link_id_col="filename",
             tile_mode="append",
             on_duplicate_id="skip",
@@ -711,7 +711,7 @@ class TestStreamingIngest:
             survey_name="schema_cmp",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="overwrite",
             streaming=False,
@@ -725,7 +725,7 @@ class TestStreamingIngest:
             survey_name="schema_cmp",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
             tile_mode="append",
             on_duplicate_id="skip",
@@ -768,7 +768,7 @@ class TestStreamingIngest:
                 survey_name="noid",
                 ra_col="RA",
                 dec_col="DEC",
-                norder=5,
+                healpix_order=5,
                 link_id_col=None,
                 tile_mode="overwrite",
                 streaming=True,
@@ -877,7 +877,7 @@ class TestNumericTypeNormalization:
             survey_name="dtype_mix",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
         )
         ingest_catalog(source_path=fits_a, tile_mode="overwrite", **common)
@@ -897,13 +897,13 @@ class TestNumericTypeNormalization:
         )
 
         catalog_root = tmp_path / "catalogs" / "legacy_mix"
-        norder = 5
+        healpix_order = 5
         for npix, flux_type in ((100, pa.float32()), (10_500, pa.float64())):
-            tile_dir = catalog_root / healpix_dir(norder, npix)
+            tile_dir = catalog_root / healpix_dir(healpix_order, npix)
             tile_dir.mkdir(parents=True, exist_ok=True)
             tbl = pa.table({
                 "_source_id": pa.array([npix], type=pa.int64()),
-                f"_healpix_norder{norder}": pa.array([npix], type=pa.int64()),
+                f"_healpix_order{healpix_order}": pa.array([npix], type=pa.int64()),
                 "flux": pa.array([1.0], type=flux_type),
             })
             pq.write_table(tbl, tile_dir / f"Npix={npix}.parquet")
@@ -921,9 +921,9 @@ class TestNumericTypeNormalization:
         )
 
         catalog_root = tmp_path / "catalogs" / "coeff_mix"
-        norder = 5
+        healpix_order = 5
         for npix, value_type in ((100, pa.float32()), (10_500, pa.float64())):
-            tile_dir = catalog_root / healpix_dir(norder, npix)
+            tile_dir = catalog_root / healpix_dir(healpix_order, npix)
             tile_dir.mkdir(parents=True, exist_ok=True)
             coeff = pa.array([[1.0, 2.0, 3.0, 4.0, 5.0]], type=pa.list_(value_type))
             tbl = pa.table({
@@ -963,7 +963,7 @@ class TestTileMode:
             survey_name="tile_test",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
         )
         ingest_catalog(source_path=fits_a, tile_mode="overwrite", **common)
@@ -1004,7 +1004,7 @@ class TestTileMode:
             survey_name="dup",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
         )
         ingest_catalog(source_path=fits_a, tile_mode="overwrite", **common)
@@ -1029,7 +1029,7 @@ class TestTileMode:
             survey_name="reingest",
             ra_col="RA",
             dec_col="DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="NAME",
             on_duplicate_id="skip",
         )
@@ -1056,7 +1056,7 @@ class TestTileMode:
             survey_name="last",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
         )
         ingest_catalog(source_path=fits_a, tile_mode="overwrite", **common)
@@ -1094,7 +1094,7 @@ class TestTileMode:
             survey_name="meta",
             ra_col="TARGET_RA",
             dec_col="TARGET_DEC",
-            norder=5,
+            healpix_order=5,
             link_id_col="TARGETID",
         )
         ingest_catalog(source_path=tmp_path / "a.fits", tile_mode="overwrite", **common)
@@ -1186,7 +1186,6 @@ class TestPackedVectorFits:
 
     def test_one_source_row_with_short_vectors_is_not_packed(self, tmp_path: Path) -> None:
         """NAXIS2=1 tractor brick: scalars plus 5E/8E cells, not a GALEX packed table."""
-        from astropy.io import fits
 
         from data_lake.ingest.fits_to_parquet import (
             _is_packed_vector_bintable,
@@ -1301,7 +1300,7 @@ class TestParseSetColumnSpec:
     def test_reserved_healpix_prefix(self):
         from data_lake.ingest.fits_to_parquet import parse_set_column_spec
         with pytest.raises(ValueError, match="reserved lake-internal prefix"):
-            parse_set_column_spec("_healpix_norder5=1")
+            parse_set_column_spec("_healpix_order5=1")
 
     def test_empty_name(self):
         from data_lake.ingest.fits_to_parquet import parse_set_column_spec
@@ -1483,7 +1482,7 @@ class TestSetColumnEndToEnd:
             set_columns={"VISIT": scalar},
         )
         catalog_root = lake / "catalogs" / "MYSURVEY"
-        finalize_catalog_survey(catalog_root, "MYSURVEY", norder=5)
+        finalize_catalog_survey(catalog_root, "MYSURVEY", healpix_order=5)
         import json
         info = json.loads((catalog_root / "catalog_info.json").read_text())
         assert info.get("set_columns") == {"VISIT": 5}
@@ -1587,7 +1586,6 @@ class TestObjectIdFromFitsHeaderComposite:
     """Composite keyword spec in object_id_from_fits_header."""
 
     def test_composite_header_matches_resolver(self):
-        from astropy.io import fits
 
         from data_lake.ingest.fits_to_parquet import (
             composite_link_label,
@@ -1606,7 +1604,6 @@ class TestObjectIdFromFitsHeaderComposite:
         assert result == expected
 
     def test_single_keyword_unchanged(self):
-        from astropy.io import fits
 
         from data_lake.ingest.fits_to_parquet import (
             normalize_object_id,
@@ -1620,7 +1617,6 @@ class TestObjectIdFromFitsHeaderComposite:
 
     def test_missing_composite_part_raises_keyerror(self):
         import pytest
-        from astropy.io import fits
 
         from data_lake.ingest.fits_to_parquet import object_id_from_fits_header
 

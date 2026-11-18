@@ -77,7 +77,7 @@ log = logging.getLogger(__name__)
 class SpplateBatchConfig:
     """Decode configuration for one spPlate batch run (picklable for workers)."""
 
-    norder: int = 5
+    healpix_order: int = 5
     ra_col: str = "RA"
     dec_col: str = "DEC"
     # ID source — exactly one of:
@@ -305,7 +305,7 @@ def _decode_spplate_to_worker_result(
         meta_bytes_total = bytes(meta_arr.view(f"|V{_META_DTYPE.itemsize}"))
 
         # --- HEALPix grouping ---
-        npix_arr = assign_healpix(ra_keep, dec_keep, config.norder)
+        npix_arr = assign_healpix(ra_keep, dec_keep, config.healpix_order)
         sort_idx = np.argsort(npix_arr, kind="stable")
         npix_sorted = npix_arr[sort_idx]
 
@@ -390,10 +390,10 @@ def decode_one_spplate_safe(path_str: str, config: SpplateBatchConfig) -> Worker
 
 
 class _SpplateDecoder:
-    """Picklable callable adapter: ``(path_str, norder)`` → WorkerResult.
+    """Picklable callable adapter: ``(path_str, healpix_order)`` → WorkerResult.
 
-    ``ingest_spectra_parallel`` passes ``(path, norder)`` to the decoder; the
-    config already carries the correct ``norder`` so the argument is ignored.
+    ``ingest_spectra_parallel`` passes ``(path, healpix_order)`` to the decoder; the
+    config already carries the correct ``healpix_order`` so the argument is ignored.
     Using a class (rather than a closure) ensures pickling works correctly with
     ``ProcessPoolExecutor``.
     """
@@ -401,7 +401,7 @@ class _SpplateDecoder:
     def __init__(self, config: SpplateBatchConfig) -> None:
         self.config = config
 
-    def __call__(self, path_str: str, _norder: int) -> WorkerResult:
+    def __call__(self, path_str: str, _healpix_order: int) -> WorkerResult:
         return decode_one_spplate_safe(path_str, self.config)
 
 
@@ -416,7 +416,7 @@ def ingest_spplate_files_parallel(
     survey_name: str,
     *,
     n_workers: int,
-    norder: int = 5,
+    healpix_order: int = 5,
     ra_col: str = "RA",
     dec_col: str = "DEC",
     triplet_hash: bool = True,
@@ -451,7 +451,7 @@ def ingest_spplate_files_parallel(
         Lake root and survey identifier.
     n_workers:
         Decoder process count; typically ``cpu_count - 1``.
-    norder:
+    healpix_order:
         HEALPix partitioning order (default 5).
     ra_col / dec_col:
         Plugmap column names for sky coordinates (default ``RA`` / ``DEC``).
@@ -495,7 +495,7 @@ def ingest_spplate_files_parallel(
         )
 
     config = SpplateBatchConfig(
-        norder=norder,
+        healpix_order=healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
         triplet_hash=triplet_hash,
@@ -510,7 +510,7 @@ def ingest_spplate_files_parallel(
         output_root=output_root,
         survey_name=survey_name,
         n_workers=n_workers,
-        norder=norder,
+        healpix_order=healpix_order,
         checkpoint_path=checkpoint_path,
         failures_log=failures_log,
         show_progress=show_progress,
@@ -700,7 +700,7 @@ try:
         n_workers: int,
         max_in_flight: int | None,
         max_open_tiles: int,
-        norder: int | None,
+        healpix_order: int | None,
         ra_col: str,
         dec_col: str,
         lookup_path: Path | None,
@@ -751,7 +751,7 @@ try:
         cfg = load_optional_config(config_path)
         require_ingest_permission(cfg, ingest_token)
         resolved_output = require_output_root(output_root, cfg, kind="spectra")
-        resolved_norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        resolved_healpix_order = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
 
         if file_list is not None:
             paths: list[Path] = _paths_from_file_list_file(file_list)
@@ -790,7 +790,7 @@ try:
             output_root=resolved_output,
             survey_name=survey_name,
             n_workers=n_workers,
-            norder=resolved_norder,
+            healpix_order=resolved_healpix_order,
             ra_col=ra_col,
             dec_col=dec_col,
             triplet_hash=(n_lookup_modes == 0),
@@ -828,7 +828,7 @@ try:
                     lake_root=resolved_output,
                     survey_name=survey_name,
                     kind="spectrum",
-                    norder=resolved_norder,
+                    healpix_order=resolved_healpix_order,
                 )
                 click.echo(f"Patched _spectrum_index in {n_modified} catalog tile(s).")
             except FileNotFoundError as exc:

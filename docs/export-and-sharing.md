@@ -387,7 +387,7 @@ update_index_column(lake_root="/data/lake", survey_name="SDSS_DR17",
                     source_id_to_index=index_map, kind="spectrum")
 ```
 
-`update_index_column` also takes `norder` (accepted for compatibility, not used for
+`update_index_column` also takes `healpix_order` (accepted for compatibility, not used for
 the update) and `link_id_col`. The catalog's stored `healpix_order` is always read.
 
 ## Pack a tile for sharing

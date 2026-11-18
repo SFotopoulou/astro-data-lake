@@ -36,7 +36,7 @@ def _ingest_mini_catalog(tmp_path: Path, survey: str = "TEST_SURV") -> Path:
         ra_col="TARGET_RA",
         dec_col="TARGET_DEC",
         link_id_col="TARGETID",
-        norder=5,
+        healpix_order=5,
         tile_mode="overwrite",
     )
     refresh_lake_registry(lake)

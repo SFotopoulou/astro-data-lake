@@ -19,7 +19,7 @@ from data_lake.discovery.selection import (
 from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, assign_healpix, healpix_dir
 
 
-def _write_base(lake: Path, survey: str, norder: int) -> dict[int, int]:
+def _write_base(lake: Path, survey: str, healpix_order: int) -> dict[int, int]:
     """Write a base catalog with a few sources across two tiles. Returns {sid: npix}."""
     pts = [
         (1, 120.0, 45.0, 5.0),
@@ -29,13 +29,13 @@ def _write_base(lake: Path, survey: str, norder: int) -> dict[int, int]:
     by_tile: dict[int, list[tuple]] = {}
     sid_npix: dict[int, int] = {}
     for sid, ra, dec, mag in pts:
-        npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+        npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
         by_tile.setdefault(npix, []).append((sid, ra, dec, mag))
         sid_npix[sid] = npix
 
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     for npix, rows in by_tile.items():
-        tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+        tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         pq.write_table(
             pa.table({
@@ -49,7 +49,7 @@ def _write_base(lake: Path, survey: str, norder: int) -> dict[int, int]:
         )
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",

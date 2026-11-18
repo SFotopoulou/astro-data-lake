@@ -1,5 +1,5 @@
 """
-recommend_norder – quick pre-ingest scan to suggest HEALPix ``--healpix-order``.
+recommend_healpix_order – quick pre-ingest scan to suggest HEALPix ``--healpix-order``.
 
 Reads only sky columns (and FITS headers for row counts) from a sample of catalog
 files, estimates mean rows per occupied HEALPix pixel at candidate orders, and
@@ -49,8 +49,8 @@ _DEFAULT_CATALOG_GLOBS = (
 
 
 @dataclass(frozen=True)
-class NorderCandidate:
-    norder: int
+class HealpixOrderCandidate:
+    healpix_order: int
     n_pix_occupied: int
     est_rows_per_tile: float
     est_n_tiles: int
@@ -59,7 +59,7 @@ class NorderCandidate:
 
 
 @dataclass(frozen=True)
-class NorderRecommendation:
+class HealpixOrderRecommendation:
     recommended: int
     total_rows: int
     n_files: int
@@ -67,7 +67,7 @@ class NorderRecommendation:
     ra_col: str
     dec_col: str
     target_rows_per_tile: int
-    candidates: tuple[NorderCandidate, ...]
+    candidates: tuple[HealpixOrderCandidate, ...]
     note: str | None = None
 
 
@@ -136,16 +136,16 @@ def _read_ra_dec_sample(
     return ra, dec
 
 
-def _pixel_sky_stats(norder: int, n_pix: int) -> tuple[float, float]:
+def _pixel_sky_stats(healpix_order: int, n_pix: int) -> tuple[float, float]:
     import healpy as hp
 
-    nside = hp.order2nside(norder)
+    nside = hp.order2nside(healpix_order)
     n_full = hp.nside2npix(nside)
     area = hp.nside2pixarea(nside, degrees=True)
     return n_pix / n_full, n_pix * area
 
 
-def recommend_catalog_norder(
+def recommend_catalog_healpix_order(
     paths: Sequence[Path | str],
     *,
     ra_col: str = "ra",
@@ -154,14 +154,14 @@ def recommend_catalog_norder(
     glob_pattern: str | None = None,
     max_files: int | None = 32,
     sample_rows: int = 500_000,
-    norder_min: int = 3,
-    norder_max: int = 8,
+    healpix_order_min: int = 3,
+    healpix_order_max: int = 8,
     target_rows_per_tile: int = DEFAULT_TARGET_ROWS_PER_TILE,
     target_min: int = DEFAULT_TARGET_MIN,
     target_max: int = DEFAULT_TARGET_MAX,
     seed: int = 0,
     fits_hdu: str | None = None,
-) -> NorderRecommendation:
+) -> HealpixOrderRecommendation:
     """
     Scan catalog FITS files and recommend ``--healpix-order`` for ingest.
 
@@ -246,17 +246,17 @@ def recommend_catalog_norder(
     dec_all = np.concatenate(dec_parts)
     sample_n = int(ra_all.size)
 
-    candidates: list[NorderCandidate] = []
-    for norder in range(norder_min, norder_max + 1):
-        pix = assign_healpix(ra_all, dec_all, norder)
+    candidates: list[HealpixOrderCandidate] = []
+    for healpix_order in range(healpix_order_min, healpix_order_max + 1):
+        pix = assign_healpix(ra_all, dec_all, healpix_order)
         n_pix = int(np.unique(pix).size)
         if n_pix == 0:
             continue
         est_density = total_rows / n_pix
-        frac, deg2 = _pixel_sky_stats(norder, n_pix)
+        frac, deg2 = _pixel_sky_stats(healpix_order, n_pix)
         candidates.append(
-            NorderCandidate(
-                norder=norder,
+            HealpixOrderCandidate(
+                healpix_order=healpix_order,
                 n_pix_occupied=n_pix,
                 est_rows_per_tile=est_density,
                 est_n_tiles=n_pix,
@@ -268,7 +268,7 @@ def recommend_catalog_norder(
     if not candidates:
         raise ValueError("No HEALPix order candidates produced.")
 
-    recommended = _pick_norder(
+    recommended = _pick_healpix_order(
         candidates,
         target_rows_per_tile=target_rows_per_tile,
         target_min=target_min,
@@ -282,7 +282,7 @@ def recommend_catalog_norder(
         "validate with a larger --sample-rows if unsure."
     )
 
-    return NorderRecommendation(
+    return HealpixOrderRecommendation(
         recommended=recommended,
         total_rows=total_rows,
         n_files=len(files),
@@ -295,8 +295,8 @@ def recommend_catalog_norder(
     )
 
 
-def _pick_norder(
-    candidates: list[NorderCandidate],
+def _pick_healpix_order(
+    candidates: list[HealpixOrderCandidate],
     *,
     target_rows_per_tile: int,
     target_min: int,
@@ -308,16 +308,16 @@ def _pick_norder(
     ]
     pool = in_band if in_band else candidates
 
-    def score(c: NorderCandidate) -> float:
+    def score(c: HealpixOrderCandidate) -> float:
         return abs(
             math.log10(max(c.est_rows_per_tile, 1.0))
             - math.log10(max(target_rows_per_tile, 1.0))
         )
 
-    return min(pool, key=score).norder
+    return min(pool, key=score).healpix_order
 
 
-def format_recommendation_report(rec: NorderRecommendation) -> str:
+def format_recommendation_report(rec: HealpixOrderRecommendation) -> str:
     lines = [
         f"Recommended --healpix-order: {rec.recommended}",
         f"Total rows (headers): {rec.total_rows:,}  |  Sampled RA/Dec: {rec.sample_rows:,}  "
@@ -326,13 +326,13 @@ def format_recommendation_report(rec: NorderRecommendation) -> str:
         f"Target rows/tile: {rec.target_rows_per_tile:,} "
         f"(band {DEFAULT_TARGET_MIN:,}–{DEFAULT_TARGET_MAX:,})",
         "",
-        f"{'norder':>6}  {'est_rows/tile':>14}  {'est_tiles':>10}  "
+        f"{'healpix_order':>6}  {'est_rows/tile':>14}  {'est_tiles':>10}  "
         f"{'pixel_sky_frac':>14}  {'pixel_sky_deg2':>14}",
     ]
     for c in rec.candidates:
-        mark = " <--" if c.norder == rec.recommended else ""
+        mark = " <--" if c.healpix_order == rec.recommended else ""
         lines.append(
-            f"{c.norder:>6}  {c.est_rows_per_tile:>14,.0f}  {c.est_n_tiles:>10,}  "
+            f"{c.healpix_order:>6}  {c.est_rows_per_tile:>14,.0f}  {c.est_n_tiles:>10,}  "
             f"{c.pixel_sky_frac:>14.4f}  {c.pixel_sky_deg2:>14,.0f}{mark}"
         )
     if rec.note:
@@ -345,7 +345,7 @@ try:
 
     from data_lake.cli_utils import hdu_option, logging_options
 
-    @click.command("dl-recommend-catalog-norder")
+    @click.command("dl-recommend-catalog-healpix-order")
     @click.argument("paths", nargs=-1, type=click.Path(path_type=Path))
     @click.option(
         "--file-list",
@@ -365,8 +365,8 @@ try:
                   help="Cap number of files to scan (random subset).")
     @click.option("--sample-rows", default=500_000, show_default=True,
                   help="Max RA/Dec rows to load across all files.")
-    @click.option("--norder-min", default=3, show_default=True)
-    @click.option("--norder-max", default=8, show_default=True)
+    @click.option("--healpix-order-min", default=3, show_default=True)
+    @click.option("--healpix-order-max", default=8, show_default=True)
     @click.option(
         "--target-rows-per-tile",
         default=DEFAULT_TARGET_ROWS_PER_TILE,
@@ -384,8 +384,8 @@ try:
         glob_pattern: str | None,
         max_files: int,
         sample_rows: int,
-        norder_min: int,
-        norder_max: int,
+        healpix_order_min: int,
+        healpix_order_max: int,
         target_rows_per_tile: int,
         seed: int,
         fits_hdu: str | None,
@@ -403,7 +403,7 @@ try:
             quiet=False,
             log_file=log_file,
         )
-        rec = recommend_catalog_norder(
+        rec = recommend_catalog_healpix_order(
             paths,
             ra_col=ra_col,
             dec_col=dec_col,
@@ -411,8 +411,8 @@ try:
             glob_pattern=glob_pattern,
             max_files=max_files,
             sample_rows=sample_rows,
-            norder_min=norder_min,
-            norder_max=norder_max,
+            healpix_order_min=healpix_order_min,
+            healpix_order_max=healpix_order_max,
             target_rows_per_tile=target_rows_per_tile,
             seed=seed,
             fits_hdu=fits_hdu,

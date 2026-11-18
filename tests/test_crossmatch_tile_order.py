@@ -21,19 +21,19 @@ class TestNestedParentSort:
         assert nested_parent_order(0) == 0
 
     def test_clusters_sparse_tiles_by_parent(self):
-        # At norder=5, parent_order=3 → shift 4 bits (2*2).
+        # At healpix_order=5, parent_order=3 → shift 4 bits (2*2).
         # Pixels under parent 0: 0..15; under parent 1: 16..31; etc.
         # Interleave distant Morton indices so a plain sorted() would keep them
         # interleaved; parent sort should group by parent first.
         pending = [0, 16, 1, 17, 2, 18]
-        out = sort_pending_by_nested_parent(pending, norder=5)
+        out = sort_pending_by_nested_parent(pending, healpix_order=5)
         # All parent-0 tiles before parent-1
         assert out == [0, 1, 2, 16, 17, 18]
 
-    def test_plain_ascending_when_parent_equals_norder(self):
+    def test_plain_ascending_when_parent_equals_healpix_order(self):
         pending = [5, 1, 3]
         assert sort_pending_by_nested_parent(
-            pending, norder=5, parent_order=5
+            pending, healpix_order=5, parent_order=5
         ) == [1, 3, 5]
 
 
@@ -123,7 +123,7 @@ class TestBalancedParallelCrossmatch:
                 ids = list(range(sid, sid + len(rows)))
                 sid += len(rows)
                 _write_catalog_tile(
-                    lake, survey, norder=5, npix=p, source_ids=ids,
+                    lake, survey, healpix_order=5, npix=p, source_ids=ids,
                     ra=[r + offset for r, _ in rows], dec=[d for _, d in rows],
                 )
         return lake, len(ra)
@@ -133,9 +133,9 @@ class TestBalancedParallelCrossmatch:
         from data_lake.io.crossmatch import iter_populated_tile_npixels
         from data_lake.schema_registry import resolve_catalog_root
 
-        pending = iter_populated_tile_npixels(resolve_catalog_root(lake, "A"), norder=5)
+        pending = iter_populated_tile_npixels(resolve_catalog_root(lake, "A"), healpix_order=5)
         costs = estimate_crossmatch_tile_costs(
-            lake, "A", "B", pending, norder_a=5, norder_b=5,
+            lake, "A", "B", pending, healpix_order_a=5, healpix_order_b=5,
             radius_rad=np.radians(1 / 3600),
         )
         assert len(costs) == len(pending)
@@ -160,7 +160,7 @@ class TestBalancedParallelCrossmatch:
         lake, _ = self._lake(tmp_path)
         cfg = xm.CrossmatchTileConfig(
             lake_root=str(lake), survey_a="A", survey_b="B", npix_a_list=(),
-            norder_a=5, norder_b=5, ra_col_a="ra", dec_col_a="dec",
+            healpix_order_a=5, healpix_order_b=5, ra_col_a="ra", dec_col_a="dec",
             ra_col_b="ra", dec_col_b="dec", radius_arcsec=1.0,
             out_root=str(tmp_path / "xm"),
         )

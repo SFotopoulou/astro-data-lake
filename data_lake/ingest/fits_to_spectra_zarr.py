@@ -91,7 +91,10 @@ import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Sequence
+
+if TYPE_CHECKING:
+    from data_lake.io.fits_read import FitsReadPolicy
 
 import numpy as np
 import zarr
@@ -2854,7 +2857,7 @@ class SpectrumDecodeConfig:
 
     survey_name: str
     output_root: str
-    norder: int
+    healpix_order: int
     fmt: str | None
     ra_col: str
     dec_col: str
@@ -3099,7 +3102,7 @@ def _align_records_for_batch_stack(
 def _spectrum_records_to_tile_batches(
     records: list[SpectrumRecord],
     *,
-    norder: int,
+    healpix_order: int,
     wavelength_mode_effective: str,
     length_policy: str = "error",
 ) -> tuple[list, np.ndarray | None, int]:
@@ -3109,7 +3112,7 @@ def _spectrum_records_to_tile_batches(
     n = len(records)
     ras = np.fromiter((r.ra for r in records), dtype=np.float64, count=n)
     decs = np.fromiter((r.dec for r in records), dtype=np.float64, count=n)
-    npix_arr = assign_healpix(ras, decs, norder)
+    npix_arr = assign_healpix(ras, decs, healpix_order)
 
     sort_idx = np.argsort(npix_arr, kind="stable")
     npix_sorted = npix_arr[sort_idx]
@@ -3192,7 +3195,7 @@ def decode_spectrum_file_to_worker_result(
             _decode_spplate_to_worker_result,
         )
         sp_config = SpplateBatchConfig(
-            norder=config.norder,
+            healpix_order=config.healpix_order,
             ra_col=config.ra_col,
             dec_col=config.dec_col,
             triplet_hash=(
@@ -3240,7 +3243,7 @@ def decode_spectrum_file_to_worker_result(
 
     batches, shared_wavelength, n_pix = _spectrum_records_to_tile_batches(
         records,
-        norder=config.norder,
+        healpix_order=config.healpix_order,
         wavelength_mode_effective=wavelength_mode_effective,
         length_policy=length_policy,
     )
@@ -3278,7 +3281,7 @@ def write_spectrum_tile_groups(
     *,
     output_root: Path,
     survey_name: str,
-    norder: int,
+    healpix_order: int,
     source_path: Path,
     tile_groups: dict[int, list[SpectrumRecord]],
     n_pix: int,
@@ -3304,7 +3307,7 @@ def write_spectrum_tile_groups(
         sid_to_res_idx = {rec.source_id: i for i, rec in enumerate(flat)}
 
     for npix, tile_records in tile_groups.items():
-        tile_dir = output_root / "spectra" / survey_name / healpix_dir(norder, npix)
+        tile_dir = output_root / "spectra" / survey_name / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         tile_path = tile_dir / f"Npix={npix}.zarr"
 
@@ -3467,7 +3470,7 @@ def ingest_spectra_from_fits(
     survey_name: str,
     ra_col: str = "RA",
     dec_col: str = "DEC",
-    norder: int = 5,
+    healpix_order: int = 5,
     link_id_col: str | None = None,
     wavelength_mode: str = "shared",
     mask_dtype: np.dtype | type = _DEFAULT_MASK_DTYPE,
@@ -3502,7 +3505,7 @@ def ingest_spectra_from_fits(
         default to ``TARGETID|SURVEY|PROGRAM`` (fibermap ``TARGETID`` + PRIMARY
         ``SURVEY`` / ``PROGRAM``).  Pass ``TARGETID`` alone for the legacy
         native-int path.  Must match the catalog ``--link-id-col``.
-    norder:
+    healpix_order:
         HEALPix partitioning order.
     wavelength_mode:
         ``"shared"`` (default) – one wavelength array stored per tile;
@@ -3597,13 +3600,13 @@ def ingest_spectra_from_fits(
 
     tile_groups: dict[int, list[SpectrumRecord]] = {}
     for rec in records:
-        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), norder)[0])
+        pix = int(assign_healpix(np.array([rec.ra]), np.array([rec.dec]), healpix_order)[0])
         tile_groups.setdefault(pix, []).append(rec)
 
     index_map = write_spectrum_tile_groups(
         output_root=output_root,
         survey_name=survey_name,
-        norder=norder,
+        healpix_order=healpix_order,
         source_path=source_path,
         tile_groups=tile_groups,
         n_pix=n_pix,
@@ -3620,7 +3623,7 @@ def ingest_spectra_from_fits(
     n_diag = int(res_diags[0].shape[0]) if res_diags is not None else None
     _write_spectrum_info(
         output_root / "spectra" / survey_name,
-        survey_name, norder, n_pix,
+        survey_name, healpix_order, n_pix,
         wavelength_mode_effective, str(mask_dtype), wcs_attrs,
         has_resolution=has_resolution,
         resolution_n_diag=n_diag,
@@ -3877,7 +3880,7 @@ def ingest_spectra_batch(
 def _write_spectrum_info(
     spectra_survey_root: Path,
     survey_name: str,
-    norder: int,
+    healpix_order: int,
     n_pix: int,
     wavelength_mode: str,
     mask_dtype: str,
@@ -3891,7 +3894,7 @@ def _write_spectrum_info(
 ) -> None:
     info = {
         "survey_name": survey_name,
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "n_pix": n_pix,
         "wavelength_mode": wavelength_mode,
         "flux_dtype": "float32",

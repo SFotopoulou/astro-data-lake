@@ -97,7 +97,7 @@ def _read_catalog(lake: Path, survey: str = SURVEY) -> pa.Table:
 def _ingest(src: Path, lake: Path, **kw) -> None:
     ingest_catalog_mef(
         src, lake, SURVEY,
-        ra_col="RA", dec_col="DEC", norder=3,
+        ra_col="RA", dec_col="DEC", healpix_order=3,
         link_id_col=LINK_ID, **kw,
     )
 

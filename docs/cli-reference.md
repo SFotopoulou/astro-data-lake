@@ -2,7 +2,7 @@
 
 Every `dl-*` command in one table. Pass `--help` to any command for full flag docs.
 
-The HEALPix order flag is `--healpix-order`. The older `--norder` still works as a hidden alias.
+The HEALPix order flag is `--healpix-order`. The older `--healpix-order` still works as a hidden alias.
 
 All commands that read from or write to a lake honour `--config PATH` (or `$DATA_LAKE_CONFIG`) to supply the lake root and defaults without repeating flags. Free-form DuckDB predicates (`--where`, `--where-joined`) are trusted-operator input; see [security.md](security.md).
 
@@ -25,7 +25,7 @@ All commands that read from or write to a lake honour `--config PATH` (or `$DATA
 | `dl-ingest-from-shard` | Map-reduce catalog ingest for many files that share lake tiles (bricks, RA/Dec patches, unsorted run folders); choose via [Choosing a catalog ingest command](ingest/catalog.md#choosing-a-catalog-ingest-command). `--phase map` decodes FITS → immutable per-HEALPix Parquet parts; `--phase reduce` concatenates parts → lake tiles; see [batch-and-checkpoints.md](ingest/batch-and-checkpoints.md#two-phase-map-reduce-ingest-dl-ingest-from-shard) |
 | `dl-finalize-catalog` | Rebuild `catalog_info.json`, `_common_metadata` and `_metadata` from the tiles (no re-ingest); also adds `_common_metadata` to older catalogs |
 | `dl-repair-catalog-metadata` | Repair/rebuild link IDs, `--check-only`, `--rebuild-link-id` |
-| `dl-recommend-catalog-norder` | Sample a catalog to suggest a good `--healpix-order` |
+| `dl-recommend-catalog-healpix-order` | Sample a catalog to suggest a good `--healpix-order` |
 | `dl-check-fits-table-format` | Header-only FITS layout probe (standard vs packed-vector; est. source count) |
 
 **Spectra ingest**
@@ -75,11 +75,11 @@ All commands that read from or write to a lake honour `--config PATH` (or `$DATA
 | `dl-describe-lake` | Print survey × modality summary from registry; `--count-total`, `--modality`, `--kind ingested\|product\|crossmatch`, `--areas`, `--refresh`, `--verbose` (wide table, not DEBUG), `--pair-surveys`; logging via `-q`/`--log-file` only |
 | `dl-describe-survey` | Column manifest for one survey layer; `--modality`, `--role`, `--rebuild` |
 | `dl-describe-crossmatch` | List or describe crossmatch trees (sky + column); `--name`, `--radius-arcsec`, `--match-mode column --match-col-a/b`, `--recount`, `--json` ([docs](discovery/crossmatch.md)) |
-| `dl-preview-sources` | Peek first N sources from a modality (`catalog` / `spectra` / `cutouts`); `-n`, `-c COL`, `-o`, `--format` |
+| `dl-preview-sources` | Peek first N sources from a modality (`catalog` / `spectra` / `cutout`); `-n`, `-c COL`, `-o`, `--format` |
 | `dl-refresh-lake-registry` | Scan lake, write `shared/registry/surveys.parquet`, rebuild tile indices |
 | `dl-region` | Discover survey × modality data in a region (`--from-area`/`--cone`/`--bbox`/`--npix`/`--moc`); `--modalities` may include `crossmatch`; rounded counts, `--count` exact for catalog/crossmatch, `--save-as` area, `--export-moc`, `--moc-format fits\|json\|ascii` ([docs](discovery/regions-and-areas.md)) |
 | `dl-area` | Manage `areas/<id>.json`: `list`, `show`, `validate`, `set-crossmatch`, `set-gather`, `set-homogenize`, `import` ([docs](discovery/areas-cli.md)) |
-| `dl-export-moc` | Survey footprint as IVOA MOC; `--from-tiles` (default, `--moc-order` ≤ HATS order) or `--from-rows` (catalog RA/Dec, any order); default `shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.*`; `--all-surveys` bulk from registry; optional `-o` / region clip; `--moc-order` ([docs](discovery/regions-and-areas.md#export-as-moc)) |
+| `dl-export-moc` | Survey footprint as IVOA MOC; `--from-tiles` (default, `--moc-order` ≤ HEALPix order) or `--from-rows` (catalog RA/Dec, any order); default `shared/registry/mocs/<survey>.<modality>.Norder<N>.moc.*`; `--all-surveys` bulk from registry; optional `-o` / region clip; `--moc-order` ([docs](discovery/regions-and-areas.md#export-as-moc)) |
 | `dl-export-ds9-region` | Write DS9 `.reg` for catalog sources (0.5″ circles) and/or HEALPix footprint polygons; `--mode sources\|footprint\|both`, `--where`/`--limit`, `--from-area` / other region clips ([docs](discovery/regions-and-areas.md#export-as-ds9-region)) |
 
 

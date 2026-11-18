@@ -185,7 +185,7 @@ class TestSpplateIngest:
             "sdss_test",
             fmt="sdss_spplate",
             specobj_lookup=lookup,
-            norder=5,
+            healpix_order=5,
             on_duplicate_source_id="skip",
         )
         assert len(index_map) == 2
@@ -208,7 +208,7 @@ class TestSpplateIngest:
             "sdss_plate_id",
             fmt="sdss_spplate",
             specobj_lookup_from_plate=True,
-            norder=5,
+            healpix_order=5,
         )
         assert len(index_map) == 2
         sid1 = sdss_specobjid_from_plate_fiber(plate, 1, mjd, "v5_13_2")
@@ -251,7 +251,7 @@ class TestSpplateIngest:
             "boss_plate_test",
             fmt="sdss_spplate",
             specobj_lookup_from_plate=True,
-            norder=5,
+            healpix_order=5,
             on_duplicate_source_id="skip",
         )
         assert len(n) == len(records)
@@ -270,7 +270,7 @@ class TestSpplateIngest:
         _write_minimal_spplate(sp, plate=plate, mjd=mjd, n_fiber=3)
         lake = tmp_path / "lake"
         index_map = ingest_spectra_from_fits(
-            sp, lake, "sdss_test", fmt="sdss_spplate", norder=5,
+            sp, lake, "sdss_test", fmt="sdss_spplate", healpix_order=5,
         )
         assert len(index_map) == 3
         for fiber_id in (1, 2, 3):
@@ -556,12 +556,12 @@ class TestDynamicTileWideningOnIngest:
         ingest_spectra_from_fits(
             short_sp, lake, "widen_test",
             fmt="sdss_spplate", specobj_lookup=lookup_short,
-            norder=5, on_length_mismatch="pad",
+            healpix_order=5, on_length_mismatch="pad",
         )
         ingest_spectra_from_fits(
             long_sp, lake, "widen_test",
             fmt="sdss_spplate", specobj_lookup=lookup_long,
-            norder=5, on_length_mismatch="pad",
+            healpix_order=5, on_length_mismatch="pad",
         )
 
         from data_lake.io.spectra import SpectrumAccessor
@@ -601,12 +601,12 @@ class TestDynamicTileWideningOnIngest:
         ingest_spectra_from_fits(
             short_sp, lake, "shared_widen_test",
             fmt="sdss_spplate", specobj_lookup=lookup_short,
-            norder=5, wavelength_mode="shared", on_length_mismatch="pad",
+            healpix_order=5, wavelength_mode="shared", on_length_mismatch="pad",
         )
         ingest_spectra_from_fits(
             long_sp, lake, "shared_widen_test",
             fmt="sdss_spplate", specobj_lookup=lookup_long,
-            norder=5, wavelength_mode="shared", on_length_mismatch="pad",
+            healpix_order=5, wavelength_mode="shared", on_length_mismatch="pad",
         )
 
         from data_lake.io.spectra import SpectrumAccessor
@@ -649,7 +649,7 @@ class TestVectorizedSpplateDecoder:
             for fid in range(1, n_fiber + 1)
         }
 
-        config = SpplateBatchConfig(norder=5, triplet_hash=True)
+        config = SpplateBatchConfig(healpix_order=5, triplet_hash=True)
         result = _decode_spplate_to_worker_result(sp, config)
 
         assert result.ok, result.error
@@ -687,7 +687,7 @@ class TestVectorizedSpplateDecoder:
             hdul[0].data[0, :] = 0.0
             hdul.flush()
 
-        config = SpplateBatchConfig(norder=5, triplet_hash=True)
+        config = SpplateBatchConfig(healpix_order=5, triplet_hash=True)
         result = _decode_spplate_to_worker_result(sp, config)
 
         assert result.ok
@@ -705,7 +705,7 @@ class TestVectorizedSpplateDecoder:
         n_pix = 48
         _write_minimal_spplate(sp, plate=plate, mjd=mjd, n_fiber=2, n_pix=n_pix)
 
-        config = SpplateBatchConfig(norder=5, triplet_hash=True)
+        config = SpplateBatchConfig(healpix_order=5, triplet_hash=True)
         result = _decode_spplate_to_worker_result(sp, config)
 
         assert result.ok
@@ -727,7 +727,7 @@ class TestVectorizedSpplateDecoder:
         sp = tmp_path / f"spPlate-{plate}-{mjd}.fits"
         _write_minimal_spplate(sp, plate=plate, mjd=mjd, n_fiber=4, n_pix=32)
 
-        config = SpplateBatchConfig(norder=5, triplet_hash=True)
+        config = SpplateBatchConfig(healpix_order=5, triplet_hash=True)
         result = _decode_spplate_to_worker_result(sp, config)
 
         assert result.ok
@@ -764,7 +764,7 @@ class TestSpplateBatchIngest:
             output_root=lake,
             survey_name="sdss_test_batch",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             show_progress=False,
             on_duplicate_source_id="skip",
             executor_factory=lambda n: ThreadPoolExecutor(max_workers=n),
@@ -800,7 +800,7 @@ class TestSpplateBatchIngest:
             output_root=lake,
             survey_name="sdss_shared_test",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             show_progress=False,
             executor_factory=lambda n: ThreadPoolExecutor(max_workers=n),
         )
@@ -829,7 +829,7 @@ class TestSpplateBatchIngest:
             output_root=lake,
             survey_name="sdss_ckpt_test",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             show_progress=False,
             checkpoint_path=ckpt,
             executor_factory=lambda n: ThreadPoolExecutor(max_workers=n),
@@ -840,7 +840,7 @@ class TestSpplateBatchIngest:
             output_root=lake,
             survey_name="sdss_ckpt_test",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             show_progress=False,
             checkpoint_path=ckpt,
             executor_factory=lambda n: ThreadPoolExecutor(max_workers=n),
@@ -882,7 +882,7 @@ class TestSpplateBatchMixedNPix:
             output_root=lake,
             survey_name="sdss_mixed_npix",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             show_progress=False,
             on_length_mismatch="pad",
             executor_factory=lambda n: ThreadPoolExecutor(max_workers=n),
@@ -926,7 +926,7 @@ class TestSpplateBatchMixedNPix:
             output_root=lake,
             survey_name="sdss_strict_npix",
             n_workers=1,
-            norder=5,
+            healpix_order=5,
             show_progress=False,
             on_length_mismatch="error",
             executor_factory=lambda n: ThreadPoolExecutor(max_workers=n),

@@ -88,7 +88,7 @@ def test_ingest_writes_schema_manifest(tmp_path: Path) -> None:
         survey_name="manifest_test",
         ra_col="TARGET_RA",
         dec_col="TARGET_DEC",
-        norder=5,
+        healpix_order=5,
         link_id_col="TARGETID",
         tile_mode="overwrite",
     )

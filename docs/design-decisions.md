@@ -45,7 +45,7 @@ Catalog ingest always requires `--link-id-col`. For cutouts and spectra, `--link
 | Decision | Choice | Rationale |
 |---|---|---|
 | Catalog format | Parquet v2 + Zstd | No column limit; columnar projection; column statistics for predicate pushdown |
-| Catalog partitioning | HATS-style HEALPix layout fixed to one `norder` per catalog (`--healpix-order`, default 5); not adaptive, not validated against the HATS standard, and not built with the LSDB library | About 3.4 deg² per tile at the default; see [Data layout on disk](layout/data-on-disk.md) |
+| Catalog partitioning | HATS-style HEALPix layout fixed to one `healpix_order` per catalog (`--healpix-order`, default 5); not adaptive, not validated against the HATS standard, and not built with the LSDB library | About 3.4 deg² per tile at the default; see [Data layout on disk](layout/data-on-disk.md) |
 | Catalog metadata | `_common_metadata` (schema only) + `_metadata` (aggregate footer), written by `dl-finalize-catalog` | Schema reads open one small file instead of a tile |
 | Cutout format | Zarr v3, sharded | Avoids one file per cutout; sequential shard reads for ML |
 | Cutout dtype | float32 (`--dtype`) | Full science precision; use float16 only for ML-only mirrors |

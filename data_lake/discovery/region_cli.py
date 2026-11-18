@@ -36,7 +36,7 @@ def _region_from_args(
     *,
     from_area: str | None,
     npix: str | None,
-    norder: int | None,
+    healpix_order: int | None,
     cone: tuple[float, float] | None,
     radius_arcsec: float | None,
     bbox: tuple[float, float, float, float] | None,
@@ -63,9 +63,9 @@ def _region_from_args(
         area = load_area(lake_root, from_area)
         return area.region, area
     if npix is not None:
-        if norder is None:
+        if healpix_order is None:
             raise ValueError("--npix requires --healpix-order (the source HEALPix order)")
-        return Region.from_npix(parse_npix_arg(npix), norder), None
+        return Region.from_npix(parse_npix_arg(npix), healpix_order), None
     if cone is not None:
         if radius_arcsec is None:
             raise ValueError("--cone requires --radius-arcsec")
@@ -148,7 +148,7 @@ try:
         config_path: Path | None,
         from_area: str | None,
         npix: str | None,
-        norder: int | None,
+        healpix_order: int | None,
         cone: tuple[float, float] | None,
         radius_arcsec: float | None,
         bbox: tuple[float, float, float, float] | None,
@@ -191,7 +191,7 @@ try:
 
         try:
             region, area = _region_from_args(
-                from_area=from_area, npix=npix, norder=norder, cone=cone,
+                from_area=from_area, npix=npix, healpix_order=healpix_order, cone=cone,
                 radius_arcsec=radius_arcsec, bbox=bbox, moc=moc, lake_root=lake,
             )
         except (ValueError, FileNotFoundError) as exc:

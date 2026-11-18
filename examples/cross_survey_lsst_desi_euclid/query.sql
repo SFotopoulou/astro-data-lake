@@ -16,13 +16,13 @@ SELECT
     m.desi_targetid,
     m.euclid_source_id,
     m.healpix_npix,
-    m.norder,
+    m.healpix_order,
     m.desi_zarr_row,
     m.euclid_zarr_row,
-    '__LAKE__/spectra/__DESI_SURVEY__/Norder=' || m.norder::VARCHAR
+    '__LAKE__/spectra/__DESI_SURVEY__/Norder=' || m.healpix_order::VARCHAR
         || '/Dir=' || ((m.healpix_npix / 10000)::BIGINT * 10000)::VARCHAR
         || '/Npix=' || m.healpix_npix::VARCHAR || '.zarr' AS spectrum_zarr_path,
-    '__LAKE__/cutouts/__EUCLID_SURVEY__/Norder=' || m.norder::VARCHAR
+    '__LAKE__/cutouts/__EUCLID_SURVEY__/Norder=' || m.healpix_order::VARCHAR
         || '/Dir=' || ((m.healpix_npix / 10000)::BIGINT * 10000)::VARCHAR
         || '/Npix=' || m.healpix_npix::VARCHAR || '.zarr' AS cutout_zarr_path
 FROM lsst l

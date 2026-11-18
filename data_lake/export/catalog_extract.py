@@ -519,18 +519,18 @@ def _prune_tiles_for_region(
     tiles: Sequence[Path],
     region: Region,
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
 ) -> list[Path]:
     """Keep only tiles whose ``Npix`` intersects *region* (catalog HEALPix order)."""
     from data_lake.discovery.selection import selection_from_region
 
     sel = selection_from_region(lake_root, survey, region)
     keep = set(sel.npix)
-    if norder is not None and int(sel.norder) != int(norder):
+    if healpix_order is not None and int(sel.healpix_order) != int(healpix_order):
         log.debug(
-            "Region prune at survey order %d (requested norder=%d).",
-            sel.norder,
-            norder,
+            "Region prune at survey order %d (requested healpix_order=%d).",
+            sel.healpix_order,
+            healpix_order,
         )
     if not keep:
         log.info(
@@ -598,9 +598,9 @@ def _prune_tiles_for_source_ids(
     tiles: Sequence[Path],
     source_ids: np.ndarray,
     *,
-    norder: int,
+    healpix_order: int,
 ) -> list[Path]:
-    """Keep only tiles that contain any of *source_ids* (via ``_healpix_norder{N}``).
+    """Keep only tiles that contain any of *source_ids* (via ``_healpix_order{N}``).
 
     Falls back to the full *tiles* list when the HEALPix column is missing or
     the lightweight catalog scan fails.
@@ -611,8 +611,8 @@ def _prune_tiles_for_source_ids(
     try:
         from data_lake.io.catalog import CatalogAccessor
 
-        cat = CatalogAccessor(lake_root, survey, norder=norder)
-        hp_col = f"_healpix_norder{cat.norder}"
+        cat = CatalogAccessor(lake_root, survey, healpix_order=healpix_order)
+        hp_col = f"_healpix_order{cat.healpix_order}"
         if hp_col not in cat.columns:
             log.info(
                 "Tile prune skipped: %s not in catalog schema; scanning all %d tile(s).",
@@ -850,9 +850,9 @@ def _lake_catalog_root(lake_root: Path | str, survey: str) -> Path:
     return root
 
 
-def _lake_norder(catalog_root: Path, norder: int | None) -> int:
-    if norder is not None:
-        return norder
+def _lake_healpix_order(catalog_root: Path, healpix_order: int | None) -> int:
+    if healpix_order is not None:
+        return healpix_order
     return require_healpix_order_file(catalog_root / "catalog_info.json")
 
 
@@ -927,10 +927,10 @@ def write_homogenize_export_provenance(
 def iter_lake_catalog_tiles(
     catalog_root: Path,
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
 ) -> Iterator[Path]:
     """Yield ``Npix=*.parquet`` tile paths under a lake catalog."""
-    order = _lake_norder(catalog_root, norder)
+    order = _lake_healpix_order(catalog_root, healpix_order)
     order_root = catalog_root / f"Norder={order}"
     if order_root.is_dir():
         yield from sorted(order_root.rglob("Npix=*.parquet"))
@@ -969,7 +969,7 @@ def stream_extract_from_lake_catalog(
     all_columns: bool = False,
     output: Path | None = None,
     output_dir: Path | None = None,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     valid_sky_only: bool = False,
     ra_col: str | None = None,
     dec_col: str | None = None,
@@ -993,8 +993,8 @@ def stream_extract_from_lake_catalog(
         lake_root, survey, require_homogenized=require_homogenized,
     )
     catalog_root = _lake_catalog_root(lake_root, survey)
-    order = _lake_norder(catalog_root, norder)
-    all_tiles = list(iter_lake_catalog_tiles(catalog_root, norder=order))
+    order = _lake_healpix_order(catalog_root, healpix_order)
+    all_tiles = list(iter_lake_catalog_tiles(catalog_root, healpix_order=order))
     if not all_tiles:
         raise FileNotFoundError(f"No Parquet tiles under {catalog_root}")
 
@@ -1011,11 +1011,11 @@ def stream_extract_from_lake_catalog(
     tiles = all_tiles
     if region is not None:
         tiles = _prune_tiles_for_region(
-            lake_root, survey, tiles, region, norder=order,
+            lake_root, survey, tiles, region, healpix_order=order,
         )
     if source_ids is not None:
         tiles = _prune_tiles_for_source_ids(
-            lake_root, survey, tiles, source_ids, norder=order,
+            lake_root, survey, tiles, source_ids, healpix_order=order,
         )
     if not tiles:
         return _write_empty_lake_extract(
@@ -1837,7 +1837,7 @@ def extract_from_lake_catalog(
     specs: Sequence[str],
     *,
     all_columns: bool = False,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     valid_sky_only: bool = False,
     ra_col: str | None = None,
     dec_col: str | None = None,
@@ -1848,7 +1848,7 @@ def extract_from_lake_catalog(
 ) -> pa.Table:
     """In-memory lake extract (small catalogs / tests only)."""
     catalog_root = _lake_catalog_root(lake_root, survey)
-    tiles = list(iter_lake_catalog_tiles(catalog_root, norder=_lake_norder(catalog_root, norder)))
+    tiles = list(iter_lake_catalog_tiles(catalog_root, healpix_order=_lake_healpix_order(catalog_root, healpix_order)))
     schema_names = pq.read_schema(str(tiles[0])).names
     mapping = resolve_column_specs(
         schema_names,
@@ -1863,7 +1863,7 @@ def extract_from_lake_catalog(
             specs,
             all_columns=all_columns,
             output=out,
-            norder=norder,
+            healpix_order=healpix_order,
             valid_sky_only=valid_sky_only,
             ra_col=ra_col,
             dec_col=dec_col,
@@ -1938,8 +1938,6 @@ def stream_extract_from_fits_catalog(
     writer: pq.ParquetWriter | None = None
     n_rows = 0
     out_names: tuple[str, ...] = ()
-
-    from data_lake.io.fits_read import open_fits
 
     with open_fits(path, default_fits_read_policy(fits_memmap)) as hdul:
         idx = _bintable_hdu_index(hdul)
@@ -2149,7 +2147,7 @@ def extract_catalog(
     lake_root: Path | str | None = None,
     survey: str | None = None,
     output_dir: Path | str | None = None,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     valid_sky_only: bool = False,
     ra_col: str | None = None,
     dec_col: str | None = None,
@@ -2193,7 +2191,7 @@ def extract_catalog(
             all_columns=all_columns,
             output=Path(output) if output is not None else None,
             output_dir=Path(output_dir) if output_dir is not None else None,
-            norder=norder,
+            healpix_order=healpix_order,
             valid_sky_only=valid_sky_only,
             ra_col=ra_col,
             dec_col=dec_col,
@@ -2434,7 +2432,7 @@ def cli(
     from_product: str | None,
     require_subtype: str | None,
     no_homogenize_provenance: bool,
-    norder: int | None,
+    healpix_order: int | None,
     engine: str,
     valid_sky_only: bool,
     ra_col: str | None,
@@ -2566,7 +2564,7 @@ def cli(
             region, _ = _region_from_args(
                 from_area=from_area,
                 npix=npix,
-                norder=norder,
+                healpix_order=healpix_order,
                 cone=cone,
                 radius_arcsec=radius_arcsec,
                 bbox=bbox,
@@ -2638,7 +2636,7 @@ def cli(
         lake_root=lake_root,
         survey=survey,
         output_dir=output_dir,
-        norder=norder,
+        healpix_order=healpix_order,
         valid_sky_only=valid_sky_only,
         ra_col=ra_col,
         dec_col=dec_col,

@@ -38,15 +38,15 @@ def _write_catalog_tile(
     lake: Path,
     survey: str,
     *,
-    norder: int,
+    healpix_order: int,
     npix: int,
     n_rows: int,
     lifecycle: str | None = None,
     finalized: bool | None = None,
 ) -> None:
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp = f"_healpix_norder{norder}"
+    hp = f"_healpix_order{healpix_order}"
     pq.write_table(
         pa.table({
             LAKE_JOIN_ID_COLUMN: pa.array(list(range(n_rows)), type=pa.int64()),
@@ -57,7 +57,7 @@ def _write_catalog_tile(
         tile_dir / f"Npix={npix}.parquet",
     )
     info: dict = {
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "ra_column": "ra",
         "dec_column": "dec",
         "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -74,10 +74,10 @@ def _write_catalog_tile(
 @pytest.fixture
 def mini_lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
-    norder = 5
+    healpix_order = 5
     ra, dec = 120.0, 45.0
-    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
-    _write_catalog_tile(lake, "ALLWISE", norder=norder, npix=npix, n_rows=50)
+    npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
+    _write_catalog_tile(lake, "ALLWISE", healpix_order=healpix_order, npix=npix, n_rows=50)
     ti.write_tile_index(lake, "ALLWISE", "catalog")
     area = make_area("Wide_47", Region.cone(ra, dec, 60.0))
     save_area(lake, area)
@@ -88,24 +88,24 @@ def mini_lake(tmp_path: Path) -> Path:
 @pytest.fixture
 def product_lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
-    norder = 5
+    healpix_order = 5
     ra, dec = 120.0, 45.0
-    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+    npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
 
     for survey, z in [("EUCLID", None), ("DESI_DR1", [0.5, 1.2])]:
-        tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+        tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
         tile_dir.mkdir(parents=True, exist_ok=True)
         cols = {
             LAKE_JOIN_ID_COLUMN: pa.array([1, 2], type=pa.int64()),
             "ra": pa.array([ra, ra + 0.0005], type=pa.float64()),
             "dec": pa.array([dec, dec + 0.0005], type=pa.float64()),
-            f"_healpix_norder{norder}": pa.array([npix, npix], type=pa.int64()),
+            f"_healpix_order{healpix_order}": pa.array([npix, npix], type=pa.int64()),
         }
         if z is not None:
             cols["z"] = pa.array(z, type=pa.float64())
         pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
         (lake / "catalogs" / survey / "catalog_info.json").write_text(json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_column": LAKE_JOIN_ID_COLUMN,
@@ -178,10 +178,10 @@ def test_validate_survey(mini_lake: Path) -> None:
 
 def test_lake_health_flags_unfinalized(tmp_path: Path) -> None:
     lake = tmp_path / "lake"
-    norder = 5
+    healpix_order = 5
     npix = 0
     _write_catalog_tile(
-        lake, "EUCLID", norder=norder, npix=npix, n_rows=10,
+        lake, "EUCLID", healpix_order=healpix_order, npix=npix, n_rows=10,
         lifecycle="live", finalized=False,
     )
     refresh_lake_registry(lake)
@@ -378,7 +378,7 @@ def test_lake_mcp_app_tool_names() -> None:
         "discover_region", "list_areas", "get_area",
         "list_crossmatches", "describe_crossmatch",
         "describe_product", "build_query", "validate_survey",
-        "lake_health", "recommend_norder", "estimate_operation_cost",
+        "lake_health", "recommend_healpix_order", "estimate_operation_cost",
         "recommend_ingest",
         # New inventory tools
         "describe_lake", "describe_survey", "list_products",

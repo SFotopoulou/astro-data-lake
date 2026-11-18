@@ -111,21 +111,21 @@ clipped exports so you do not overwrite the full-footprint MOC.
 
 | Flag | Builds from | `--moc-order` | Modality |
 |---|---|---|---|
-| `--from-tiles` (default) | populated HATS tiles (fast; whole tiles, degraded if coarser) | must be **≤** the survey's HATS order, otherwise an error | any |
+| `--from-tiles` (default) | populated HEALPix tiles (fast; whole tiles, degraded if coarser) | must be **≤** the survey's HEALPix order, otherwise an error | any |
 | `--from-rows` | catalog RA/Dec, streamed one tile at a time | any, including **finer** than HATS | `catalog` only |
 
 Use `--from-rows` when you need a footprint finer than the tiling, so coverage
 follows sources instead of empty subdivided tiles. It reads every catalog row's
 position, so it is slower than `--from-tiles`. The canonical file name does not
 include the method; the method is recorded in the FITS header (`SOURCE`). With
-`--all-surveys` the chosen flag applies to every survey; a survey whose HATS order
+`--all-surveys` the chosen flag applies to every survey; a survey whose HEALPix order
 is below `--moc-order` fails under `--from-tiles` and is reported at the end.
 
 ```bash
 # Full footprint → shared/registry/mocs/SDSS_DR17.catalog.Norder5.moc.fits
 dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 5
 
-# Finer than the HATS tiling: build from catalog rows
+# Finer than the HEALPix tiling: build from catalog rows
 dl-export-moc /data/lake --survey SDSS_DR17 --moc-order 9 --from-rows
 
 # Explicit path still works
@@ -173,12 +173,12 @@ may each use a different `healpix_order`:
 ```python
 from data_lake.discovery.region import Region
 
-Region.from_npix([1002198, 1002199], source_norder=5)   # explicit tiles
+Region.from_npix([1002198, 1002199], source_healpix_order=5)   # explicit tiles
 Region.cone(ra_deg=150.1, dec_deg=2.2, radius_arcsec=600)
 Region.bbox(ra_min=149.5, ra_max=150.5, dec_min=1.8, dec_max=2.6)  # RA wrap-aware
 Region.from_moc(path="footprint.moc.fits")              # needs the moc extra
 
-region.to_npix(target_norder=6)   # -> set of NESTED pixels
+region.to_npix(target_healpix_order=6)   # -> set of NESTED pixels
 ```
 
 `npix` regions rescale exactly between orders (children or parent in the NESTED scheme).
@@ -193,7 +193,7 @@ other blocks are optional and can be added later with [`dl-area`](areas-cli.md):
 ```json
 {
   "area_id": "Euclid_North",
-  "region": { "type": "npix", "npix": ["1002198-1003000"], "source_norder": 5 },
+  "region": { "type": "npix", "npix": ["1002198-1003000"], "source_healpix_order": 5 },
   "discover": { "surveys": "all", "modalities": ["catalog", "spectra", "cutout"] },
   "crossmatch_plan": {
     "base_catalog": "EUCLID_DR1",
@@ -213,7 +213,7 @@ other blocks are optional and can be added later with [`dl-area`](areas-cli.md):
 ```
 
 Region types and their fields: `npix` (`npix` list of integers or `"a-b"` ranges,
-`source_norder`), `cone` (`ra_deg`, `dec_deg`, `radius_arcsec`), `bbox` (`ra_min`, `ra_max`,
+`source_healpix_order`), `cone` (`ra_deg`, `dec_deg`, `radius_arcsec`), `bbox` (`ra_min`, `ra_max`,
 `dec_min`, `dec_max`), and `moc` (`moc_path` or `moc_string`).
 
 Areas may overlap, so one tile can belong to several areas. `dl-describe-lake --areas` lists

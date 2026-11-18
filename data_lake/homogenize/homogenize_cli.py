@@ -43,7 +43,7 @@ def _resolve_selection(
     radius_arcsec: float | None,
     bbox: tuple[float, float, float, float] | None,
     npix: str | None,
-    npix_norder: int | None,
+    npix_healpix_order: int | None,
     allow_all_tiles: bool = False,
 ):
     selectors = [
@@ -87,11 +87,11 @@ def _resolve_selection(
             lake, survey, Region.bbox(*bbox), modality=region_modality,
         )
     if npix is not None:
-        if npix_norder is None:
+        if npix_healpix_order is None:
             raise ValueError("--npix requires --healpix-order")
         return selection_from_region(
             lake, survey,
-            Region.from_npix(parse_npix_arg(npix), npix_norder),
+            Region.from_npix(parse_npix_arg(npix), npix_healpix_order),
             modality=region_modality,
         )
     raise ValueError("no selection provided")
@@ -145,7 +145,7 @@ try:
     @click.option("--radius-arcsec", type=float, default=None)
     @click.option("--bbox", nargs=4, type=float, default=None)
     @click.option("--npix", default=None)
-    @healpix_order_option(dest="npix_norder", type=int, default=None)
+    @healpix_order_option(dest="npix_healpix_order", type=int, default=None)
     @click.option(
         "--from-product", default=None,
         help="Homogenize a gathered catalog product (catalog modality) or bound npix (spectra/cutout).",
@@ -170,7 +170,7 @@ try:
         radius_arcsec: float | None,
         bbox: tuple[float, float, float, float] | None,
         npix: str | None,
-        npix_norder: int | None,
+        npix_healpix_order: int | None,
         from_product: str | None,
         check_only: bool,
         overwrite: bool,
@@ -267,7 +267,7 @@ try:
                 radius_arcsec=radius_arcsec,
                 bbox=bbox,
                 npix=npix,
-                npix_norder=npix_norder,
+                npix_healpix_order=npix_healpix_order,
                 allow_all_tiles=allow_all_product,
             )
         except ValueError as exc:
@@ -313,7 +313,7 @@ try:
                     overlap = prod_sel.npix & spec_npix
                     zarr_selection = BaseSelection(
                         base_survey=survey,
-                        norder=spec_order or prod_sel.norder,
+                        healpix_order=spec_order or prod_sel.healpix_order,
                         npix=overlap,
                         source_ids=None,
                     )

@@ -297,7 +297,7 @@ def test_real_g1437140_duplicate_obsid_vr_disambiguated() -> None:
     import tempfile
     lake = Path(tempfile.mkdtemp()) / "lake"
     index_map = ingest_spectra_from_fits(
-        p, lake, "SIXDF_DR3", fmt="6df", norder=5,
+        p, lake, "SIXDF_DR3", fmt="6df", healpix_order=5,
     )
     assert set(index_map) == expected
 
@@ -343,7 +343,7 @@ def test_ingest_6df_end_to_end(tmp_path: Path) -> None:
         lake,
         "SIXDF_DR3",
         fmt="6df",
-        norder=5,
+        healpix_order=5,
         on_duplicate_source_id="skip",
     )
     sid = _expected_6df_source_id("g00123", "UK-SCHM.20011021.121407", "UK-SCHM.20011021.104720")

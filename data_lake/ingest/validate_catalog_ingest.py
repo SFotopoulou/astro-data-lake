@@ -79,7 +79,7 @@ def validate_catalog_tile(tile_path: Path, info: dict[str, Any], rep: Validation
         rep.errors.append(
             f"{tile_path}: schema missing join column {LAKE_JOIN_ID_COLUMN!r}"
         )
-    hp = f"_healpix_norder{require_healpix_order(info, 'catalog_info.json')}"
+    hp = f"_healpix_order{require_healpix_order(info, 'catalog_info.json')}"
     if hp not in names:
         rep.warnings.append(f"{tile_path}: missing expected HEALPix column {hp!r}")
 

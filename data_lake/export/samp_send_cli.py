@@ -40,7 +40,7 @@ try:
         radius_arcsec: float | None,
         bbox: tuple[float, float, float, float] | None,
         npix: str | None,
-        norder: int | None,
+        healpix_order: int | None,
         moc_path: Path | None,
     ):
         clip_selectors = [from_area, cone, bbox, npix, moc_path]
@@ -57,7 +57,7 @@ try:
             region, _ = _region_from_args(
                 from_area=from_area,
                 npix=npix,
-                norder=norder,
+                healpix_order=healpix_order,
                 cone=cone,
                 radius_arcsec=radius_arcsec,
                 bbox=bbox,
@@ -161,7 +161,7 @@ try:
         radius_arcsec: float | None,
         bbox: tuple[float, float, float, float] | None,
         npix: str | None,
-        norder: int | None,
+        healpix_order: int | None,
         moc_path: Path | None,
         valid_sky_only: bool,
         ra_col: str | None,
@@ -252,7 +252,7 @@ try:
                     radius_arcsec=radius_arcsec,
                     bbox=bbox,
                     npix=npix,
-                    norder=norder,
+                    healpix_order=healpix_order,
                     moc_path=moc_path,
                 )
 
@@ -294,7 +294,7 @@ try:
                         all_columns=all_columns,
                         lake_root=lake,
                         survey=survey,
-                        norder=norder,
+                        healpix_order=healpix_order,
                         valid_sky_only=valid_sky_only,
                         ra_col=ra_col,
                         dec_col=dec_col,

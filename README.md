@@ -110,9 +110,9 @@ See [design-decisions.md](docs/design-decisions.md) for the full decision tree.
 
 ## Dependencies
 
-Core: `pyarrow`, `zarr>=3`, `numcodecs`, `duckdb`, `astropy`, `healpy`, `numpy`, `polars`, `torch`, `tqdm`, `click`.
+Core: `pyarrow`, `zarr>=3`, `numcodecs`, `duckdb`, `polars`, `astropy`, `scipy`, `healpy`, `mocpy[plots]`, `numpy`, `h5py`, `tqdm`, `click`.
 
-Optional: `desispec` (`uv sync --extra desi`), `fitsio` (`--extra fitsio`), dev/notebooks (`--extra dev`), MCP server (`--extra mcp`), visualisation (`--extra viz`, adds `matplotlib`).
+Optional: `desispec` (`uv sync --extra desi`), `fitsio` (`--extra fitsio`), dev/notebooks (`--extra dev`), MCP server (`--extra mcp`), visualisation (`--extra viz`, adds `matplotlib`), PyTorch datasets (`--extra ml`, adds `torch`).
 
 Details: [docs/quickstart.md#dependencies](docs/quickstart.md).
 

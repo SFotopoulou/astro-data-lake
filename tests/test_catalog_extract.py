@@ -162,7 +162,7 @@ class TestExtractFromLake:
                 "source_id": pa.array([1, 2], type=pa.int64()),
                 "ra": pa.array([10.0, 11.0], type=pa.float64()),
                 "dec": pa.array([0.5, 0.6], type=pa.float64()),
-                "_healpix_norder5": pa.array([1, 1], type=pa.int64()),
+                "_healpix_order5": pa.array([1, 1], type=pa.int64()),
             }),
             tile_dir / "Npix=1.parquet",
         )
@@ -193,7 +193,7 @@ class TestExtractFromLake:
                 "Z": pa.array([0.0, 0.5, 0.0, 1.2], type=pa.float64()),
                 "ra": pa.array([10.0, 11.0, -9999.0, 13.0], type=pa.float64()),
                 "dec": pa.array([0.5, 0.6, -9999.0, 0.8], type=pa.float64()),
-                "_healpix_norder5": pa.array([1, 1, 1, 1], type=pa.int64()),
+                "_healpix_order5": pa.array([1, 1, 1, 1], type=pa.int64()),
             }),
             tile_dir / "Npix=1.parquet",
         )
@@ -278,7 +278,7 @@ class TestExtractFromLake:
                     "_source_id": pa.array(ids, type=pa.int64()),
                     "TARGETID": pa.array(ids, type=pa.int64()),
                     "Z": pa.array([float(i) / 10 for i in ids], type=pa.float64()),
-                    "_healpix_norder5": pa.array([npix, npix], type=pa.int64()),
+                    "_healpix_order5": pa.array([npix, npix], type=pa.int64()),
                 }),
                 tile_dir / f"Npix={npix}.parquet",
             )
@@ -375,7 +375,7 @@ class TestExtractFromLake:
                     "_source_id": pa.array(ids, type=pa.int64()),
                     "ra": pa.array([float(i) for i in ids], type=pa.float64()),
                     "flux_g": pa.array(flux, type=pa.float64()),
-                    "_healpix_norder5": pa.array([npix] * len(ids), type=pa.int64()),
+                    "_healpix_order5": pa.array([npix] * len(ids), type=pa.int64()),
                 }),
                 tile_dir / f"Npix={npix}.parquet",
             )
@@ -596,7 +596,7 @@ class TestExtractFromLake:
                 "ra": pa.array([10.0], type=pa.float64()),
                 "dec": pa.array([0.5], type=pa.float64()),
                 "phot_ab_w1": pa.array([12.699], type=pa.float32()),
-                "_healpix_norder5": pa.array([1], type=pa.int64()),
+                "_healpix_order5": pa.array([1], type=pa.int64()),
             }),
             tile_dir / "Npix=1.parquet",
         )
@@ -743,7 +743,6 @@ class TestExtractFromLake:
         assert "10.0,0.5" in text.splitlines()[1]
 
     def test_lake_fits_export(self, tmp_path: Path) -> None:
-        from astropy.io import fits
         from astropy.table import Table
 
         lake = tmp_path / "lake"
@@ -773,7 +772,6 @@ class TestExtractFromLake:
 
     def test_lake_fits_nullable_string_column(self, tmp_path: Path) -> None:
         """Nullable Arrow strings must export to FITS without mixed object dtypes."""
-        from astropy.io import fits
         from astropy.table import Table
 
         lake = tmp_path / "lake"
@@ -807,7 +805,6 @@ class TestExtractFromLake:
 
     def test_lake_fits_float_pad_and_string_tiles(self, tmp_path: Path) -> None:
         """Legacy float64 null pads + string tiles unify to string for FITS."""
-        from astropy.io import fits
         from astropy.table import Table
         from data_lake.ingest.fits_to_parquet import healpix_dir
 

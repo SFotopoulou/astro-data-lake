@@ -3,7 +3,7 @@ Shared CLI helpers for making `dl-ingest-*` commands lake-config aware.
 
 Each ingest CLI accepts an optional ``--config PATH`` (also honoured via
 the ``$DATA_LAKE_CONFIG`` env var).  When a config is found, it supplies
-defaults for parameters such as ``output_root``, ``norder``,
+defaults for parameters such as ``output_root``, ``healpix_order``,
 ``wavelength_mode``, etc.  Explicit CLI flags always override the config.
 """
 
@@ -29,21 +29,16 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 HEALPIX_ORDER_FLAG = "--healpix-order"
-LEGACY_NORDER_FLAG = "--norder"
 
 
-def healpix_order_option(*, dest: str = "norder", **kwargs: Any) -> Callable[[F], F]:
-    """Declare the HEALPix order flag: ``--healpix-order`` plus hidden ``--norder``.
+def healpix_order_option(*, dest: str = "healpix_order", **kwargs: Any) -> Callable[[F], F]:
+    """Declare the ``--healpix-order`` flag writing to parameter *dest*.
 
-    Both flags write to the same parameter *dest* and take identical *kwargs*
-    (default, type, help). The hidden ``--norder`` alias keeps existing scripts
-    working without appearing in ``--help``.
+    The old ``--norder`` alias was removed in 0.10.0 (breaking rename).
     """
 
     def decorator(f: F) -> F:
-        f = click.option(LEGACY_NORDER_FLAG, dest, hidden=True, **kwargs)(f)
-        f = click.option(HEALPIX_ORDER_FLAG, dest, **kwargs)(f)
-        return f
+        return click.option(HEALPIX_ORDER_FLAG, dest, **kwargs)(f)
 
     return decorator
 
@@ -56,7 +51,7 @@ def config_option(f: F) -> F:
         default=None,
         envvar="DATA_LAKE_CONFIG",
         help="Path to a lake_config.toml (or set $DATA_LAKE_CONFIG). "
-             "Provides default values for output_root, norder, etc.",
+             "Provides default values for output_root, healpix_order, etc.",
     )(f)
 
 
@@ -259,7 +254,7 @@ def pick(cli_value: Any, cfg_value: Any, fallback: Any) -> Any:
     Use ``None`` as the click default for any option you want the config
     to be able to override.  Then in the body call:
 
-        norder = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        healpix_order = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
     """
     if cli_value is not None:
         return cli_value

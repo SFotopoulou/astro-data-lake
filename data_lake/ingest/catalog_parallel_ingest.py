@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 class CatalogDecodeConfig:
     """Picklable worker arguments."""
 
-    norder: int
+    healpix_order: int
     ra_col: str
     dec_col: str
     link_id_col: str | None
@@ -104,7 +104,7 @@ def _decode_one_catalog(path_str: str, config: CatalogDecodeConfig) -> CatalogWo
         path_str,
         ra_col=config.ra_col,
         dec_col=config.dec_col,
-        norder=config.norder,
+        healpix_order=config.healpix_order,
         link_id_col=config.link_id_col,
         allow_incomplete_link_id=config.allow_incomplete_link_id,
         columns=cols,
@@ -175,7 +175,7 @@ def ingest_catalogs_parallel(
     n_workers: int,
     ra_col: str = "ra",
     dec_col: str = "dec",
-    norder: int = 5,
+    healpix_order: int = 5,
     link_id_col: str | None = None,
     allow_incomplete_link_id: bool = False,
     columns: Sequence[str] | None = None,
@@ -226,7 +226,7 @@ def ingest_catalogs_parallel(
     )
 
     decode_cfg = CatalogDecodeConfig(
-        norder=norder,
+        healpix_order=healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
         link_id_col=link_id_col,
@@ -246,7 +246,7 @@ def ingest_catalogs_parallel(
             n_workers=n_workers,
             ra_col=ra_col,
             dec_col=dec_col,
-            norder=norder,
+            healpix_order=healpix_order,
             link_id_col=link_id_col,
             allow_incomplete_link_id=allow_incomplete_link_id,
             resolved_tile_mode=resolved_tile_mode,
@@ -278,7 +278,7 @@ def _run_parallel_catalog_ingest(
     n_workers: int,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None,
     allow_incomplete_link_id: bool,
     resolved_tile_mode: TileMode,
@@ -327,7 +327,7 @@ def _run_parallel_catalog_ingest(
         finalize_catalog_survey(
             catalog_root,
             survey_name,
-            norder,
+            healpix_order,
             ra_col=ra_col,
             dec_col=dec_col,
             link_id_mode=None,
@@ -416,7 +416,7 @@ def _run_parallel_catalog_ingest(
                 work_queue.appendleft(path_str)
 
     def _write_batch(batch: CatalogTileBatch) -> None:
-        out_dir = catalog_root / healpix_dir(norder, batch.npix)
+        out_dir = catalog_root / healpix_dir(healpix_order, batch.npix)
         out_dir.mkdir(parents=True, exist_ok=True)
         out_file = out_dir / f"Npix={batch.npix}.parquet"
         _write_tile_for_mode(
@@ -560,7 +560,7 @@ def _run_parallel_catalog_ingest(
     finalize_catalog_survey(
         catalog_root,
         survey_name,
-        norder,
+        healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
         link_id_mode=sid_mode,
@@ -694,7 +694,7 @@ try:
         survey_name: str,
         ra_col: str,
         dec_col: str,
-        norder: int | None,
+        healpix_order: int | None,
         link_id_col: str | None,
         allow_incomplete_link_id: bool,
         tile_mode: str,
@@ -726,7 +726,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="catalogs")
-        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        n = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
         col_list = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
         default_ck = lake / "catalogs" / survey_name / ".ingest_checkpoint.json"
 
@@ -738,7 +738,7 @@ try:
             n_workers=n_workers,
             ra_col=ra_col,
             dec_col=dec_col,
-            norder=n,
+            healpix_order=n,
             link_id_col=link_id_col,
             allow_incomplete_link_id=allow_incomplete_link_id,
             columns=col_list,

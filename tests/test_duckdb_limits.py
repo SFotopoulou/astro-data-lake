@@ -128,7 +128,7 @@ class TestConnections:
         from data_lake.io.catalog import CatalogAccessor
 
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "A", norder=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
+        _write_catalog_tile(lake, "A", healpix_order=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
         with process_limits(DuckDBLimits(2, 512 * MIB)):
             with CatalogAccessor(lake, "A") as acc:
                 assert _settings(acc._con) == (2, "512.0 MiB")
@@ -155,7 +155,7 @@ class TestParquetMetadataCache:
         else:
             monkeypatch.setenv("DATA_LAKE_PARQUET_METADATA_CACHE", env)
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "A", norder=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
+        _write_catalog_tile(lake, "A", healpix_order=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
         with CatalogAccessor(lake, "A") as acc:
             assert _metadata_cache_on(acc._con) is expected
         with CatalogAccessor(lake, "A", metadata_cache=False) as acc:
@@ -167,13 +167,13 @@ class TestCrossmatchWorkers:
         from data_lake.io.crossmatch import CrossmatchTileConfig, _crossmatch_tile_worker
 
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "A", norder=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
-        _write_catalog_tile(lake, "B", norder=5, npix=100, source_ids=[2], ra=[30.0], dec=[5.0])
+        _write_catalog_tile(lake, "A", healpix_order=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
+        _write_catalog_tile(lake, "B", healpix_order=5, npix=100, source_ids=[2], ra=[30.0], dec=[5.0])
         limits = DuckDBLimits(1, 256 * MIB)
         res = _crossmatch_tile_worker(
             CrossmatchTileConfig(
                 lake_root=str(lake), survey_a="A", survey_b="B", npix_a_list=(100,),
-                norder_a=5, norder_b=5, ra_col_a="ra", dec_col_a="dec",
+                healpix_order_a=5, healpix_order_b=5, ra_col_a="ra", dec_col_a="dec",
                 ra_col_b="ra", dec_col_b="dec", radius_arcsec=1.0,
                 out_root=str(tmp_path / "xm"), duckdb_limits=limits,
             )
@@ -189,9 +189,9 @@ class TestCrossmatchWorkers:
         lake = tmp_path / "lake"
         ra, dec = 30.0, 5.0
         npix = int(assign_healpix(np.array([ra]), np.array([dec]), 5)[0])
-        _write_catalog_tile(lake, "A", norder=5, npix=npix, source_ids=[1], ra=[ra], dec=[dec])
+        _write_catalog_tile(lake, "A", healpix_order=5, npix=npix, source_ids=[1], ra=[ra], dec=[dec])
         _write_catalog_tile(
-            lake, "B", norder=5, npix=npix, source_ids=[2], ra=[ra + 1e-5], dec=[dec],
+            lake, "B", healpix_order=5, npix=npix, source_ids=[2], ra=[ra + 1e-5], dec=[dec],
         )
         result = build_crossmatch(
             lake, "A", "B", radius_arcsec=1.0, n_workers=2,

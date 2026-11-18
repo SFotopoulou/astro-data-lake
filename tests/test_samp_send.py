@@ -20,10 +20,10 @@ from data_lake.export.samp_send_cli import cli as samp_cli
 from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, assign_healpix, healpix_dir
 
 
-def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extra=None):
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+def _write_catalog_tile(lake, survey, *, healpix_order, npix, source_ids, ra, dec, extra=None):
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     cols = {
         LAKE_JOIN_ID_COLUMN: pa.array(source_ids, type=pa.int64()),
         "ra": pa.array(ra, type=pa.float64()),
@@ -36,7 +36,7 @@ def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extr
     pq.write_table(pa.table(cols), tile_dir / f"Npix={npix}.parquet")
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
         json.dumps({
-            "healpix_order": norder,
+            "healpix_order": healpix_order,
             "ra_column": "ra",
             "dec_column": "dec",
             "link_id_mode": "sequential",
@@ -49,12 +49,12 @@ def _write_catalog_tile(lake, survey, *, norder, npix, source_ids, ra, dec, extr
 @pytest.fixture
 def lake(tmp_path: Path) -> Path:
     lake = tmp_path / "lake"
-    norder = 5
+    healpix_order = 5
     ra, dec = 120.0, 45.0
-    npix = int(assign_healpix(np.array([ra]), np.array([dec]), norder)[0])
+    npix = int(assign_healpix(np.array([ra]), np.array([dec]), healpix_order)[0])
     _write_catalog_tile(
         lake, "ALLWISE",
-        norder=norder, npix=npix,
+        healpix_order=healpix_order, npix=npix,
         source_ids=[1, 2, 3],
         ra=[ra, ra + 0.01, ra + 0.02],
         dec=[dec, dec + 0.01, dec + 0.02],

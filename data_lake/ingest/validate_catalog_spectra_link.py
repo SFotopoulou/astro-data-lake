@@ -1,7 +1,7 @@
 """
 Cross-validate catalog Parquet ↔ spectrum Zarr linkage for one survey.
 
-Checks that ``_source_id``, ``_healpix_norder{N}``, and ``_spectrum_index`` on
+Checks that ``_source_id``, ``_healpix_order{N}``, and ``_spectrum_index`` on
 each catalog row agree with the paired ``Npix=*.zarr`` tile's ``_source_id``
 array (or legacy ``source_id``).
 
@@ -137,20 +137,20 @@ def _order_from_layer(info_path: Path, explicit: int | None) -> int:
     return require_healpix_order_file(info_path)
 
 
-def _resolve_norders(
+def _resolve_healpix_orders(
     catalog_root: Path,
     spectra_root: Path,
-    norder: int | None,
+    healpix_order: int | None,
     rep: LinkValidationReport,
 ) -> tuple[int, int]:
-    """Return ``(cat_order, spec_order)``; each comes from its sidecar or *norder*.
+    """Return ``(cat_order, spec_order)``; each comes from its sidecar or *healpix_order*.
 
     Orders may differ when catalog and spectra were partitioned at different
     resolutions — this is now supported via ``_spectrum_npix`` on catalog rows.
     A warning (not an error) is emitted when orders differ.
     """
-    cat_order = _order_from_layer(catalog_root / "catalog_info.json", norder)
-    spec_order = _order_from_layer(spectra_root / "spectrum_info.json", norder)
+    cat_order = _order_from_layer(catalog_root / "catalog_info.json", healpix_order)
+    spec_order = _order_from_layer(spectra_root / "spectrum_info.json", healpix_order)
 
     if cat_order != spec_order:
         rep.warnings.append(
@@ -160,8 +160,8 @@ def _resolve_norders(
     return cat_order, spec_order
 
 
-def _catalog_tile_path(catalog_root: Path, norder: int, npix: int) -> Path:
-    return catalog_root / healpix_dir(norder, npix) / f"Npix={npix}.parquet"
+def _catalog_tile_path(catalog_root: Path, healpix_order: int, npix: int) -> Path:
+    return catalog_root / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
 
 
 def _optional_catalog_sid(value: object) -> int | None:
@@ -261,12 +261,12 @@ def build_catalog_link_index(
         the hp column).
     has_npix_col:
         ``True`` when catalog has ``_spectrum_npix``; ``False`` for the legacy
-        path (groups by ``_healpix_norder{N}`` instead).
+        path (groups by ``_healpix_order{N}`` instead).
     show_progress:
         Show a tqdm progress bar while scanning catalog tiles.
     """
     index_col = "_spectrum_index"
-    ref_col = "_spectrum_npix" if has_npix_col else f"_healpix_norder{cat_order}"
+    ref_col = "_spectrum_npix" if has_npix_col else f"_healpix_order{cat_order}"
     read_cols = [sid_col, index_col, ref_col]
 
     by_spec_npix: dict[int, list[_TileLinkData]] = {}
@@ -397,7 +397,7 @@ def _validate_tile_with_index(
         return
 
     index_col = "_spectrum_index"
-    ref_col = "_spectrum_npix" if has_npix_col else f"_healpix_norder{cat_order}"
+    ref_col = "_spectrum_npix" if has_npix_col else f"_healpix_order{cat_order}"
 
     tile_links: list[_TileLinkData] = cat_index.by_spec_npix.get(zarr_npix, [])
     zarr_idx_linked: set[int] = set()
@@ -562,7 +562,7 @@ def validate_tile_link(
 
     index_col = "_spectrum_index"
     npix_col = "_spectrum_npix"
-    hp_col = f"_healpix_norder{cat_order}"
+    hp_col = f"_healpix_order{cat_order}"
 
     zarr_idx_linked: set[int] = set()
     zarr_sid_in_catalog: set[int] = set()
@@ -777,7 +777,7 @@ def run_validation(
     lake_root: Path,
     survey: str,
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     link_id_col: str | None = None,
     max_tiles: int | None = None,
     sample: int | None = None,
@@ -814,7 +814,7 @@ def run_validation(
         rep.errors.append(f"Spectrum store not found: {spectra_root}")
         return rep
 
-    cat_order, _spec_order = _resolve_norders(catalog_root, spectra_root, norder, rep)
+    cat_order, _spec_order = _resolve_healpix_orders(catalog_root, spectra_root, healpix_order, rep)
 
     all_parquet = sorted(catalog_root.rglob("Npix=*.parquet"))
     schema_names: list[str] | None = None
@@ -1136,7 +1136,7 @@ try:
         config_path: Path | None,
         surveys: tuple[str, ...],
         validate_all: bool,
-        norder: int | None,
+        healpix_order: int | None,
         link_id_col: str | None,
         max_tiles: int | None,
         sample: int | None,
@@ -1181,7 +1181,7 @@ try:
             rep = run_validation(
                 lake,
                 survey_name,
-                norder=norder,
+                healpix_order=healpix_order,
                 link_id_col=link_id_col,
                 max_tiles=max_tiles,
                 sample=sample,

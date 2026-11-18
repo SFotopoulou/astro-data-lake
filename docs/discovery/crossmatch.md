@@ -48,7 +48,7 @@ Each per-tile Parquet file has these columns:
 | `source_id_a` | Survey-A source ID |
 | `source_id_b` | Survey-B source ID |
 | `sep_arcsec` | Angular separation (`0.0` in column mode) |
-| `_healpix_norder<N_a>` | Survey-A HEALPix pixel (the partition key) |
+| `_healpix_order<N_a>` | Survey-A HEALPix pixel (the partition key) |
 | `healpix_npix_b` | Survey-B HEALPix pixel holding the partner row |
 
 [`dl-gather`](gather.md) uses `healpix_npix_b` to open exactly the right partner
@@ -63,7 +63,7 @@ By default each survey's RA/Dec columns and HEALPix order come from its
 ```bash
 dl-crossmatch SURVEY_A SURVEY_B /data/lake \
   --ra-col RA --dec-col DEC --healpix-order 5 \
-  --ra-col-b RAJ2000 --dec-col-b DEJ2000 --norder-b 6
+  --ra-col-b RAJ2000 --dec-col-b DEJ2000 --healpix-order-b 6
 ```
 
 Only populated survey-A tiles are processed. `--all-tiles` scans every HEALPix
@@ -462,7 +462,7 @@ A typical workflow:
 2. Run STILTS, for example `tskymatch2` or `tmatch2`, with your chosen `find=`
    policy, error circles and output columns for both tables.
 3. Convert the STILTS output to Parquet to create the association file (see
-   below). Add `healpix_npix` and `norder` if they are missing, computed with
+   below). Add `healpix_npix` and `healpix_order` if they are missing, computed with
    the same `assign_healpix` and `healpix_order` as the lake so tile paths stay
    consistent.
 4. Join in DuckDB or Polars: filter the primary catalog, join it to the
@@ -503,14 +503,14 @@ Shape it for how you query (DuckDB, Polars, ADQL). Typical columns:
 | Partner IDs | e.g. `desi_targetid`, `euclid_source_id` — whatever the other survey stores |
 | `sep_arcsec` | Sky separation from the matcher (optional but good for QA) |
 | `match_rank` / `find` flag | Disambiguates when the matcher returns multiple neighbours |
-| `healpix_npix`, `norder` | Same nested HEALPix index and order as the lake tiles (must match ingest `healpix_order` / `--healpix-order`) |
+| `healpix_npix`, `healpix_order` | Same nested HEALPix index and order as the lake tiles (must match ingest `healpix_order` / `--healpix-order`) |
 | Zarr row indices | Optional, after ingest: `desi_spectrum_row`, `euclid_cutout_row` — tile-local indices aligned with `_spectrum_index` / `_cutout_index` |
 
-Tile paths in the lake follow `healpix_dir(norder, npix)` from
+Tile paths in the lake follow `healpix_dir(healpix_order, npix)` from
 `data_lake.ingest.fits_to_parquet` (for example `Norder=5/Dir=10000/Npix=12345`).
-Either store `npix` and `norder` and build paths in SQL or Python, or join the
+Either store `npix` and `healpix_order` and build paths in SQL or Python, or join the
 association file back to an ingested catalog on `source_id` and read
-`_healpix_norder5` from its Parquet.
+`_healpix_order5` from its Parquet.
 
 Store the file wherever suits you. Many teams use
 `<lake_root>/shared/associations/<name>.parquet`, which is easy to back up and

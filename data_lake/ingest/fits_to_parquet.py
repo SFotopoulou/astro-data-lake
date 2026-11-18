@@ -78,10 +78,10 @@ class CatalogParquetOptions:
 # ---------------------------------------------------------------------------
 
 
-def healpix_dir(norder: int, npix: int) -> str:
+def healpix_dir(healpix_order: int, npix: int) -> str:
     """Return the HATS directory path fragment for a pixel (e.g. ``Norder=5/Dir=0``)."""
     dir_index = (npix // _HATS_DIR_STRIDE) * _HATS_DIR_STRIDE
-    return f"Norder={norder}/Dir={dir_index}"
+    return f"Norder={healpix_order}/Dir={dir_index}"
 
 
 _COMMON_ID_COLUMNS = (
@@ -675,7 +675,7 @@ def _drop_join_id_columns(table: pa.Table) -> pa.Table:
 # --set-column: inject constant columns before identity resolution
 # ---------------------------------------------------------------------------
 
-_SET_COLUMN_RESERVED_PREFIXES = ("_healpix_norder", "_cutout", "_spectrum")
+_SET_COLUMN_RESERVED_PREFIXES = ("_healpix_order", "_cutout", "_spectrum")
 _SET_COLUMN_RESERVED_NAMES = frozenset({LAKE_JOIN_ID_COLUMN})
 
 _SET_COLUMN_TYPE_ALIASES: dict[str, pa.DataType] = {
@@ -1156,10 +1156,10 @@ def valid_sky_position_mask(ra_deg: np.ndarray, dec_deg: np.ndarray) -> np.ndarr
 def assign_healpix(
     ra_deg: np.ndarray,
     dec_deg: np.ndarray,
-    norder: int = 5,
+    healpix_order: int = 5,
 ) -> np.ndarray:
     """Return HEALPix NESTED pixel indices for arrays of RA/Dec (degrees)."""
-    nside = hp.order2nside(norder)
+    nside = hp.order2nside(healpix_order)
     theta = np.radians(90.0 - dec_deg)
     phi = np.radians(ra_deg)
     return hp.ang2pix(nside, theta, phi, nest=True).astype(np.int64)
@@ -1934,7 +1934,7 @@ def _add_healpix_columns(
     table: pa.Table,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
 ) -> pa.Table:
     """Append ``_healpix_order<N>`` and ``_cutout_index`` placeholder columns."""
     schema_names = list(table.schema.names)
@@ -1962,8 +1962,8 @@ def _add_healpix_columns(
             f"({ra_col!r}/{dec_col!r}; checked with is_valid_sky_position). "
             f"Examples: {examples}"
         )
-    pix = assign_healpix(ra, dec, norder)
-    col_name = f"_healpix_norder{norder}"
+    pix = assign_healpix(ra, dec, healpix_order)
+    col_name = f"_healpix_order{healpix_order}"
     table = table.append_column(col_name, pa.array(pix, type=pa.int64()))
     # cutout_index, spectrum_index, and their modality-specific Npix columns are
     # filled by the respective ingest steps; initialise all to -1.
@@ -1987,13 +1987,13 @@ def _filter_table_columns(
     ra_col: str,
     dec_col: str,
     link_id_col: str | None,
-    norder: int,
+    healpix_order: int,
     injected_names: Sequence[str] = (),
 ) -> pa.Table:
     """Keep only requested columns plus sky, ID, HEALPix, and index placeholders."""
     if not columns:
         return table
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     required = {
         ra_col, dec_col, hp_col,
         "_cutout_index", "_cutout_npix",
@@ -2646,7 +2646,7 @@ def _regenerate_metadata_from_all_tiles(catalog_root: Path) -> pa.Schema | None:
 def finalize_catalog_survey(
     catalog_root: Path | str,
     survey_name: str,
-    norder: int,
+    healpix_order: int,
     *,
     ra_col: str = "ra",
     dec_col: str = "dec",
@@ -2664,7 +2664,7 @@ def finalize_catalog_survey(
     ra = ra_col
     dec = dec_col
     sid = link_id_mode if link_id_mode is not None else "sequential"
-    healpix_order = norder
+    healpix_order = healpix_order
     stream = streaming
     allow_incomplete = allow_incomplete_link_id
     info_path = catalog_root / "catalog_info.json"
@@ -2675,7 +2675,7 @@ def finalize_catalog_survey(
         dec = info.get("dec_column", dec)
         if link_id_mode is None:
             sid = info.get("link_id_mode", sid)
-        # Stored order wins when present; otherwise the explicit ``norder``
+        # Stored order wins when present; otherwise the explicit ``healpix_order``
         # argument (required, no default) is kept and written back below.
         stored_order = read_healpix_order(info)
         if stored_order is not None:
@@ -2706,7 +2706,7 @@ def finalize_catalog_survey(
 def _finalize_catalog_writes(
     catalog_root: Path,
     survey_name: str,
-    norder: int,
+    healpix_order: int,
     *,
     ra_col: str,
     dec_col: str,
@@ -2783,7 +2783,7 @@ def _finalize_catalog_writes(
             info = json.load(fh)
         info["total_rows"] = total_rows
         info["total_columns"] = n_cols
-        info["healpix_order"] = norder
+        info["healpix_order"] = healpix_order
         info["link_id_column"] = join_col
         info["link_id_mode"] = link_id_mode
         if native_col:
@@ -2801,7 +2801,7 @@ def _finalize_catalog_writes(
         _write_catalog_info(
             catalog_root,
             survey_name,
-            norder,
+            healpix_order,
             total_rows,
             n_cols,
             ra_column=ra_col,
@@ -2833,7 +2833,7 @@ def _finalize_catalog_writes(
         write_catalog_schema_manifest(
             catalog_root,
             survey_name,
-            healpix_order=norder,
+            healpix_order=healpix_order,
             ra_column=ra_col,
             dec_column=dec_col,
             link_id_mode=link_id_mode,
@@ -2888,7 +2888,7 @@ def ingest_catalog(
     survey_name: str,
     ra_col: str = "ra",
     dec_col: str = "dec",
-    norder: int = 5,
+    healpix_order: int = 5,
     link_id_col: str | None = None,
     tile_mode: TileMode | None = None,
     on_duplicate_id: DuplicateIdMode = "skip",
@@ -2918,7 +2918,7 @@ def ingest_catalog(
         Short name used for the output directory (e.g. ``"des_dr2"``).
     ra_col / dec_col:
         Column names for right ascension and declination in degrees.
-    norder:
+    healpix_order:
         HEALPix order for partitioning (default 5 → ~12k tiles of ~3.7 deg²).
     link_id_col:
         **Required.** Survey object ID column (e.g. ``TARGETID``, ``SOURCE_ID``).
@@ -2977,7 +2977,7 @@ def ingest_catalog(
     try:
         _ingest_catalog_dispatch(
             source_path, catalog_root, survey_name,
-            ra_col=ra_col, dec_col=dec_col, norder=norder, link_id_col=link_id_col,
+            ra_col=ra_col, dec_col=dec_col, healpix_order=healpix_order, link_id_col=link_id_col,
             tile_mode=resolved_tile_mode, on_duplicate_id=on_duplicate_id,
             streaming=streaming, columns=columns, pq_opts=pq_opts,
             allow_incomplete_link_id=allow_incomplete_link_id,
@@ -2997,7 +2997,7 @@ def _ingest_catalog_dispatch(
     *,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None,
     tile_mode: TileMode,
     on_duplicate_id: DuplicateIdMode,
@@ -3031,7 +3031,7 @@ def _ingest_catalog_dispatch(
                 streaming_parallel=streaming_parallel,
                 ra_col=ra_col,
                 dec_col=dec_col,
-                norder=norder,
+                healpix_order=healpix_order,
                 link_id_col=link_id_col,
                 tile_mode=resolved_tile_mode,
                 on_duplicate_id=on_duplicate_id,
@@ -3050,7 +3050,7 @@ def _ingest_catalog_dispatch(
             survey_name=survey_name,
             ra_col=ra_col,
             dec_col=dec_col,
-            norder=norder,
+            healpix_order=healpix_order,
             link_id_col=link_id_col,
             tile_mode=resolved_tile_mode,
             on_duplicate_id=on_duplicate_id,
@@ -3072,7 +3072,7 @@ def _ingest_catalog_dispatch(
         survey_name,
         ra_col=ra_col,
         dec_col=dec_col,
-        norder=norder,
+        healpix_order=healpix_order,
         link_id_col=link_id_col,
         tile_mode=resolved_tile_mode,
         on_duplicate_id=on_duplicate_id,
@@ -3092,7 +3092,7 @@ def ingest_catalog_table(
     *,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None,
     tile_mode: TileMode,
     on_duplicate_id: DuplicateIdMode = "skip",
@@ -3113,13 +3113,13 @@ def ingest_catalog_table(
         table, link_id_col, allow_incomplete_link_id=allow_incomplete_link_id,
     )
 
-    table = _add_healpix_columns(table, ra_col, dec_col, norder)
+    table = _add_healpix_columns(table, ra_col, dec_col, healpix_order)
     table = _filter_table_columns(
         table, columns, ra_col=ra_col, dec_col=dec_col,
-        link_id_col=link_id_col, norder=norder,
+        link_id_col=link_id_col, healpix_order=healpix_order,
         injected_names=list((set_columns or {}).keys()),
     )
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
 
     # Sort by healpix for locality (so per-tile slicing is contiguous and O(1))
     sort_indices = pa.compute.sort_indices(table, sort_keys=[(hp_col, "ascending")])
@@ -3132,7 +3132,7 @@ def ingest_catalog_table(
     pix_np = np.asarray(table.column(hp_col))
     unique_pixels, group_starts = np.unique(pix_np, return_index=True)
     group_starts = np.append(group_starts, len(pix_np))
-    log.info("Writing %d HEALPix tiles at Norder=%d …", len(unique_pixels), norder)
+    log.info("Writing %d HEALPix tiles at Norder=%d …", len(unique_pixels), healpix_order)
 
     tiles_written = 0
     t0 = time.perf_counter()
@@ -3140,7 +3140,7 @@ def ingest_catalog_table(
         s, e = int(group_starts[g]), int(group_starts[g + 1])
         tile_table = table.slice(s, e - s)
 
-        out_dir = catalog_root / healpix_dir(norder, int(npix))
+        out_dir = catalog_root / healpix_dir(healpix_order, int(npix))
         out_dir.mkdir(parents=True, exist_ok=True)
         out_file = out_dir / f"Npix={int(npix)}.parquet"
 
@@ -3163,7 +3163,7 @@ def ingest_catalog_table(
     _finalize_catalog_writes(
         catalog_root,
         survey_name,
-        norder,
+        healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
         link_id_mode=sid_mode,
@@ -3184,7 +3184,7 @@ def ingest_catalog_mef(
     survey_name: str,
     ra_col: str = "ra",
     dec_col: str = "dec",
-    norder: int = 5,
+    healpix_order: int = 5,
     link_id_col: str | None = None,
     tile_mode: TileMode | None = None,
     on_duplicate_id: DuplicateIdMode = "skip",
@@ -3231,7 +3231,7 @@ def ingest_catalog_mef(
             survey_name,
             ra_col=ra_col,
             dec_col=dec_col,
-            norder=norder,
+            healpix_order=healpix_order,
             link_id_col=link_id_col,
             tile_mode=resolved_tile_mode,
             on_duplicate_id=on_duplicate_id,
@@ -3246,10 +3246,10 @@ def ingest_catalog_mef(
 
 def catalog_table_to_tile_batches(
     table: pa.Table,
-    norder: int,
+    healpix_order: int,
 ) -> list[tuple[int, pa.Table]]:
     """Split a prepared catalog table into per-HEALPix ``(npix, slice)`` pairs."""
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     if hp_col not in table.schema.names:
         raise KeyError(f"Table missing {hp_col!r}; call _add_healpix_columns first.")
 
@@ -3271,7 +3271,7 @@ def decode_catalog_file_to_batches(
     *,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None = None,
     columns: Sequence[str] | None = None,
     allow_incomplete_link_id: bool = False,
@@ -3294,18 +3294,18 @@ def decode_catalog_file_to_batches(
     table, sid_mode = ensure_catalog_source_ids(
         table, link_id_col, allow_incomplete_link_id=allow_incomplete_link_id,
     )
-    table = _add_healpix_columns(table, ra_col, dec_col, norder)
+    table = _add_healpix_columns(table, ra_col, dec_col, healpix_order)
     table = _filter_table_columns(
         table,
         columns,
         ra_col=ra_col,
         dec_col=dec_col,
         link_id_col=link_id_col,
-        norder=norder,
+        healpix_order=healpix_order,
         injected_names=list((set_columns or {}).keys()),
     )
     table = normalize_catalog_table_types(table)
-    batches = catalog_table_to_tile_batches(table, norder)
+    batches = catalog_table_to_tile_batches(table, healpix_order)
     return batches, sid_mode, int(table.num_rows)
 
 
@@ -3315,7 +3315,7 @@ def _ingest_catalog_streaming(
     survey_name: str,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None,
     tile_mode: TileMode,
     on_duplicate_id: DuplicateIdMode = "skip",
@@ -3347,7 +3347,7 @@ def _ingest_catalog_streaming(
        b. Wrap in an astropy Table and route through
           :func:`_astropy_table_to_arrow` so multidim columns and the
           large_string fix carry over.
-       c. Append source_id (if not in the FITS), ``_healpix_norder<N>``,
+       c. Append source_id (if not in the FITS), ``_healpix_order<N>``,
           ``_cutout_index = -1``, ``_spectrum_index = -1``.
        d. Write one Parquet file for the tile; drop the slice from RAM.
     4. Aggregate ``_metadata`` + ``catalog_info.json`` from the per-tile
@@ -3469,19 +3469,19 @@ def _ingest_catalog_streaming(
                 f"Examples: {examples}"
             )
 
-        npix_arr = assign_healpix(ra, dec, norder)
+        npix_arr = assign_healpix(ra, dec, healpix_order)
         sort_order = np.argsort(npix_arr, kind="stable")
         npix_sorted = npix_arr[sort_order]
         unique_pixels, group_starts = np.unique(npix_sorted, return_index=True)
         group_starts = np.append(group_starts, n_rows)
         log.info(
             "Writing %d HEALPix tiles at Norder=%d (streaming) …",
-            len(unique_pixels), norder,
+            len(unique_pixels), healpix_order,
         )
 
         catalog_root.mkdir(parents=True, exist_ok=True)
         write_root = catalog_root_override or catalog_root
-        hp_col = f"_healpix_norder{norder}"
+        hp_col = f"_healpix_order{healpix_order}"
 
         fits_read_cols = _streaming_fits_read_columns(
             columns,
@@ -3543,14 +3543,14 @@ def _ingest_catalog_streaming(
 
             tile_table = _filter_table_columns(
                 tile_table, columns, ra_col=ra_col, dec_col=dec_col,
-                link_id_col=link_id_col, norder=norder,
+                link_id_col=link_id_col, healpix_order=healpix_order,
                 injected_names=list((set_columns or {}).keys()),
             )
 
             if tile_schema is None:
                 tile_schema = tile_table.schema
 
-            out_dir = write_root / healpix_dir(norder, int(npix))
+            out_dir = write_root / healpix_dir(healpix_order, int(npix))
             out_dir.mkdir(parents=True, exist_ok=True)
             out_file = out_dir / f"Npix={int(npix)}.parquet"
 
@@ -3577,7 +3577,7 @@ def _ingest_catalog_streaming(
             _finalize_catalog_writes(
                 catalog_root,
                 survey_name,
-                norder,
+                healpix_order,
                 ra_col=ra_col,
                 dec_col=dec_col,
                 link_id_mode=sid_mode,
@@ -3630,7 +3630,7 @@ class StreamingShardConfig:
     row_end: int
     ra_col: str
     dec_col: str
-    norder: int
+    healpix_order: int
     link_id_col: str | None
     on_duplicate_id: DuplicateIdMode
     columns: tuple[str, ...] | None
@@ -3657,7 +3657,7 @@ def _streaming_shard_worker(config: StreamingShardConfig) -> tuple[str, str | No
         config.survey_name,
         ra_col=config.ra_col,
         dec_col=config.dec_col,
-        norder=config.norder,
+        healpix_order=config.healpix_order,
         link_id_col=config.link_id_col,
         tile_mode="append",
         on_duplicate_id=config.on_duplicate_id,
@@ -3681,7 +3681,7 @@ def _ingest_catalog_streaming_parallel(
     streaming_parallel: int,
     ra_col: str,
     dec_col: str,
-    norder: int,
+    healpix_order: int,
     link_id_col: str | None,
     tile_mode: TileMode,
     on_duplicate_id: DuplicateIdMode,
@@ -3738,7 +3738,7 @@ def _ingest_catalog_streaming_parallel(
             row_end=re,
             ra_col=ra_col,
             dec_col=dec_col,
-            norder=norder,
+            healpix_order=healpix_order,
             link_id_col=link_id_col,
             on_duplicate_id=on_duplicate_id,
             columns=col_tuple,
@@ -3801,7 +3801,7 @@ def _ingest_catalog_streaming_parallel(
     _finalize_catalog_writes(
         catalog_root,
         survey_name,
-        norder,
+        healpix_order,
         ra_col=ra_col,
         dec_col=dec_col,
         link_id_mode=sid_mode,
@@ -3831,7 +3831,7 @@ def _write_aggregate_metadata(
 def _write_catalog_info(
     catalog_root: Path,
     survey_name: str,
-    norder: int,
+    healpix_order: int,
     n_rows: int,
     n_cols: int,
     *,
@@ -3848,7 +3848,7 @@ def _write_catalog_info(
     info = {
         "catalog_name": survey_name,
         "catalog_type": "object",
-        "healpix_order": norder,
+        "healpix_order": healpix_order,
         "total_rows": n_rows,
         "total_columns": n_cols,
         "schema_version": "1",
@@ -3951,7 +3951,7 @@ def ingest_catalog_batch(
     survey_name: str,
     ra_col: str = "ra",
     dec_col: str = "dec",
-    norder: int = 5,
+    healpix_order: int = 5,
     link_id_col: str | None = None,
     tile_mode: TileMode | None = None,
     on_duplicate_id: DuplicateIdMode = "skip",
@@ -3971,7 +3971,7 @@ def ingest_catalog_batch(
             survey_name=survey_name,
             ra_col=ra_col,
             dec_col=dec_col,
-            norder=norder,
+            healpix_order=healpix_order,
             link_id_col=link_id_col,
             tile_mode=tile_mode,
             on_duplicate_id=on_duplicate_id,

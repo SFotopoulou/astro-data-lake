@@ -18,10 +18,10 @@ from data_lake.ingest.fits_to_parquet import (
 )
 
 
-def _write_tile(catalog_root: Path, norder: int, npix: int, n: int = 3) -> None:
-    tile_dir = catalog_root / healpix_dir(norder, npix)
+def _write_tile(catalog_root: Path, healpix_order: int, npix: int, n: int = 3) -> None:
+    tile_dir = catalog_root / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
-    hp_col = f"_healpix_norder{norder}"
+    hp_col = f"_healpix_order{healpix_order}"
     pq.write_table(
         pa.table({
             LAKE_JOIN_ID_COLUMN: pa.array(list(range(n)), type=pa.int64()),
@@ -35,13 +35,13 @@ def _write_tile(catalog_root: Path, norder: int, npix: int, n: int = 3) -> None:
 
 class TestDeferredFinalize:
     def test_defer_skips_metadata_and_marks_live(self, tmp_path: Path) -> None:
-        norder = 5
-        npix = int(assign_healpix(np.array([120.0]), np.array([45.0]), norder)[0])
+        healpix_order = 5
+        npix = int(assign_healpix(np.array([120.0]), np.array([45.0]), healpix_order)[0])
         catalog_root = tmp_path / "lake" / "catalogs" / "LIVE"
-        _write_tile(catalog_root, norder, npix)
+        _write_tile(catalog_root, healpix_order, npix)
 
         _finalize_catalog_writes(
-            catalog_root, "LIVE", norder,
+            catalog_root, "LIVE", healpix_order,
             ra_col="ra", dec_col="dec", link_id_mode="sequential",
             streaming=False, fallback_n_cols=4,
             regenerate_metadata=False, lifecycle="live", finalized=False,
@@ -54,18 +54,18 @@ class TestDeferredFinalize:
         assert not (catalog_root / "_metadata").exists()
 
     def test_finalize_flips_finalized_true(self, tmp_path: Path) -> None:
-        norder = 5
-        npix = int(assign_healpix(np.array([120.0]), np.array([45.0]), norder)[0])
+        healpix_order = 5
+        npix = int(assign_healpix(np.array([120.0]), np.array([45.0]), healpix_order)[0])
         catalog_root = tmp_path / "lake" / "catalogs" / "LIVE"
-        _write_tile(catalog_root, norder, npix)
+        _write_tile(catalog_root, healpix_order, npix)
         _finalize_catalog_writes(
-            catalog_root, "LIVE", norder,
+            catalog_root, "LIVE", healpix_order,
             ra_col="ra", dec_col="dec", link_id_mode="sequential",
             streaming=False, fallback_n_cols=4,
             regenerate_metadata=False, lifecycle="live", finalized=False,
         )
 
-        assert finalize_catalog_survey(catalog_root, "LIVE", norder, ra_col="ra", dec_col="dec")
+        assert finalize_catalog_survey(catalog_root, "LIVE", healpix_order, ra_col="ra", dec_col="dec")
         info = json.loads((catalog_root / "catalog_info.json").read_text())
         assert info["finalized"] is True
         # lifecycle is preserved across finalize.

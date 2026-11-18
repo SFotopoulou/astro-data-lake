@@ -133,7 +133,7 @@ try:
         survey_name: str,
         ra_col: str,
         dec_col: str,
-        norder: int | None,
+        healpix_order: int | None,
         link_id_col: str | None,
         allow_incomplete_link_id: bool,
         tile_mode: str,
@@ -180,7 +180,7 @@ try:
         )
         require_ingest_permission(cfg, ingest_token)
         lake = require_output_root(output_root, cfg, kind="catalogs")
-        n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+        n = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
         col_list = [c.strip() for c in columns.split(",") if c.strip()] if columns else None
         keys = [c.strip() for c in key_cols.split(",") if c.strip()] if key_cols else None
 
@@ -189,7 +189,7 @@ try:
             survey_name=survey_name,
             ra_col=ra_col,
             dec_col=dec_col,
-            norder=n,
+            healpix_order=n,
             link_id_col=link_id_col,
             allow_incomplete_link_id=allow_incomplete_link_id,
             tile_mode=tile_mode.lower(),

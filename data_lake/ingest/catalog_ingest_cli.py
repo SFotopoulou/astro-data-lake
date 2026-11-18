@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from data_lake.cli_utils import healpix_order_option
 from pathlib import Path
 
 import click
+
+if TYPE_CHECKING:
+    import pyarrow as pa
 
 from data_lake.cli_utils import (
     config_option,
@@ -132,7 +136,7 @@ def cli(
     survey_name: str,
     ra_col: str,
     dec_col: str,
-    norder: int | None,
+    healpix_order: int | None,
     link_id_col: str | None,
     allow_incomplete_link_id: bool,
     tile_mode: str | None,
@@ -205,7 +209,7 @@ def cli(
         survey_name=survey_name,
         ra_col=ra_col,
         dec_col=dec_col,
-        norder=pick(norder,
+        healpix_order=pick(healpix_order,
                     cfg.partitioning.healpix_order if cfg else None, 5),
         link_id_col=link_id_col,
         allow_incomplete_link_id=allow_incomplete_link_id,
@@ -240,7 +244,7 @@ def cli_finalize(
     survey_name: str,
     ra_col: str,
     dec_col: str,
-    norder: int | None,
+    healpix_order: int | None,
     log_file: Path | None,
     quiet: bool,
     verbose: bool,
@@ -255,7 +259,7 @@ def cli_finalize(
         log_file=log_file,
     )
     lake = require_output_root(output_root, cfg, kind="catalogs")
-    n = pick(norder, cfg.partitioning.healpix_order if cfg else None, 5)
+    n = pick(healpix_order, cfg.partitioning.healpix_order if cfg else None, 5)
     catalog_root = lake / "catalogs" / survey_name
     if not finalize_catalog_survey(
         catalog_root,

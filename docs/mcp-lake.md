@@ -99,14 +99,14 @@ recommend_ingest(modality="spectra", survey="2DFGRS_DR3", fmt="2df", n_files=300
 
 ```
 recommend_ingest(modality="catalog", survey="Legacy_DR11_north", n_files=93000,
-                 layout="spatial", file_area_deg2=0.0625, norder=7)
+                 layout="spatial", file_area_deg2=0.0625, healpix_order=7)
 ```
 
 This returns map and reduce `dl-ingest-from-shard` commands, a Slurm array script for the map step, and the reduce job script in `extra_slurm_scripts["reduce"]`. Without `layout` or `file_area_deg2`, the advisor keeps the batch-append recommendation and adds a warning that the file layout is unknown.
 
 ## Tools
 
-Every tool that reads the lake finds it through `DATA_LAKE_CONFIG`. Pass `lake_root` when that variable is not set; see [lake configuration](mcp-deploy.md#lake-configuration) for the full lookup order. `recommend_norder` and `recommend_ingest` work on input files and take no `lake_root`.
+Every tool that reads the lake finds it through `DATA_LAKE_CONFIG`. Pass `lake_root` when that variable is not set; see [lake configuration](mcp-deploy.md#lake-configuration) for the full lookup order. `recommend_healpix_order` and `recommend_ingest` work on input files and take no `lake_root`.
 
 ### Inventory
 
@@ -133,7 +133,7 @@ Every tool that reads the lake finds it through `DATA_LAKE_CONFIG`. Pass `lake_r
 | Selector | Arguments |
 |----------|-----------|
 | Saved area | `from_area` |
-| HEALPix pixels | `npix` plus `norder` (the order those pixels are given in) |
+| HEALPix pixels | `npix` plus `healpix_order` (the order those pixels are given in) |
 | Cone | `cone_ra`, `cone_dec`, `radius_arcsec` |
 | Box | `bbox_ra_min`, `bbox_ra_max`, `bbox_dec_min`, `bbox_dec_max` |
 | MOC (Multi-Order Coverage map) | `moc` (file path) |
@@ -146,11 +146,11 @@ Every tool that reads the lake finds it through `DATA_LAKE_CONFIG`. Pass `lake_r
 |------|---------|
 | `validate_survey` | Run ingest validation on a sample of tiles. Arguments: `survey`, `modality` (`catalog`, `spectra`, `cutout`), `max_tiles` (default 5). |
 | `lake_health` | Registry entry counts by kind and modality, live surveys that are not finalized, surveys missing a tile index, and a hint when the registry is more than 24 hours old. |
-| `recommend_norder` | Suggest `--healpix-order` for a catalog ingest from sample files (`paths` or `file_list`; `ra_col`/`dec_col` default to `ra`/`dec`). |
+| `recommend_healpix_order` | Suggest `--healpix-order` for a catalog ingest from sample files (`paths` or `file_list`; `ra_col`/`dec_col` default to `ra`/`dec`). |
 | `estimate_operation_cost` | Order-of-magnitude runtime for `operation` = `crossmatch`, `gather` or `ingest` over a region, based on the number of overlapping catalog tiles. |
 | `recommend_ingest` | Recommend a `dl-*` ingest command and Slurm script for a survey. |
 
-For catalog file lists, `recommend_ingest` chooses between batch append and `dl-ingest-from-shard`. Tell it how the files are laid out with `layout`, or give `file_area_deg2` (sky area per file) together with `norder`:
+For catalog file lists, `recommend_ingest` chooses between batch append and `dl-ingest-from-shard`. Tell it how the files are laid out with `layout`, or give `file_area_deg2` (sky area per file) together with `healpix_order`:
 
 | `layout` | Use for |
 |----------|---------|

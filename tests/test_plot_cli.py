@@ -27,10 +27,10 @@ def _write_minimal_product_catalog(lake_root: Path, survey: str, source_id: int)
 
     from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, assign_healpix
 
-    npix = assign_healpix(30.0, 5.0, norder=5)
+    npix = assign_healpix(30.0, 5.0, healpix_order=5)
     table = pa.table({
         LAKE_JOIN_ID_COLUMN: pa.array([source_id], type=pa.int64()),
-        "_healpix_norder5": pa.array([npix], type=pa.int64()),
+        "_healpix_order5": pa.array([npix], type=pa.int64()),
         "phot_ab_w1": pa.array([15.2], type=pa.float32()),
         "phot_ab_w1_err": pa.array([0.05], type=pa.float32()),
         "phot_ab_g": pa.array([18.5], type=pa.float32()),

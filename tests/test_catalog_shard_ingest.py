@@ -98,7 +98,7 @@ def _run_map(catalog_fits_files, shard_root):
         survey=_SURVEY,
         ra_col=_RA_COL,
         dec_col=_DEC_COL,
-        norder=_NORDER,
+        healpix_order=_NORDER,
         link_id_col=_LINK_ID_COL,
         n_workers=1,
     )
@@ -110,7 +110,7 @@ def _run_reduce(shard_root, lake_root, on_duplicate_id="skip"):
         shard_root=shard_root,
         survey=_SURVEY,
         catalog_root=catalog_root,
-        norder=_NORDER,
+        healpix_order=_NORDER,
         on_duplicate_id=on_duplicate_id,
         n_workers=1,
         ra_col=_RA_COL,
@@ -175,7 +175,7 @@ class TestFailuresLog:
             survey=_SURVEY,
             ra_col=_RA_COL,
             dec_col=_DEC_COL,
-            norder=_NORDER,
+            healpix_order=_NORDER,
             link_id_col=_LINK_ID_COL,
             failures_log=flog,
         )
@@ -195,7 +195,7 @@ class TestFailuresLog:
             shard_root=shard_root,
             survey=_SURVEY,
             catalog_root=catalog_root,
-            norder=_NORDER,
+            healpix_order=_NORDER,
             failures_log=flog,
         )
         assert result["n_tiles_failed"] == 1
@@ -302,7 +302,7 @@ class TestRoundTrip:
                 survey_name=_SURVEY,
                 ra_col=_RA_COL,
                 dec_col=_DEC_COL,
-                norder=_NORDER,
+                healpix_order=_NORDER,
                 link_id_col=_LINK_ID_COL,
                 tile_mode="append",
                 defer_finalize=True,
@@ -420,7 +420,7 @@ class TestIterShardParts:
 # ---------------------------------------------------------------------------
 
 
-def _map_reduce(files, shard_root, lake_root, *, tile_mode="append", norder=_NORDER,
+def _map_reduce(files, shard_root, lake_root, *, tile_mode="append", healpix_order=_NORDER,
                 on_duplicate_id="skip", link_id_col=_LINK_ID_COL):
     run_map_phase(
         source_paths=files,
@@ -428,7 +428,7 @@ def _map_reduce(files, shard_root, lake_root, *, tile_mode="append", norder=_NOR
         survey=_SURVEY,
         ra_col=_RA_COL,
         dec_col=_DEC_COL,
-        norder=norder,
+        healpix_order=healpix_order,
         link_id_col=link_id_col,
     )
     catalog_root = lake_root / "catalogs" / _SURVEY
@@ -436,7 +436,7 @@ def _map_reduce(files, shard_root, lake_root, *, tile_mode="append", norder=_NOR
         shard_root=shard_root,
         survey=_SURVEY,
         catalog_root=catalog_root,
-        norder=norder,
+        healpix_order=healpix_order,
         on_duplicate_id=on_duplicate_id,
         tile_mode=tile_mode,
     )
@@ -475,7 +475,7 @@ class TestExistingTiles:
             shard_root=s2,
             survey=_SURVEY,
             catalog_root=catalog_root,
-            norder=_NORDER,
+            healpix_order=_NORDER,
             on_duplicate_id="error",
         )
         assert result["n_tiles_failed"] == result["n_tiles"] > 0
@@ -510,12 +510,12 @@ class TestExistingTiles:
 
 
 class TestGuards:
-    def test_reduce_norder_mismatch_with_lake(
+    def test_reduce_healpix_order_mismatch_with_lake(
         self, catalog_fits_files, lake_root, tmp_path
     ):
-        _map_reduce(catalog_fits_files, tmp_path / "s1", lake_root, norder=_NORDER)
+        _map_reduce(catalog_fits_files, tmp_path / "s1", lake_root, healpix_order=_NORDER)
         with pytest.raises(ValueError, match="healpix_order"):
-            _map_reduce(catalog_fits_files, tmp_path / "s2", lake_root, norder=_NORDER + 1)
+            _map_reduce(catalog_fits_files, tmp_path / "s2", lake_root, healpix_order=_NORDER + 1)
 
     def test_reduce_link_id_mismatch_with_lake(
         self, catalog_fits_files, shard_root, lake_root
@@ -530,10 +530,10 @@ class TestGuards:
                 shard_root=shard_root,
                 survey=_SURVEY,
                 catalog_root=catalog_root,
-                norder=_NORDER,
+                healpix_order=_NORDER,
             )
 
-    def test_reduce_norder_mismatch_with_shards(
+    def test_reduce_healpix_order_mismatch_with_shards(
         self, catalog_fits_files, shard_root, lake_root
     ):
         _run_map(catalog_fits_files, shard_root)
@@ -542,7 +542,7 @@ class TestGuards:
                 shard_root=shard_root,
                 survey=_SURVEY,
                 catalog_root=lake_root / "catalogs" / _SURVEY,
-                norder=_NORDER + 1,
+                healpix_order=_NORDER + 1,
             )
 
     def test_map_link_id_mismatch_with_shards(self, catalog_fits_files, shard_root):
@@ -552,7 +552,7 @@ class TestGuards:
             survey=_SURVEY,
             ra_col=_RA_COL,
             dec_col=_DEC_COL,
-            norder=_NORDER,
+            healpix_order=_NORDER,
             link_id_col=_LINK_ID_COL,
         )
         with pytest.raises(ValueError, match="link_id_mode"):
@@ -562,7 +562,7 @@ class TestGuards:
                 survey=_SURVEY,
                 ra_col=_RA_COL,
                 dec_col=_DEC_COL,
-                norder=_NORDER,
+                healpix_order=_NORDER,
                 link_id_col=f"{_LINK_ID_COL},dec",
             )
 
@@ -583,7 +583,7 @@ class TestStaging:
             survey=_SURVEY,
             ra_col=_RA_COL,
             dec_col=_DEC_COL,
-            norder=_NORDER,
+            healpix_order=_NORDER,
             link_id_col=_LINK_ID_COL,
             staging_dir=staging,
         )
@@ -592,7 +592,7 @@ class TestStaging:
             shard_root=shard_root,
             survey=_SURVEY,
             catalog_root=catalog_root,
-            norder=_NORDER,
+            healpix_order=_NORDER,
             ra_col=_RA_COL,
             dec_col=_DEC_COL,
             staging_dir=staging,
@@ -624,7 +624,7 @@ class TestStaging:
             survey=_SURVEY,
             ra_col=_RA_COL,
             dec_col=_DEC_COL,
-            norder=_NORDER,
+            healpix_order=_NORDER,
             link_id_col=_LINK_ID_COL,
             staging_dir=staging,
         )
@@ -698,7 +698,7 @@ def _map_args(fits_dir: Path, shard_root: Path, *extra: str) -> list[str]:
         "--ra-col", _RA_COL,
         "--dec-col", _DEC_COL,
         "--link-id-col", _LINK_ID_COL,
-        "--norder", str(_NORDER),
+        "--healpix-order", str(_NORDER),
         "--no-progress",
         *extra,
     ]
@@ -732,12 +732,12 @@ class TestCLI:
         assert _n_rows(catalog_root) == n_input
         assert json.loads((catalog_root / "catalog_info.json").read_text())["healpix_order"] == _NORDER
 
-    def test_reduce_defaults_to_config_lake_and_shard_norder(
+    def test_reduce_defaults_to_config_lake_and_shard_healpix_order(
         self, deployment, catalog_fits_files, tmp_path
     ):
         shard_root = tmp_path / "shards"
         assert _invoke(_map_args(catalog_fits_files[0].parent, shard_root)).exit_code == 0
-        result = _invoke(_reduce_args(shard_root))  # no OUTPUT_ROOT, no --norder
+        result = _invoke(_reduce_args(shard_root))  # no OUTPUT_ROOT, no --healpix-order
         assert result.exit_code == 0, result.output
         assert list((deployment / "catalogs" / _SURVEY).rglob("Npix=*.parquet"))
 
@@ -791,7 +791,7 @@ class TestCLI:
     def test_guard_mismatch_is_clean_error(self, deployment, catalog_fits_files, tmp_path):
         shard_root = tmp_path / "shards"
         assert _invoke(_map_args(catalog_fits_files[0].parent, shard_root)).exit_code == 0
-        result = _invoke(_reduce_args(shard_root, "--norder", str(_NORDER + 1)))
+        result = _invoke(_reduce_args(shard_root, "--healpix-order", str(_NORDER + 1)))
         assert result.exit_code == 1
         assert "does not match shard tree" in result.output
         assert not isinstance(result.exception, ValueError)

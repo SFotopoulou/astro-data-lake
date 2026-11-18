@@ -30,7 +30,7 @@ def _finalized_lake(tmp_path: Path) -> tuple[Path, Path]:
     lake = tmp_path / "lake"
     for npix in (100, 101):
         _write_catalog_tile(
-            lake, "B", norder=5, npix=npix, source_ids=[npix], ra=[30.0], dec=[5.0],
+            lake, "B", healpix_order=5, npix=npix, source_ids=[npix], ra=[30.0], dec=[5.0],
         )
     root = lake / "catalogs" / "B"
     assert finalize_catalog_survey(root, "B", 5)
@@ -51,7 +51,7 @@ def test_schema_read_once_across_column_lookups(tmp_path: Path, monkeypatch) -> 
     lake, root = _finalized_lake(tmp_path)
     calls = _counting_read_schema(monkeypatch)
 
-    with CatalogAccessor(lake, "B", norder=5) as acc:
+    with CatalogAccessor(lake, "B", healpix_order=5) as acc:
         n_init = len(calls)
         for _ in range(5):
             acc.sources_in_tile(100, columns=["ra", "dec"])
@@ -73,7 +73,7 @@ def test_schema_falls_back_to_one_tile_without_common_metadata(
     lake, root = _finalized_lake(tmp_path)
     (root / "_common_metadata").unlink()
     calls = _counting_read_schema(monkeypatch)
-    with CatalogAccessor(lake, "B", norder=5) as acc:
+    with CatalogAccessor(lake, "B", healpix_order=5) as acc:
         assert acc.columns
     assert "_metadata" not in calls
     assert all(name.startswith("Npix=") for name in calls)
@@ -81,12 +81,12 @@ def test_schema_falls_back_to_one_tile_without_common_metadata(
 
 def test_common_metadata_unifies_null_columns(tmp_path: Path) -> None:
     lake = tmp_path / "lake"
-    _write_catalog_tile(lake, "B", norder=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
+    _write_catalog_tile(lake, "B", healpix_order=5, npix=100, source_ids=[1], ra=[30.0], dec=[5.0])
     root = lake / "catalogs" / "B"
     tile = next(root.rglob("Npix=100.parquet"))
     t = pq.read_table(tile)
     pq.write_table(t.append_column("extra", pa.nulls(t.num_rows)), tile)
-    _write_catalog_tile(lake, "B", norder=5, npix=101, source_ids=[2], ra=[31.0], dec=[5.0])
+    _write_catalog_tile(lake, "B", healpix_order=5, npix=101, source_ids=[2], ra=[31.0], dec=[5.0])
     tile2 = next(root.rglob("Npix=101.parquet"))
     t2 = pq.read_table(tile2)
     pq.write_table(t2.append_column("extra", pa.array([1.5])), tile2)

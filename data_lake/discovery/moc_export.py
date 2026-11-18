@@ -132,7 +132,7 @@ def survey_footprint_npix(
     """Populated survey tiles, optionally clipped to *region*, at *moc_order*.
 
     This path only **degrades or keeps** the tile grid (``moc_order <=
-    healpix_order``). For a finer MOC than the HATS tiling, build from catalog
+    healpix_order``). For a finer MOC than the HEALPix tiling, build from catalog
     rows (:func:`survey_footprint_moc_from_catalog`; ``--from-rows``).
     """
     npix_native, healpix_order = survey_npix(
@@ -149,7 +149,7 @@ def survey_footprint_npix(
         )
     if moc_order > int(healpix_order):
         raise ValueError(
-            f"moc_order={moc_order} is finer than HATS order={healpix_order}; "
+            f"moc_order={moc_order} is finer than HEALPix order={healpix_order}; "
             "tiles cannot resolve finer than the tiling. Build from catalog "
             "rows instead (--from-rows / source='rows', catalog modality), "
             f"or choose moc_order <= {healpix_order}."
@@ -172,10 +172,10 @@ def survey_footprint_moc_from_catalog(
 ):
     """Build a MOC from catalog RA/Dec (``--from-rows``; any ``moc_order``).
 
-    Required for a ``moc_order`` finer than the HATS tiling; also valid at or
+    Required for a ``moc_order`` finer than the HEALPix tiling; also valid at or
     below it, where coverage follows sources instead of whole tiles.
 
-    Streams one HATS tile at a time and unions ``MOC.from_lonlat`` pieces so
+    Streams one HEALPix tile at a time and unions ``MOC.from_lonlat`` pieces so
     peak memory stays near one tile of sky columns. Optional *region* first
     prunes tiles at the catalog order (tile-granular clip).
     """
@@ -225,7 +225,7 @@ def survey_footprint_moc_from_catalog(
             ra = ra[ok]
             dec = dec[ok]
             n_sources += int(ra.size)
-            part = MOC.from_lonlat(ra * u.deg, dec * u.deg, max_norder=int(moc_order))
+            part = MOC.from_lonlat(ra * u.deg, dec * u.deg, max_norder=int(moc_order))  # mocpy keyword
             moc = part if moc is None else moc.union(part)
 
     if moc is None or moc.empty():
@@ -234,7 +234,7 @@ def survey_footprint_moc_from_catalog(
             f"order-{moc_order} MOC from the catalog"
         )
     log.info(
-        "Catalog MOC for %s: %s source(s) → order %s (HATS order was %s)",
+        "Catalog MOC for %s: %s source(s) → order %s (HEALPix order was %s)",
         survey,
         f"{n_sources:,}",
         moc_order,
@@ -312,11 +312,11 @@ def export_survey_moc(
     *source* chooses how the MOC is built (never decided automatically):
 
     - ``"tiles"`` (default; CLI ``--from-tiles``) → from the **tile index**
-      (fast; cells are whole HATS tiles, possibly degraded). Requires
-      ``moc_order <=`` the survey HATS order, otherwise ``ValueError``.
+      (fast; cells are whole HEALPix tiles, possibly degraded). Requires
+      ``moc_order <=`` the survey HEALPix order, otherwise ``ValueError``.
     - ``"rows"`` (CLI ``--from-rows``) → from **catalog RA/Dec** (source
       positions), streamed per tile. Works at any ``moc_order``, including
-      finer than HATS. Catalog modality only.
+      finer than the HEALPix tiling. Catalog modality only.
     """
     if source not in MOC_SOURCES:
         raise ValueError(
@@ -360,11 +360,11 @@ def export_survey_moc(
             "survey": survey,
             "modality": modality,
             "source": "data_lake_catalog_rows",
-            "hatsord": healpix_order,
+            "healpix_order": healpix_order,
             "nsrc": n_sources,
         }
         log.info(
-            "Exporting %s MOC from catalog rows (moc_order=%s, HATS=%s)",
+            "Exporting %s MOC from catalog rows (moc_order=%s, healpix_order=%s)",
             survey,
             moc_order,
             healpix_order,
@@ -379,10 +379,10 @@ def export_survey_moc(
             "survey": survey,
             "modality": modality,
             "source": "data_lake_tile_index",
-            "hatsord": int(healpix_order),
+            "healpix_order": int(healpix_order),
         }
         log.info(
-            "Exporting %s MOC from tiles (moc_order=%s <= HATS=%s)",
+            "Exporting %s MOC from tiles (moc_order=%s <= healpix_order=%s)",
             survey,
             moc_order,
             healpix_order,

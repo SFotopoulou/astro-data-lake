@@ -52,10 +52,14 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from data_lake.io.spectra import FitsLayout, SubsetFormat
+
+if TYPE_CHECKING:
+    import pyarrow as pa
 
 log = logging.getLogger(__name__)
 

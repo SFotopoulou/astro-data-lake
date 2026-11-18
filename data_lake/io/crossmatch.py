@@ -17,7 +17,7 @@ Each Parquet row contains::
     source_id_a  int64  – source_id from surveyA
     source_id_b  int64  – source_id from surveyB
     sep_arcsec   float32 – angular separation in arcseconds
-    _healpix_norder<N_a>  int64 – tile of surveyA source (determines partition)
+    _healpix_order<N_a>  int64 – tile of surveyA source (determines partition)
     healpix_npix_b  int64 – partner survey B HEALPix pixel (optional; new trees)
 
 Usage
@@ -48,13 +48,16 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Sequence
 
 import healpy as hp
 import numpy as np
 import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+if TYPE_CHECKING:
+    from data_lake.io.crossmatch_b_cache import CrossmatchBTileCache
 
 from data_lake.healpix_order import (
     HealpixOrderError,
@@ -93,7 +96,7 @@ class CrossmatchResult:
     n_tiles_written: int
     n_match_rows: int
     radius_arcsec: float
-    norder: int
+    healpix_order: int
     elapsed_s: float
     n_workers: int = 1
     match_backend: MatchBackend = "astropy"
@@ -424,7 +427,7 @@ class CrossmatchSurveySettings:
 
     ra_col: str
     dec_col: str
-    norder: int
+    healpix_order: int
 
 
 @dataclass(frozen=True)
@@ -443,8 +446,8 @@ class CrossmatchTileConfig:
     survey_a: str
     survey_b: str
     npix_a_list: tuple[int, ...]
-    norder_a: int
-    norder_b: int
+    healpix_order_a: int
+    healpix_order_b: int
     ra_col_a: str
     dec_col_a: str
     ra_col_b: str
@@ -526,27 +529,27 @@ class CrossmatchPhaseStats:
         )
 
 
-def nested_parent_order(norder: int) -> int:
-    """Coarse nested order for clustering pending A tiles (typically ``norder - 2``)."""
-    norder = int(norder)
-    if norder <= 0:
+def nested_parent_order(healpix_order: int) -> int:
+    """Coarse nested order for clustering pending A tiles (typically ``healpix_order - 2``)."""
+    healpix_order = int(healpix_order)
+    if healpix_order <= 0:
         return 0
-    return max(0, norder - 2)
+    return max(0, healpix_order - 2)
 
 
 def sort_pending_by_nested_parent(
     pending: Sequence[int],
     *,
-    norder: int,
+    healpix_order: int,
     parent_order: int | None = None,
 ) -> list[int]:
     """Sort A tiles by coarse nested parent, then ``npix`` (stable spatial clusters).
 
-    Parent id is ``npix >> 2*(norder - parent_order)`` — no extra catalog column.
+    Parent id is ``npix >> 2*(healpix_order - parent_order)`` — no extra catalog column.
     """
-    po = nested_parent_order(norder) if parent_order is None else int(parent_order)
-    po = max(0, min(int(norder), po))
-    delta = int(norder) - po
+    po = nested_parent_order(healpix_order) if parent_order is None else int(parent_order)
+    po = max(0, min(int(healpix_order), po))
+    delta = int(healpix_order) - po
     tiles = [int(p) for p in pending]
     if delta <= 0:
         return sorted(tiles)
@@ -622,7 +625,7 @@ def partition_pending_by_cost(
 
 def _catalog_rows_per_byte(
     catalog_root: Path,
-    norder: int,
+    healpix_order: int,
     npix_sample: Sequence[int],
     *,
     max_sample: int = 16,
@@ -632,7 +635,7 @@ def _catalog_rows_per_byte(
     size = 0
     step = max(1, len(npix_sample) // max_sample)
     for npix in list(npix_sample)[::step][:max_sample]:
-        path = catalog_root / healpix_dir(norder, int(npix)) / f"Npix={int(npix)}.parquet"
+        path = catalog_root / healpix_dir(healpix_order, int(npix)) / f"Npix={int(npix)}.parquet"
         try:
             size += path.stat().st_size
             rows += pq.read_metadata(str(path)).num_rows
@@ -647,8 +650,8 @@ def estimate_crossmatch_tile_costs(
     survey_b: str,
     pending: Sequence[int],
     *,
-    norder_a: int,
-    norder_b: int,
+    healpix_order_a: int,
+    healpix_order_b: int,
     radius_rad: float,
 ) -> list[float]:
     """Estimated work per survey-A tile: A rows plus B rows in its covering tiles.
@@ -663,11 +666,11 @@ def estimate_crossmatch_tile_costs(
     lake_root = Path(lake_root)
     root_a = resolve_catalog_root(lake_root, survey_a)
     root_b = resolve_catalog_root(lake_root, survey_b)
-    nside_a = hp.order2nside(norder_a)
-    nside_b = hp.order2nside(norder_b)
+    nside_a = hp.order2nside(healpix_order_a)
+    nside_b = hp.order2nside(healpix_order_b)
 
-    def tile_bytes(root: Path, norder: int, npix: int) -> int:
-        path = root / healpix_dir(norder, npix) / f"Npix={npix}.parquet"
+    def tile_bytes(root: Path, healpix_order: int, npix: int) -> int:
+        path = root / healpix_dir(healpix_order, npix) / f"Npix={npix}.parquet"
         try:
             return path.stat().st_size
         except OSError:
@@ -681,11 +684,11 @@ def estimate_crossmatch_tile_costs(
     for pixels in covering:
         for p in pixels:
             if p not in b_bytes:
-                b_bytes[p] = tile_bytes(root_b, norder_b, p)
-    a_bytes = [tile_bytes(root_a, norder_a, int(p)) for p in pending]
+                b_bytes[p] = tile_bytes(root_b, healpix_order_b, p)
+    a_bytes = [tile_bytes(root_a, healpix_order_a, int(p)) for p in pending]
 
-    rpb_a = _catalog_rows_per_byte(root_a, norder_a, [p for p, b in zip(pending, a_bytes) if b])
-    rpb_b = _catalog_rows_per_byte(root_b, norder_b, [p for p, b in b_bytes.items() if b])
+    rpb_a = _catalog_rows_per_byte(root_a, healpix_order_a, [p for p, b in zip(pending, a_bytes) if b])
+    rpb_b = _catalog_rows_per_byte(root_b, healpix_order_b, [p for p, b in b_bytes.items() if b])
     return [
         a * rpb_a + sum(b_bytes[p] for p in pixels) * rpb_b
         for a, pixels in zip(a_bytes, covering)
@@ -698,8 +701,8 @@ def plan_crossmatch_strips(
     survey_b: str,
     pending: Sequence[int],
     *,
-    norder_a: int,
-    norder_b: int,
+    healpix_order_a: int,
+    healpix_order_b: int,
     radius_rad: float,
     n_workers: int,
     strips_per_worker: int,
@@ -713,7 +716,7 @@ def plan_crossmatch_strips(
         raise ValueError("strips_per_worker must be >= 1")
     costs = estimate_crossmatch_tile_costs(
         lake_root, survey_a, survey_b, pending,
-        norder_a=norder_a, norder_b=norder_b, radius_rad=radius_rad,
+        healpix_order_a=healpix_order_a, healpix_order_b=healpix_order_b, radius_rad=radius_rad,
     )
     strips = partition_pending_by_cost(pending, costs, n_workers * strips_per_worker)
     cost_of = dict(zip((int(p) for p in pending), costs))
@@ -1109,8 +1112,8 @@ def describe_crossmatch_tree(
         "match_backend": info.get("match_backend"),
         "gpu_id": info.get("gpu_id"),
         "healpix_order": require_healpix_order(info, str(root / "crossmatch_info.json")),
-        "survey_a_norder": info.get("survey_a_norder"),
-        "survey_b_norder": info.get("survey_b_norder"),
+        "survey_a_healpix_order": info.get("survey_a_healpix_order"),
+        "survey_b_healpix_order": info.get("survey_b_healpix_order"),
         "survey_a_ra_column": info.get("survey_a_ra_column"),
         "survey_a_dec_column": info.get("survey_a_dec_column"),
         "survey_b_ra_column": info.get("survey_b_ra_column"),
@@ -1284,10 +1287,10 @@ def format_crossmatch_report(desc: dict[str, Any]) -> str:
                 f"{desc.get('survey_b_dec_column')}"
             )
     lines.append(f"  healpix_order (A): {desc.get('healpix_order')}")
-    if desc.get("survey_a_norder") is not None:
-        lines.append(f"  survey_a_norder:   {desc.get('survey_a_norder')}")
-    if desc.get("survey_b_norder") is not None:
-        lines.append(f"  survey_b_norder:   {desc.get('survey_b_norder')}")
+    if desc.get("survey_a_healpix_order") is not None:
+        lines.append(f"  survey_a_healpix_order:   {desc.get('survey_a_healpix_order')}")
+    if desc.get("survey_b_healpix_order") is not None:
+        lines.append(f"  survey_b_healpix_order:   {desc.get('survey_b_healpix_order')}")
     rows = desc.get("total_rows")
     tiles = desc.get("n_tiles")
     lines.append(f"  total_rows:        {rows:,}" if rows is not None else "  total_rows:        —")
@@ -1311,13 +1314,13 @@ def format_crossmatch_report(desc: dict[str, Any]) -> str:
 
 def _sky_columns_from_catalog_info(catalog_root: Path) -> tuple[str, str, int]:
     info_path = catalog_root / "catalog_info.json"
-    norder = require_healpix_order_file(info_path)
+    healpix_order = require_healpix_order_file(info_path)
     with open(info_path) as fh:
         info = json.load(fh)
     return (
         str(info.get("ra_column", "ra")),
         str(info.get("dec_column", "dec")),
-        norder,
+        healpix_order,
     )
 
 
@@ -1328,10 +1331,10 @@ def resolve_crossmatch_settings(
     *,
     ra_col_a: str | None = None,
     dec_col_a: str | None = None,
-    norder_a: int | None = None,
+    healpix_order_a: int | None = None,
     ra_col_b: str | None = None,
     dec_col_b: str | None = None,
-    norder_b: int | None = None,
+    healpix_order_b: int | None = None,
 ) -> CrossmatchSettings:
     """Resolve per-survey RA/Dec columns and HEALPix order from catalog_info.json."""
     from data_lake.schema_registry import resolve_catalog_root
@@ -1343,21 +1346,21 @@ def resolve_crossmatch_settings(
         survey_a=CrossmatchSurveySettings(
             ra_col=ra_col_a or ra_a,
             dec_col=dec_col_a or dec_a,
-            norder=norder_a if norder_a is not None else order_a,
+            healpix_order=healpix_order_a if healpix_order_a is not None else order_a,
         ),
         survey_b=CrossmatchSurveySettings(
             ra_col=ra_col_b or ra_b,
             dec_col=dec_col_b or dec_b,
-            norder=norder_b if norder_b is not None else order_b,
+            healpix_order=healpix_order_b if healpix_order_b is not None else order_b,
         ),
     )
-    if settings.survey_a.norder != settings.survey_b.norder:
+    if settings.survey_a.healpix_order != settings.survey_b.healpix_order:
         log.info(
             "Cross-match %s (Norder=%d) × %s (Norder=%d); output partitioned at survey-A order.",
             survey_a,
-            settings.survey_a.norder,
+            settings.survey_a.healpix_order,
             survey_b,
-            settings.survey_b.norder,
+            settings.survey_b.healpix_order,
         )
     if settings.survey_a.ra_col != settings.survey_b.ra_col or settings.survey_a.dec_col != settings.survey_b.dec_col:
         log.info(
@@ -1379,7 +1382,7 @@ def resolve_crossmatch_sky_columns(
     *,
     ra_col_a: str | None = None,
     dec_col_a: str | None = None,
-    norder_a: int | None = None,
+    healpix_order_a: int | None = None,
 ) -> tuple[str, str, int]:
     """Return survey-A sky columns and HEALPix order for cross-match."""
     s = resolve_crossmatch_settings(
@@ -1388,16 +1391,16 @@ def resolve_crossmatch_sky_columns(
         survey_b,
         ra_col_a=ra_col_a,
         dec_col_a=dec_col_a,
-        norder_a=norder_a,
+        healpix_order_a=healpix_order_a,
     )
-    return s.survey_a.ra_col, s.survey_a.dec_col, s.survey_a.norder
+    return s.survey_a.ra_col, s.survey_a.dec_col, s.survey_a.healpix_order
 
 
-def iter_populated_tile_npixels(catalog_root: Path, *, norder: int | None = None) -> list[int]:
+def iter_populated_tile_npixels(catalog_root: Path, *, healpix_order: int | None = None) -> list[int]:
     """Return sorted HEALPix pixel indices that have ``Npix=*.parquet`` tiles."""
     npixels: set[int] = set()
-    if norder is not None:
-        search_roots = [catalog_root / f"Norder={norder}"]
+    if healpix_order is not None:
+        search_roots = [catalog_root / f"Norder={healpix_order}"]
     else:
         search_roots = [p for p in catalog_root.iterdir() if p.is_dir() and p.name.startswith("Norder=")]
         if not search_roots:
@@ -1617,8 +1620,8 @@ CROSSMATCH_HEALPIX_NPIX_B = "healpix_npix_b"
 def _crossmatch_one_tile(
     *,
     npix_a: int,
-    norder_a: int,
-    norder_b: int,
+    healpix_order_a: int,
+    healpix_order_b: int,
     ra_col_a: str,
     dec_col_a: str,
     ra_col_b: str,
@@ -1636,13 +1639,13 @@ def _crossmatch_one_tile(
     """Match one survey-A tile; write Parquet. Returns number of match rows."""
     from data_lake.io.crossmatch_b_cache import filter_sky_bbox
 
-    nside_a = hp.order2nside(norder_a)
-    nside_b = hp.order2nside(norder_b)
-    hp_col = f"_healpix_norder{norder_a}"
+    nside_a = hp.order2nside(healpix_order_a)
+    nside_b = hp.order2nside(healpix_order_b)
+    hp_col = f"_healpix_order{healpix_order_a}"
     id_col_a = acc_a.resolve_id_column_for_tile(npix_a)
     cols_a = [id_col_a, ra_col_a, dec_col_a]
 
-    out_dir = out_root / healpix_dir(norder_a, npix_a)
+    out_dir = out_root / healpix_dir(healpix_order_a, npix_a)
     out_file = out_dir / f"Npix={npix_a}.parquet"
 
     t0 = time.perf_counter()
@@ -1674,7 +1677,7 @@ def _crossmatch_one_tile(
         if b_pixels
         else acc_b.link_id_column
     )
-    hp_col_b = f"_healpix_norder{norder_b}"
+    hp_col_b = f"_healpix_order{healpix_order_b}"
     cols_b = [id_col_b, ra_col_b, dec_col_b, hp_col_b]
     ra_min, ra_max, dec_min, dec_max = _source_bbox_deg(ra_a, dec_a, radius_deg)
 
@@ -1839,17 +1842,17 @@ def _close_worker_state() -> None:
 
 
 @contextmanager
-def _worker_resources(key: tuple, lake_root: Path, survey_a: str, norder_a: int,
-                      survey_b: str, norder_b: int, make_cache):
+def _worker_resources(key: tuple, lake_root: Path, survey_a: str, healpix_order_a: int,
+                      survey_b: str, healpix_order_b: int, make_cache):
     """Yield ``(acc_a, acc_b, cache)``; reused across strips in pool workers."""
     global _worker_state
     if _REUSE_WORKER_STATE and _worker_state is not None and _worker_state[0] == key:
         yield _worker_state[1:]
         return
     _close_worker_state()
-    acc_a = CatalogAccessor(lake_root, survey_a, norder=norder_a, metadata_cache=False)
+    acc_a = CatalogAccessor(lake_root, survey_a, healpix_order=healpix_order_a, metadata_cache=False)
     try:
-        acc_b = CatalogAccessor(lake_root, survey_b, norder=norder_b, metadata_cache=False)
+        acc_b = CatalogAccessor(lake_root, survey_b, healpix_order=healpix_order_b, metadata_cache=False)
     except Exception:
         acc_a.close()
         raise
@@ -1882,8 +1885,8 @@ def _crossmatch_tile_worker(config: CrossmatchTileConfig) -> CrossmatchTileResul
         phase = CrossmatchPhaseStats()
         heartbeat = _heartbeat_interval(getattr(config, "heartbeat_tiles", 1) or 1)
         key = (
-            "sky", config.lake_root, config.survey_a, config.norder_a,
-            config.survey_b, config.norder_b, config.b_cache_enabled,
+            "sky", config.lake_root, config.survey_a, config.healpix_order_a,
+            config.survey_b, config.healpix_order_b, config.b_cache_enabled,
             config.b_cache_max_tiles, config.b_cache_max_bytes,
         )
 
@@ -1897,16 +1900,16 @@ def _crossmatch_tile_worker(config: CrossmatchTileConfig) -> CrossmatchTileResul
             )
 
         with _worker_resources(
-            key, lake_root, config.survey_a, config.norder_a,
-            config.survey_b, config.norder_b, make_cache,
+            key, lake_root, config.survey_a, config.healpix_order_a,
+            config.survey_b, config.healpix_order_b, make_cache,
         ) as (acc_a, acc_b, b_cache):
             hits0, misses0 = b_cache.hits, b_cache.misses
             n_list = len(config.npix_a_list)
             for i, npix_a in enumerate(config.npix_a_list, start=1):
                 n_rows = _crossmatch_one_tile(
                     npix_a=npix_a,
-                    norder_a=config.norder_a,
-                    norder_b=config.norder_b,
+                    healpix_order_a=config.healpix_order_a,
+                    healpix_order_b=config.healpix_order_b,
                     ra_col_a=config.ra_col_a,
                     dec_col_a=config.dec_col_a,
                     ra_col_b=config.ra_col_b,
@@ -1956,7 +1959,7 @@ def _crossmatch_tile_worker(config: CrossmatchTileConfig) -> CrossmatchTileResul
 def _pending_crossmatch_tiles(
     tile_npixels: list[int],
     out_root: Path,
-    norder: int,
+    healpix_order: int,
     overwrite: bool,
 ) -> tuple[list[int], int, int]:
     """Split into tiles to compute vs already-written (resume). Returns (pending, n_rows, n_written)."""
@@ -1964,7 +1967,7 @@ def _pending_crossmatch_tiles(
     n_match_rows = 0
     n_tiles_written = 0
     for npix_a in tile_npixels:
-        out_file = out_root / healpix_dir(norder, npix_a) / f"Npix={npix_a}.parquet"
+        out_file = out_root / healpix_dir(healpix_order, npix_a) / f"Npix={npix_a}.parquet"
         if out_file.exists() and not overwrite:
             try:
                 n_match_rows += pq.read_metadata(str(out_file)).num_rows
@@ -1981,9 +1984,9 @@ def _pending_crossmatch_tiles(
     return pending, n_match_rows, n_tiles_written
 
 
-def _resolve_crossmatch_norder(out_root: Path, norder: int | None) -> int:
-    if norder is not None:
-        return norder
+def _resolve_crossmatch_healpix_order(out_root: Path, healpix_order: int | None) -> int:
+    if healpix_order is not None:
+        return healpix_order
     info_path = out_root / CROSSMATCH_INFO_FILENAME
     if info_path.is_file():
         return require_healpix_order_file(info_path)
@@ -1997,12 +2000,12 @@ def _resolve_crossmatch_norder(out_root: Path, norder: int | None) -> int:
     )
 
 
-def _crossmatch_parquet_glob(out_root: Path, norder: int) -> str:
-    return str(out_root / f"Norder={norder}" / "**" / "*.parquet")
+def _crossmatch_parquet_glob(out_root: Path, healpix_order: int) -> str:
+    return str(out_root / f"Norder={healpix_order}" / "**" / "*.parquet")
 
 
-def _empty_crossmatch_table(norder: int) -> pa.Table:
-    hp_col = f"_healpix_norder{norder}"
+def _empty_crossmatch_table(healpix_order: int) -> pa.Table:
+    hp_col = f"_healpix_order{healpix_order}"
     return pa.table({
         "source_id_a": pa.array([], type=pa.int64()),
         "source_id_b": pa.array([], type=pa.int64()),
@@ -2015,7 +2018,7 @@ def _empty_crossmatch_table(norder: int) -> pa.Table:
 def load_crossmatch_table(
     out_root: Path | str,
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
 ) -> pa.Table:
     """
     Load all HATS cross-match tile Parquet files into one Arrow table.
@@ -2024,18 +2027,18 @@ def load_crossmatch_table(
     ----------
     out_root:
         Cross-match catalog root (``crossmatch/<survey_a>_x_<survey_b>__r<radius>/``).
-    norder:
+    healpix_order:
         HEALPix partition order (default: ``catalog_info.json`` or ``Norder=*`` dir).
     """
     import glob as glob_mod
 
     out_root = Path(out_root)
-    norder = _resolve_crossmatch_norder(out_root, norder)
-    files = glob_mod.glob(_crossmatch_parquet_glob(out_root, norder), recursive=True)
+    healpix_order = _resolve_crossmatch_healpix_order(out_root, healpix_order)
+    files = glob_mod.glob(_crossmatch_parquet_glob(out_root, healpix_order), recursive=True)
     if not files:
-        return _empty_crossmatch_table(norder)
+        return _empty_crossmatch_table(healpix_order)
 
-    glob = _crossmatch_parquet_glob(out_root, norder)
+    glob = _crossmatch_parquet_glob(out_root, healpix_order)
     con = connect_duckdb(":memory:")
     try:
         result = con.execute(f"SELECT * FROM parquet_scan('{glob}')").arrow()
@@ -2050,7 +2053,7 @@ def export_crossmatch_flat(
     out_root: Path | str,
     output: Path | str,
     *,
-    norder: int | None = None,
+    healpix_order: int | None = None,
     output_format: Literal["parquet", "fits"] | None = None,
 ) -> int:
     """
@@ -2061,7 +2064,7 @@ def export_crossmatch_flat(
     from data_lake.export.catalog_extract import infer_output_format, write_catalog_extract
 
     output = Path(output)
-    table = load_crossmatch_table(out_root, norder=norder)
+    table = load_crossmatch_table(out_root, healpix_order=healpix_order)
     fmt = infer_output_format(output, output_format)
     if fmt not in ("parquet", "fits"):
         raise ValueError(f"cross-match flat export supports parquet or fits, got {fmt!r}")
@@ -2071,7 +2074,7 @@ def export_crossmatch_flat(
 
 def _export_crossmatch_outputs(
     out_root: Path,
-    norder: int,
+    healpix_order: int,
     *,
     export_parquet: Path | str | None,
     export_fits: Path | str | None,
@@ -2079,10 +2082,10 @@ def _export_crossmatch_outputs(
     parquet_path = Path(export_parquet) if export_parquet is not None else None
     fits_path = Path(export_fits) if export_fits is not None else None
     if parquet_path is not None:
-        n = export_crossmatch_flat(out_root, parquet_path, norder=norder, output_format="parquet")
+        n = export_crossmatch_flat(out_root, parquet_path, healpix_order=healpix_order, output_format="parquet")
         log.info("Exported %d cross-match row(s) to %s", n, parquet_path)
     if fits_path is not None:
-        n = export_crossmatch_flat(out_root, fits_path, norder=norder, output_format="fits")
+        n = export_crossmatch_flat(out_root, fits_path, healpix_order=healpix_order, output_format="fits")
         log.info("Exported %d cross-match row(s) to %s", n, fits_path)
     return parquet_path, fits_path
 
@@ -2094,8 +2097,8 @@ def build_crossmatch(
     radius_arcsec: float = 1.0,
     overwrite: bool = False,
     *,
-    norder_a: int | None = None,
-    norder_b: int | None = None,
+    healpix_order_a: int | None = None,
+    healpix_order_b: int | None = None,
     ra_col_a: str | None = None,
     dec_col_a: str | None = None,
     ra_col_b: str | None = None,
@@ -2134,7 +2137,7 @@ def build_crossmatch(
         pixel is used to assign the output row to a Parquet partition).
     radius_arcsec:
         Maximum matching radius in arcseconds.
-    norder_a / norder_b:
+    healpix_order_a / healpix_order_b:
         Per-survey HEALPix order (default: each catalog's ``catalog_info.json``).
     ra_col_a / dec_col_a / ra_col_b / dec_col_b:
         Per-survey sky column overrides.
@@ -2142,7 +2145,7 @@ def build_crossmatch(
         If False (default), skip existing output tiles.
     populated_tiles_only:
         When True (default), iterate only HEALPix tiles present in survey A
-        instead of the full ``12 * 4**norder`` pixel range.  Tiles with no
+        instead of the full ``12 * 4**healpix_order`` pixel range.  Tiles with no
         overlap with survey-B populated footprint are always skipped.
     show_progress:
         Show a tqdm progress bar over survey-A tiles when available.
@@ -2196,13 +2199,13 @@ def build_crossmatch(
         survey_b,
         ra_col_a=ra_col_a,
         dec_col_a=dec_col_a,
-        norder_a=norder_a,
+        healpix_order_a=healpix_order_a,
         ra_col_b=ra_col_b,
         dec_col_b=dec_col_b,
-        norder_b=norder_b,
+        healpix_order_b=healpix_order_b,
     )
-    norder_a = settings.survey_a.norder
-    norder_b = settings.survey_b.norder
+    healpix_order_a = settings.survey_a.healpix_order
+    healpix_order_b = settings.survey_b.healpix_order
 
     xm_name = crossmatch_name(survey_a, survey_b, radius_arcsec)
     out_root = crossmatch_root(lake_root, survey_a, survey_b, radius_arcsec)
@@ -2212,17 +2215,17 @@ def build_crossmatch(
     catalog_root_a = resolve_catalog_root(lake_root, survey_a)
     catalog_root_b = resolve_catalog_root(lake_root, survey_b)
     radius_rad = np.radians(radius_arcsec / 3600.0)
-    nside_a = hp.order2nside(norder_a)
-    nside_b = hp.order2nside(norder_b)
+    nside_a = hp.order2nside(healpix_order_a)
+    nside_b = hp.order2nside(healpix_order_b)
 
     if populated_tiles_only:
-        tile_npixels = iter_populated_tile_npixels(catalog_root_a, norder=norder_a)
+        tile_npixels = iter_populated_tile_npixels(catalog_root_a, healpix_order=healpix_order_a)
         log.info(
             "Cross-match %s × %s: %d populated tile(s) in survey A at Norder=%d",
             survey_a,
             survey_b,
             len(tile_npixels),
-            norder_a,
+            healpix_order_a,
         )
     else:
         tile_npixels = list(range(hp.nside2npix(nside_a)))
@@ -2231,7 +2234,7 @@ def build_crossmatch(
             survey_a,
             survey_b,
             len(tile_npixels),
-            norder_a,
+            healpix_order_a,
         )
 
     if restrict_npix is not None:
@@ -2244,7 +2247,7 @@ def build_crossmatch(
             n_before_restrict,
         )
 
-    b_populated = set(iter_populated_tile_npixels(catalog_root_b, norder=norder_b))
+    b_populated = set(iter_populated_tile_npixels(catalog_root_b, healpix_order=healpix_order_b))
     n_a_before = len(tile_npixels)
     tile_npixels = filter_survey_a_tiles_overlapping_survey_b(
         tile_npixels,
@@ -2260,7 +2263,7 @@ def build_crossmatch(
             len(tile_npixels),
             n_a_before,
             len(b_populated),
-            norder_b,
+            healpix_order_b,
         )
     if not tile_npixels:
         log.warning(
@@ -2270,11 +2273,11 @@ def build_crossmatch(
         )
 
     pending, n_match_rows, n_tiles_written = _pending_crossmatch_tiles(
-        tile_npixels, out_root, norder_a, overwrite,
+        tile_npixels, out_root, healpix_order_a, overwrite,
     )
     # Cluster by coarse nested parent so each mega-strip stays spatially local
     # even when populated tiles have large Morton gaps (patchy surveys).
-    pending = sort_pending_by_nested_parent(pending, norder=norder_a)
+    pending = sort_pending_by_nested_parent(pending, healpix_order=healpix_order_a)
     from data_lake.knobs import (
         PARTNER_TILE_CACHE_MAX_BYTES,
         PARTNER_TILE_CACHE_MAX_TILES,
@@ -2331,8 +2334,8 @@ def build_crossmatch(
             )
         )
         with process_limits(duckdb_limits), \
-             CatalogAccessor(lake_root, survey_a, norder=norder_a, metadata_cache=False) as acc_a, \
-             CatalogAccessor(lake_root, survey_b, norder=norder_b, metadata_cache=False) as acc_b:
+             CatalogAccessor(lake_root, survey_a, healpix_order=healpix_order_a, metadata_cache=False) as acc_a, \
+             CatalogAccessor(lake_root, survey_b, healpix_order=healpix_order_b, metadata_cache=False) as acc_b:
             log.info(
                 "ID columns: %s (%r) × %s (%r)",
                 survey_a,
@@ -2343,8 +2346,8 @@ def build_crossmatch(
             for npix_a in iterator:
                 n_rows = _crossmatch_one_tile(
                     npix_a=npix_a,
-                    norder_a=norder_a,
-                    norder_b=norder_b,
+                    healpix_order_a=healpix_order_a,
+                    healpix_order_b=healpix_order_b,
                     ra_col_a=settings.survey_a.ra_col,
                     dec_col_a=settings.survey_a.dec_col,
                     ra_col_b=settings.survey_b.ra_col,
@@ -2370,7 +2373,7 @@ def build_crossmatch(
     else:
         worker_tiles = plan_crossmatch_strips(
             lake_root, survey_a, survey_b, pending,
-            norder_a=norder_a, norder_b=norder_b, radius_rad=radius_rad,
+            healpix_order_a=healpix_order_a, healpix_order_b=healpix_order_b, radius_rad=radius_rad,
             n_workers=n_workers, strips_per_worker=strips_per_worker,
         )
         log.info(
@@ -2388,8 +2391,8 @@ def build_crossmatch(
                 survey_a=survey_a,
                 survey_b=survey_b,
                 npix_a_list=tiles,
-                norder_a=norder_a,
-                norder_b=norder_b,
+                healpix_order_a=healpix_order_a,
+                healpix_order_b=healpix_order_b,
                 ra_col_a=settings.survey_a.ra_col,
                 dec_col_a=settings.survey_a.dec_col,
                 ra_col_b=settings.survey_b.ra_col,
@@ -2477,7 +2480,7 @@ def build_crossmatch(
         )
     parquet_path, fits_path = _export_crossmatch_outputs(
         out_root,
-        norder_a,
+        healpix_order_a,
         export_parquet=export_parquet,
         export_fits=export_fits,
     )
@@ -2489,7 +2492,7 @@ def build_crossmatch(
         n_tiles_written=n_tiles_written,
         n_match_rows=n_match_rows,
         radius_arcsec=radius_arcsec,
-        norder=norder_a,
+        healpix_order=healpix_order_a,
         elapsed_s=elapsed,
         n_workers=n_workers,
         match_backend=match_backend,
@@ -2527,8 +2530,8 @@ def _validate_crossmatch_reuse(
         return
     mismatches: list[str] = []
     checks = (
-        ("survey_a_norder", int(settings.survey_a.norder)),
-        ("survey_b_norder", int(settings.survey_b.norder)),
+        ("survey_a_healpix_order", int(settings.survey_a.healpix_order)),
+        ("survey_b_healpix_order", int(settings.survey_b.healpix_order)),
         ("match_backend", str(match_backend)),
     )
     for key, current in checks:
@@ -2578,9 +2581,9 @@ def _write_xm_info(
         "match_radius_arcsec": radius_arcsec,
         "match_backend": match_backend,
         "gpu_id": gpu_id if match_backend == "rapids" else None,
-        "healpix_order": settings.survey_a.norder,
-        "survey_a_norder": settings.survey_a.norder,
-        "survey_b_norder": settings.survey_b.norder,
+        "healpix_order": settings.survey_a.healpix_order,
+        "survey_a_healpix_order": settings.survey_a.healpix_order,
+        "survey_b_healpix_order": settings.survey_b.healpix_order,
         "survey_a_ra_column": settings.survey_a.ra_col,
         "survey_a_dec_column": settings.survey_a.dec_col,
         "survey_b_ra_column": settings.survey_b.ra_col,
@@ -2758,8 +2761,8 @@ class ColumnCrossmatchTileConfig:
     survey_a: str
     survey_b: str
     npix_a_list: tuple[int, ...]
-    norder_a: int
-    norder_b: int
+    healpix_order_a: int
+    healpix_order_b: int
     match_col_a: str
     match_col_b: str
     b_populated: tuple[int, ...]
@@ -2774,8 +2777,8 @@ class ColumnCrossmatchTileConfig:
 def _column_crossmatch_one_tile(
     *,
     npix_a: int,
-    norder_a: int,
-    norder_b: int,
+    healpix_order_a: int,
+    healpix_order_b: int,
     match_col_a: str,
     match_col_b: str,
     b_populated: set[int],
@@ -2792,13 +2795,13 @@ def _column_crossmatch_one_tile(
 
     Returns the number of association rows written.
     """
-    nside_a = hp.order2nside(norder_a)
-    nside_b = hp.order2nside(norder_b)
+    nside_a = hp.order2nside(healpix_order_a)
+    nside_b = hp.order2nside(healpix_order_b)
     pad_rad = _column_crossmatch_pad_rad(nside_a, nside_b)
-    hp_col = f"_healpix_norder{norder_a}"
-    hp_col_b = f"_healpix_norder{norder_b}"
+    hp_col = f"_healpix_order{healpix_order_a}"
+    hp_col_b = f"_healpix_order{healpix_order_b}"
     id_col_a = acc_a.link_id_column
-    out_dir = out_root / healpix_dir(norder_a, npix_a)
+    out_dir = out_root / healpix_dir(healpix_order_a, npix_a)
     out_file = out_dir / f"Npix={npix_a}.parquet"
 
     # -- load A tile --
@@ -2878,8 +2881,8 @@ def _column_crossmatch_tile_worker(
         n_tiles_written = 0
         heartbeat = _heartbeat_interval(config.heartbeat_tiles)
         key = (
-            "column", config.lake_root, config.survey_a, config.norder_a,
-            config.survey_b, config.norder_b, config.match_col_a, config.match_col_b,
+            "column", config.lake_root, config.survey_a, config.healpix_order_a,
+            config.survey_b, config.healpix_order_b, config.match_col_a, config.match_col_b,
             config.b_cache_enabled, config.b_cache_max_tiles, config.b_cache_max_bytes,
         )
 
@@ -2892,8 +2895,8 @@ def _column_crossmatch_tile_worker(
             )
 
         with _worker_resources(
-            key, lake_root, config.survey_a, config.norder_a,
-            config.survey_b, config.norder_b, make_cache,
+            key, lake_root, config.survey_a, config.healpix_order_a,
+            config.survey_b, config.healpix_order_b, make_cache,
         ) as (acc_a, acc_b, b_cache):
             hits0 = b_cache.hits if b_cache is not None else 0
             misses0 = b_cache.misses if b_cache is not None else 0
@@ -2901,8 +2904,8 @@ def _column_crossmatch_tile_worker(
             for i, npix_a in enumerate(config.npix_a_list, start=1):
                 n_rows = _column_crossmatch_one_tile(
                     npix_a=npix_a,
-                    norder_a=config.norder_a,
-                    norder_b=config.norder_b,
+                    healpix_order_a=config.healpix_order_a,
+                    healpix_order_b=config.healpix_order_b,
                     match_col_a=config.match_col_a,
                     match_col_b=config.match_col_b,
                     b_populated=b_populated,
@@ -2968,8 +2971,8 @@ def _write_column_xm_info(
     xm_name: str,
     survey_a: str,
     survey_b: str,
-    norder_a: int,
-    norder_b: int,
+    healpix_order_a: int,
+    healpix_order_b: int,
     match_col_a: str,
     match_col_b: str,
     *,
@@ -2992,9 +2995,9 @@ def _write_column_xm_info(
         "match_col_a": match_col_a,
         "match_col_b": match_col_b,
         "match_radius_arcsec": None,
-        "healpix_order": norder_a,
-        "survey_a_norder": norder_a,
-        "survey_b_norder": norder_b,
+        "healpix_order": healpix_order_a,
+        "survey_a_healpix_order": healpix_order_a,
+        "survey_b_healpix_order": healpix_order_b,
         "total_rows": int(tree_rows),
         "n_match_rows": int(tree_rows),
         "n_tiles": int(tree_tiles),
@@ -3015,8 +3018,8 @@ def build_column_crossmatch(
     match_col_b: str,
     overwrite: bool = False,
     *,
-    norder_a: int | None = None,
-    norder_b: int | None = None,
+    healpix_order_a: int | None = None,
+    healpix_order_b: int | None = None,
     populated_tiles_only: bool = True,
     show_progress: bool = False,
     n_workers: int = 1,
@@ -3056,7 +3059,7 @@ def build_column_crossmatch(
         embedded in the output tree name.
     overwrite:
         Rebuild tiles that already exist.
-    norder_a / norder_b:
+    healpix_order_a / healpix_order_b:
         HEALPix order overrides (default: ``catalog_info.json``).
     populated_tiles_only:
         Iterate only survey-A tiles present on disk.
@@ -3108,8 +3111,8 @@ def build_column_crossmatch(
 
     _, _, order_a = _sky_columns_from_catalog_info(catalog_root_a)
     _, _, order_b = _sky_columns_from_catalog_info(catalog_root_b)
-    norder_a = norder_a if norder_a is not None else order_a
-    norder_b = norder_b if norder_b is not None else order_b
+    healpix_order_a = healpix_order_a if healpix_order_a is not None else order_a
+    healpix_order_b = healpix_order_b if healpix_order_b is not None else order_b
 
     xm_name = column_crossmatch_name(survey_a, survey_b, match_col_a, match_col_b)
     out_root = Path(lake_root) / "crossmatch" / xm_name
@@ -3119,23 +3122,23 @@ def build_column_crossmatch(
     )
 
     if populated_tiles_only:
-        tile_npixels: list[int] = iter_populated_tile_npixels(catalog_root_a, norder=norder_a)
+        tile_npixels: list[int] = iter_populated_tile_npixels(catalog_root_a, healpix_order=healpix_order_a)
     else:
         import healpy as hp_lib
-        tile_npixels = list(range(hp_lib.nside2npix(hp_lib.order2nside(norder_a))))
+        tile_npixels = list(range(hp_lib.nside2npix(hp_lib.order2nside(healpix_order_a))))
 
     if restrict_npix is not None:
         restrict_set = {int(p) for p in restrict_npix}
         tile_npixels = [p for p in tile_npixels if p in restrict_set]
 
     # -- enumerate populated B pixels for footprint filter --
-    b_populated_list: list[int] = iter_populated_tile_npixels(catalog_root_b, norder=norder_b)
+    b_populated_list: list[int] = iter_populated_tile_npixels(catalog_root_b, healpix_order=healpix_order_b)
     b_populated_set: set[int] = set(b_populated_list)
     n_b_tiles = len(b_populated_list)
 
     # -- footprint filter: skip A tiles with no overlapping B footprint --
-    nside_a = hp.order2nside(norder_a)
-    nside_b = hp.order2nside(norder_b)
+    nside_a = hp.order2nside(healpix_order_a)
+    nside_b = hp.order2nside(healpix_order_b)
     pad_rad = _column_crossmatch_pad_rad(nside_a, nside_b)
     tile_npixels = filter_survey_a_tiles_overlapping_survey_b(
         tile_npixels,
@@ -3153,9 +3156,9 @@ def build_column_crossmatch(
     )
 
     pending, n_match_rows, n_tiles_written = _pending_crossmatch_tiles(
-        tile_npixels, out_root, norder_a, overwrite
+        tile_npixels, out_root, healpix_order_a, overwrite
     )
-    pending = sort_pending_by_nested_parent(pending, norder=norder_a)
+    pending = sort_pending_by_nested_parent(pending, healpix_order=healpix_order_a)
     n_pending = len(pending)
     log.info(
         "%d A tile(s) pending (overwrite=%s, n_workers=%d)",
@@ -3170,7 +3173,7 @@ def build_column_crossmatch(
     if n_workers > 1:
         worker_tiles = plan_crossmatch_strips(
             lake_root, survey_a, survey_b, pending,
-            norder_a=norder_a, norder_b=norder_b, radius_rad=pad_rad,
+            healpix_order_a=healpix_order_a, healpix_order_b=healpix_order_b, radius_rad=pad_rad,
             n_workers=n_workers, strips_per_worker=strips_per_worker,
         )
         log.info(
@@ -3185,8 +3188,8 @@ def build_column_crossmatch(
                 survey_a=survey_a,
                 survey_b=survey_b,
                 npix_a_list=tiles,
-                norder_a=norder_a,
-                norder_b=norder_b,
+                healpix_order_a=healpix_order_a,
+                healpix_order_b=healpix_order_b,
                 match_col_a=match_col_a,
                 match_col_b=match_col_b,
                 b_populated=tuple(b_populated_list),
@@ -3252,8 +3255,8 @@ def build_column_crossmatch(
 
         with (
             process_limits(duckdb_limits),
-            CatalogAccessor(lake_root, survey_a, norder=norder_a, metadata_cache=False) as acc_a,
-            CatalogAccessor(lake_root, survey_b, norder=norder_b, metadata_cache=False) as acc_b,
+            CatalogAccessor(lake_root, survey_a, healpix_order=healpix_order_a, metadata_cache=False) as acc_a,
+            CatalogAccessor(lake_root, survey_b, healpix_order=healpix_order_b, metadata_cache=False) as acc_b,
         ):
             col_b_cache = (
                 _BTileJoinCache(max_tiles=tiles_cap, max_bytes=b_cache_max_bytes)
@@ -3263,8 +3266,8 @@ def build_column_crossmatch(
             for npix_a in iterator:
                 n_rows = _column_crossmatch_one_tile(
                     npix_a=npix_a,
-                    norder_a=norder_a,
-                    norder_b=norder_b,
+                    healpix_order_a=healpix_order_a,
+                    healpix_order_b=healpix_order_b,
                     match_col_a=match_col_a,
                     match_col_b=match_col_b,
                     b_populated=b_populated_set,
@@ -3301,7 +3304,7 @@ def build_column_crossmatch(
 
     tree_rows, tree_tiles = _write_column_xm_info(
         out_root, xm_name, survey_a, survey_b,
-        norder_a, norder_b, match_col_a, match_col_b,
+        healpix_order_a, healpix_order_b, match_col_a, match_col_b,
         n_match_rows=n_match_rows,
         n_tiles=n_tiles_written,
     )
@@ -3312,7 +3315,7 @@ def build_column_crossmatch(
             tree_tiles,
         )
     parquet_path, fits_path = _export_crossmatch_outputs(
-        out_root, norder_a,
+        out_root, healpix_order_a,
         export_parquet=export_parquet,
         export_fits=export_fits,
     )
@@ -3324,7 +3327,7 @@ def build_column_crossmatch(
         n_tiles_written=n_tiles_written,
         n_match_rows=n_match_rows,
         radius_arcsec=0.0,
-        norder=norder_a,
+        healpix_order=healpix_order_a,
         elapsed_s=elapsed,
         n_workers=n_workers,
         export_parquet=parquet_path,
@@ -3343,7 +3346,7 @@ def build_column_crossmatch(
 # ---------------------------------------------------------------------------
 
 
-def _base_catalog_norder(lake_root: Path, survey: str) -> int:
+def _base_catalog_healpix_order(lake_root: Path, survey: str) -> int:
     from data_lake.schema_registry import resolve_catalog_root
     return require_healpix_order_file(
         resolve_catalog_root(lake_root, survey) / "catalog_info.json"
@@ -3358,19 +3361,19 @@ def _in_scope_crossmatch_a_tiles(
     radius_rad: float,
     restrict_npix: set[int] | None = None,
 ) -> tuple[int, list[int]]:
-    """Resolve survey-A norder and tiles that overlap the survey-B footprint."""
+    """Resolve survey-A healpix_order and tiles that overlap the survey-B footprint."""
     from data_lake.schema_registry import resolve_catalog_root
 
     catalog_root_a = resolve_catalog_root(lake_root, survey_a)
     catalog_root_b = resolve_catalog_root(lake_root, survey_b)
-    _, _, norder_a = _sky_columns_from_catalog_info(catalog_root_a)
-    _, _, norder_b = _sky_columns_from_catalog_info(catalog_root_b)
-    nside_a = hp.order2nside(norder_a)
-    nside_b = hp.order2nside(norder_b)
-    tile_npixels = iter_populated_tile_npixels(catalog_root_a, norder=norder_a)
+    _, _, healpix_order_a = _sky_columns_from_catalog_info(catalog_root_a)
+    _, _, healpix_order_b = _sky_columns_from_catalog_info(catalog_root_b)
+    nside_a = hp.order2nside(healpix_order_a)
+    nside_b = hp.order2nside(healpix_order_b)
+    tile_npixels = iter_populated_tile_npixels(catalog_root_a, healpix_order=healpix_order_a)
     if restrict_npix is not None:
         tile_npixels = [p for p in tile_npixels if int(p) in restrict_npix]
-    b_populated = set(iter_populated_tile_npixels(catalog_root_b, norder=norder_b))
+    b_populated = set(iter_populated_tile_npixels(catalog_root_b, healpix_order=healpix_order_b))
     tile_npixels = filter_survey_a_tiles_overlapping_survey_b(
         tile_npixels,
         nside_a=nside_a,
@@ -3378,7 +3381,7 @@ def _in_scope_crossmatch_a_tiles(
         b_populated=b_populated,
         radius_rad=radius_rad,
     )
-    return norder_a, tile_npixels
+    return healpix_order_a, tile_npixels
 
 
 def try_skip_complete_partner(
@@ -3410,10 +3413,10 @@ def try_skip_complete_partner(
             survey_a, survey_b, str(match_col_a), str(match_col_b)
         )
         out_root = Path(lake_root) / "crossmatch" / xm_name
-        pad_norder_a = _base_catalog_norder(lake_root, survey_a)
-        pad_norder_b = _base_catalog_norder(lake_root, survey_b)
+        pad_healpix_order_a = _base_catalog_healpix_order(lake_root, survey_a)
+        pad_healpix_order_b = _base_catalog_healpix_order(lake_root, survey_b)
         radius_rad = _column_crossmatch_pad_rad(
-            hp.order2nside(pad_norder_a), hp.order2nside(pad_norder_b)
+            hp.order2nside(pad_healpix_order_a), hp.order2nside(pad_healpix_order_b)
         )
         radius_out = 0.0
     else:
@@ -3430,7 +3433,7 @@ def try_skip_complete_partner(
     if not out_root.is_dir() or not (out_root / CROSSMATCH_INFO_FILENAME).is_file():
         return None
 
-    norder_a, tile_npixels = _in_scope_crossmatch_a_tiles(
+    healpix_order_a, tile_npixels = _in_scope_crossmatch_a_tiles(
         lake_root,
         survey_a,
         survey_b,
@@ -3438,7 +3441,7 @@ def try_skip_complete_partner(
         restrict_npix=restrict_npix,
     )
     pending, n_match_rows, n_tiles_written = _pending_crossmatch_tiles(
-        tile_npixels, out_root, norder_a, overwrite=False
+        tile_npixels, out_root, healpix_order_a, overwrite=False
     )
     if pending:
         return None
@@ -3454,7 +3457,7 @@ def try_skip_complete_partner(
         n_tiles_written=int(n_tiles_written),
         n_match_rows=0,
         radius_arcsec=float(radius_out),
-        norder=int(norder_a),
+        healpix_order=int(healpix_order_a),
         elapsed_s=0.0,
         n_workers=0,
         match_backend="astropy",
@@ -3537,8 +3540,8 @@ def execute_crossmatch_plan(
 
     restrict_npix: set[int] | None = None
     if region is not None:
-        base_norder = _base_catalog_norder(lake_root, base)
-        restrict_npix = region.to_npix(base_norder)  # type: ignore[attr-defined]
+        base_healpix_order = _base_catalog_healpix_order(lake_root, base)
+        restrict_npix = region.to_npix(base_healpix_order)  # type: ignore[attr-defined]
 
     n_partners = len(partners)
     outcomes: list[CrossmatchPlanPartnerOutcome] = []
@@ -3764,7 +3767,7 @@ class CrossmatchAccessor:
         Data lake root.
     survey_a / survey_b:
         The two surveys that were cross-matched.
-    norder:
+    healpix_order:
         HEALPix order (read from catalog_info.json if not provided).
     """
 
@@ -3773,7 +3776,7 @@ class CrossmatchAccessor:
         lake_root: Path | str,
         survey_a: str,
         survey_b: str,
-        norder: int | None = None,
+        healpix_order: int | None = None,
         radius_arcsec: float | None = None,
     ) -> None:
         self.lake_root = Path(lake_root)
@@ -3790,12 +3793,12 @@ class CrossmatchAccessor:
             with open(info_path) as fh:
                 self._info = json.load(fh)
 
-        self.norder: int = (
-            norder if norder is not None
+        self.healpix_order: int = (
+            healpix_order if healpix_order is not None
             else require_healpix_order(self._info, str(info_path))
         )
         self._con = connect_duckdb(":memory:")
-        glob = str(self._xm_root / f"Norder={self.norder}" / "**" / "*.parquet")
+        glob = str(self._xm_root / f"Norder={self.healpix_order}" / "**" / "*.parquet")
         self._con.execute(
             f"CREATE OR REPLACE VIEW xmatch AS SELECT * FROM parquet_scan('{glob}')"
         )

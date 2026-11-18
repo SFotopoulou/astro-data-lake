@@ -13,24 +13,24 @@ from data_lake.ingest.fits_to_parquet import healpix_dir
 from data_lake.schema_registry import MODALITY_CROSSMATCH
 
 
-def _write_catalog_tile(lake: Path, survey: str, norder: int, npix: int) -> None:
-    tile_dir = lake / "catalogs" / survey / healpix_dir(norder, npix)
+def _write_catalog_tile(lake: Path, survey: str, healpix_order: int, npix: int) -> None:
+    tile_dir = lake / "catalogs" / survey / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.table({"x": [1]}), tile_dir / f"Npix={npix}.parquet")
 
 
-def _write_info(lake: Path, survey: str, norder: int) -> None:
+def _write_info(lake: Path, survey: str, healpix_order: int) -> None:
     (lake / "catalogs" / survey / "catalog_info.json").write_text(
-        json.dumps({"healpix_order": norder})
+        json.dumps({"healpix_order": healpix_order})
     )
 
 
-def _write_crossmatch_tree(lake: Path, tree: str, norder: int, npix: int) -> None:
-    tile_dir = lake / "crossmatch" / tree / healpix_dir(norder, npix)
+def _write_crossmatch_tree(lake: Path, tree: str, healpix_order: int, npix: int) -> None:
+    tile_dir = lake / "crossmatch" / tree / healpix_dir(healpix_order, npix)
     tile_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.table({"x": [1]}), tile_dir / f"Npix={npix}.parquet")
     (lake / "crossmatch" / tree / "crossmatch_info.json").write_text(
-        json.dumps({"healpix_order": norder, "total_rows": 1})
+        json.dumps({"healpix_order": healpix_order, "total_rows": 1})
     )
 
 
@@ -38,7 +38,7 @@ class TestTileIndex:
     def test_build_and_load(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
         for npix in (10, 20, 30):
-            _write_catalog_tile(lake, "ALLWISE", norder=5, npix=npix)
+            _write_catalog_tile(lake, "ALLWISE", healpix_order=5, npix=npix)
         _write_info(lake, "ALLWISE", 5)
 
         index = ti.write_tile_index(lake, "ALLWISE", "catalog")
@@ -52,7 +52,7 @@ class TestTileIndex:
     def test_survey_npix_uses_index(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
         for npix in (1, 2):
-            _write_catalog_tile(lake, "S", norder=4, npix=npix)
+            _write_catalog_tile(lake, "S", healpix_order=4, npix=npix)
         _write_info(lake, "S", 4)
         ti.write_tile_index(lake, "S", "catalog")
 
@@ -62,7 +62,7 @@ class TestTileIndex:
 
     def test_survey_npix_scan_fallback(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "S", norder=4, npix=7)
+        _write_catalog_tile(lake, "S", healpix_order=4, npix=7)
         _write_info(lake, "S", 4)
         # No index written -> scan fallback.
         npix, order = ti.survey_npix(lake, "S", "catalog", allow_scan=True)
@@ -74,9 +74,9 @@ class TestTileIndex:
 
     def test_refresh_all(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
-        _write_catalog_tile(lake, "A", norder=5, npix=1)
+        _write_catalog_tile(lake, "A", healpix_order=5, npix=1)
         _write_info(lake, "A", 5)
-        _write_catalog_tile(lake, "B", norder=5, npix=2)
+        _write_catalog_tile(lake, "B", healpix_order=5, npix=2)
         _write_info(lake, "B", 5)
         summary = ti.refresh_tile_indices(lake)
         assert summary["catalog"] == 2
@@ -86,7 +86,7 @@ class TestTileIndex:
     def test_crossmatch_iter_and_refresh(self, tmp_path: Path) -> None:
         lake = tmp_path / "lake"
         tree = "A_x_B__r1.0"
-        _write_crossmatch_tree(lake, tree, norder=5, npix=42)
+        _write_crossmatch_tree(lake, tree, healpix_order=5, npix=42)
 
         names = list(ti.iter_surveys_in_modality(lake, MODALITY_CROSSMATCH))
         assert tree in names

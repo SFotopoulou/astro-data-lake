@@ -15,16 +15,16 @@ from data_lake.io.preview import preview_sources
 from synthetic_lake_helpers import SURVEY, ingest_synthetic_spectrum_lake
 
 
-def _write_catalog_tile(lake: Path, survey: str, rows: list[dict], *, norder: int = 5) -> None:
+def _write_catalog_tile(lake: Path, survey: str, rows: list[dict], *, healpix_order: int = 5) -> None:
     cat_root = lake / "catalogs" / survey
     cat_root.mkdir(parents=True, exist_ok=True)
     table = pa.Table.from_pylist(rows)
-    npix = int(rows[0]["_healpix_norder5"])
-    out_dir = cat_root / healpix_dir(norder, npix)
+    npix = int(rows[0]["_healpix_order5"])
+    out_dir = cat_root / healpix_dir(healpix_order, npix)
     out_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, out_dir / f"Npix={npix}.parquet")
     (cat_root / "catalog_info.json").write_text(
-        json.dumps({"healpix_order": norder, "link_id_column": "_source_id"})
+        json.dumps({"healpix_order": healpix_order, "link_id_column": "_source_id"})
     )
 
 
@@ -39,7 +39,7 @@ class TestPreviewSources:
         rows = [
             {
                 "_source_id": i,
-                "_healpix_norder5": 10,
+                "_healpix_order5": 10,
                 "TARGETID": 1000 + i,
                 "ra": 150.0 + 0.01 * i,
                 "dec": 2.0,
@@ -56,7 +56,7 @@ class TestPreviewSources:
         rows = [
             {
                 "_source_id": 1,
-                "_healpix_norder5": 3,
+                "_healpix_order5": 3,
                 "TARGETID": 9,
                 "ra": 1.0,
                 "dec": 2.0,
@@ -79,10 +79,10 @@ class TestPreviewSources:
         assert (df["modality"] == "spectra").all()
         assert df["_source_id"].dtype == pl.Int64
 
-    def test_spectrum_alias(self, spectrum_lake: Path) -> None:
-        df = preview_sources(spectrum_lake, SURVEY, modality="spectrum", n=2)
-        assert len(df) == 2
-        assert (df["modality"] == "spectra").all()
+    @pytest.mark.parametrize("bad", ["spectrum", "cutouts"])
+    def test_non_canonical_modality_rejected(self, spectrum_lake: Path, bad: str) -> None:
+        with pytest.raises(ValueError, match="modality"):
+            preview_sources(spectrum_lake, SURVEY, modality=bad, n=2)  # type: ignore[arg-type]
 
     def test_invalid_modality(self, tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="modality"):
@@ -108,7 +108,7 @@ class TestPreviewSourcesCli:
         rows = [
             {
                 "_source_id": i,
-                "_healpix_norder5": 7,
+                "_healpix_order5": 7,
                 "TARGETID": 100 + i,
                 "ra": 10.0,
                 "dec": 1.0,
@@ -132,7 +132,7 @@ class TestPreviewSourcesCli:
         rows = [
             {
                 "_source_id": 1,
-                "_healpix_norder5": 2,
+                "_healpix_order5": 2,
                 "ra": 1.0,
                 "dec": 2.0,
             }
