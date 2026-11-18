@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import require_healpix_order
 from data_lake.ingest.fits_to_parquet import (
     LAKE_JOIN_ID_COLUMN,
     _iter_valid_parquet_tiles,
@@ -158,7 +158,10 @@ def repair_catalog_metadata(
     """Rebuild metadata sidecars for one ingested catalog from its Parquet tiles."""
     catalog_root = Path(catalog_root)
     before = _read_catalog_info(catalog_root)
-    healpix_order = int(norder if norder is not None else read_healpix_order(before, 5))
+    healpix_order = (
+        int(norder) if norder is not None
+        else require_healpix_order(before, str(catalog_root / "catalog_info.json"))
+    )
     ra = ra_col or str(before.get("ra_column", "ra"))
     dec = dec_col or str(before.get("dec_column", "dec"))
     n_rebuilt = 0

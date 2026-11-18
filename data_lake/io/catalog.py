@@ -33,7 +33,7 @@ from data_lake.ingest.fits_to_parquet import (
     resolve_redshift_column,
     resolve_link_id_column,
 )
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import require_healpix_order
 from data_lake.io.duckdb_limits import connect as connect_duckdb
 from data_lake.io.duckdb_limits import parquet_metadata_cache_default
 from data_lake.schema_registry import catalog_schema_source, resolve_catalog_root
@@ -120,7 +120,10 @@ class CatalogAccessor:
             )
 
         self._info = self._load_info()
-        self.norder: int = norder if norder is not None else int(read_healpix_order(self._info, 5))
+        self.norder: int = (
+            norder if norder is not None
+            else require_healpix_order(self._info, str(self._catalog_root / "catalog_info.json"))
+        )
         tile_schema = catalog_tile_schema_names(self._catalog_root)
         schema_for_ids = tile_schema if tile_schema is not None else list(self.schema.names)
         self._link_id_column: str = resolve_link_id_column(

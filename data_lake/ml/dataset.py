@@ -92,7 +92,7 @@ class CutoutDataset(Dataset):
     source_ids:
         Ordered collection of source IDs to include.
     norder:
-        HEALPix partitioning order (default 5).
+        HEALPix partitioning order. Default: the lake's stored ``healpix_order``.
     transform:
         Optional callable applied to each image array (NumPy → any).
         Receives an array of shape ``(B, H, W)``.
@@ -120,7 +120,7 @@ class CutoutDataset(Dataset):
         lake_root: Path | str,
         survey: str,
         source_ids: Sequence[int],
-        norder: int = 5,
+        norder: int | None = None,
         transform: Transform | None = None,
         target_transform: Callable | None = None,
         tile_sort: bool = True,
@@ -129,7 +129,6 @@ class CutoutDataset(Dataset):
     ) -> None:
         self.lake_root = Path(lake_root)
         self.survey = survey
-        self.norder = norder
         self.source_ids: list[int] = list(source_ids)
         self.transform = transform
         self.target_transform = target_transform
@@ -139,6 +138,7 @@ class CutoutDataset(Dataset):
             self.lake_root, survey, norder=norder, catalog_accessor=catalog_accessor,
         ) as acc:
             self._npix, self._local = acc.locate(self.source_ids)
+            self.norder = acc.norder
         n_missing = int((self._npix < 0).sum())
         if n_missing:
             log.warning(
@@ -311,19 +311,19 @@ class TileCutoutDataset(IterableDataset):
         self,
         lake_root: Path | str,
         survey: str,
-        norder: int = 5,
+        norder: int | None = None,
         tile_pixels: list[int] | None = None,
         transform: Transform | None = None,
         shuffle_tiles: bool = False,
     ) -> None:
         self.lake_root = Path(lake_root)
         self.survey = survey
-        self.norder = norder
         self.transform = transform
         self.shuffle_tiles = shuffle_tiles
 
         # Discover tiles at construction time (cheap directory scan)
         acc = CutoutAccessor(lake_root, survey, norder=norder)
+        self.norder = acc.norder
         self._all_tiles: list[int] = tile_pixels if tile_pixels is not None else acc.available_tiles()
         del acc
 

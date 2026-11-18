@@ -33,7 +33,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import require_healpix_order, require_healpix_order_file
 from data_lake.ingest.fits_to_parquet import (
     LAKE_JOIN_ID_COLUMN,
     _ZSTD_LEVEL,
@@ -67,31 +67,19 @@ def _resolve_catalog_norder(
     kind: IndexKind = "spectrum",
     override: int | None = None,
 ) -> int:
-    """Return HEALPix order for catalog tile paths (metadata, then default 5)."""
+    """Return HEALPix order for catalog tile paths (explicit override, else stored; raises if neither)."""
     if override is not None:
         return override
 
-    cat_order: int | None = None
-    info_path = catalog_root / "catalog_info.json"
-    if info_path.is_file():
-        with open(info_path) as fh:
-            info = json.load(fh)
-        cat_order = read_healpix_order(info)
-
-    if cat_order is None:
-        log.warning(
-            "catalog_info.json missing healpix_order under %s; defaulting to norder=5",
-            catalog_root,
-        )
-        return 5
+    cat_order = require_healpix_order_file(catalog_root / "catalog_info.json")
 
     if modality_root is not None:
         mod_info_path = modality_root / _MODALITY_INFO.get(kind, "spectrum_info.json")
         if mod_info_path.is_file():
             with open(mod_info_path) as fh:
                 mod_info = json.load(fh)
-            mod_order = read_healpix_order(mod_info)
-            if mod_order is not None and int(mod_order) != cat_order:
+            mod_order = require_healpix_order(mod_info, str(mod_info_path))
+            if int(mod_order) != cat_order:
                 log.warning(
                     "healpix_order mismatch: catalog %d vs %s %d (using catalog order)",
                     cat_order,
@@ -490,7 +478,7 @@ def update_index_column(
     survey_name: str,
     source_id_to_index: dict[int, tuple[int, int]] | dict[int, int],
     kind: IndexKind = "spectrum",
-    norder: int = 5,
+    norder: int | None = None,
     link_id_col: str | None = None,
 ) -> int:
     """

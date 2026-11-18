@@ -200,14 +200,13 @@ class SpectrumDataset(Dataset):
         lake_root: Path | str,
         survey: str,
         source_ids: Sequence[int],
-        norder: int = 5,
+        norder: int | None = None,
         transform: Transform | None = None,
         return_full: bool = False,
         catalog_accessor=None,
     ) -> None:
         self.lake_root = Path(lake_root)
         self.survey = survey
-        self.norder = norder
         self.source_ids: list[int] = list(source_ids)
         self.transform = transform
         self.return_full = return_full
@@ -215,6 +214,7 @@ class SpectrumDataset(Dataset):
             self.lake_root, survey, norder=norder, catalog_accessor=catalog_accessor,
         ) as acc:
             self._npix, self._local = acc.locate(self.source_ids)
+            self.norder = acc.norder
         n_missing = int((self._npix < 0).sum())
         if n_missing:
             log.warning(
@@ -298,18 +298,18 @@ class TileSpectrumDataset(IterableDataset):
         self,
         lake_root: Path | str,
         survey: str,
-        norder: int = 5,
+        norder: int | None = None,
         tile_pixels: list[int] | None = None,
         transform: Transform | None = None,
         shuffle_tiles: bool = False,
     ) -> None:
         self.lake_root = Path(lake_root)
         self.survey = survey
-        self.norder = norder
         self.transform = transform
         self.shuffle_tiles = shuffle_tiles
 
         acc = SpectrumAccessor(lake_root, survey, norder=norder)
+        self.norder = acc.norder
         self._all_tiles: list[int] = (
             tile_pixels if tile_pixels is not None else acc.available_tiles()
         )

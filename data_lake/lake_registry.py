@@ -17,7 +17,7 @@ from typing import Any, Iterator
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import require_healpix_order
 from data_lake.schema_registry import (
     CATALOG_KIND_INGESTED,
     MANIFEST_FILENAME,
@@ -370,7 +370,7 @@ def _load_catalog_manifest_or_none(catalog_root: Path, survey: str) -> dict[str,
         write_catalog_schema_manifest(
             catalog_root,
             survey,
-            healpix_order=int(read_healpix_order(info, 5)),
+            healpix_order=require_healpix_order(info, str(info_path)),
             ra_column=str(info.get("ra_column", "ra")),
             dec_column=str(info.get("dec_column", "dec")),
             link_id_mode=str(info.get("link_id_mode", "sequential")),
@@ -521,7 +521,7 @@ def _catalog_registry_row(
         "finalized": info.get("finalized"),
         "source_area": info.get("source_area"),
         "path": str(survey_root.relative_to(lake_root)),
-        "healpix_order": read_healpix_order(info),
+        "healpix_order": require_healpix_order(info, str(info_path)),
         "link_id_column": manifest.get("link_id_column") or info.get("link_id_column"),
         "ra_column": manifest.get("ra_column") or info.get("ra_column"),
         "dec_column": manifest.get("dec_column") or info.get("dec_column"),
@@ -605,7 +605,7 @@ def _info_registry_row(
         "kind": info.get("kind") or CATALOG_KIND_INGESTED,
         "product_subtype": info.get("product_subtype"),
         "path": str(survey_root.relative_to(lake_root)),
-        "healpix_order": read_healpix_order(info),
+        "healpix_order": require_healpix_order(info, str(info_path)),
         "link_id_column": source_id,
         "ra_column": info.get("ra_column"),
         "dec_column": info.get("dec_column"),
@@ -694,7 +694,7 @@ def _crossmatch_registry_rows(lake_root: Path) -> list[dict[str, Any]]:
             "modality": MODALITY_CROSSMATCH,
             "kind": "crossmatch",
             "path": str(root.relative_to(lake_root)),
-            "healpix_order": read_healpix_order(info),
+            "healpix_order": require_healpix_order(info, str(info_path)),
             "survey_a": info.get("survey_a", survey_a),
             "survey_b": info.get("survey_b", survey_b),
             "match_mode": info.get("match_mode", match_mode),

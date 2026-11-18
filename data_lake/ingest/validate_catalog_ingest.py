@@ -16,7 +16,7 @@ from typing import Any, Iterator
 
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import read_healpix_order, require_healpix_order
 from data_lake.ingest.checkpoint_sidecars import validate_ingest_sidecars
 from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN
 
@@ -79,7 +79,7 @@ def validate_catalog_tile(tile_path: Path, info: dict[str, Any], rep: Validation
         rep.errors.append(
             f"{tile_path}: schema missing join column {LAKE_JOIN_ID_COLUMN!r}"
         )
-    hp = f"_healpix_norder{int(read_healpix_order(info))}"
+    hp = f"_healpix_norder{require_healpix_order(info, 'catalog_info.json')}"
     if hp not in names:
         rep.warnings.append(f"{tile_path}: missing expected HEALPix column {hp!r}")
 

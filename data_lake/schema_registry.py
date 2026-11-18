@@ -17,7 +17,7 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import require_healpix_order
 
 log = logging.getLogger(__name__)
 
@@ -503,7 +503,7 @@ def build_spectra_schema_manifest(spectra_root: Path | str, survey_name: str) ->
         "manifest_version": MANIFEST_VERSION,
         "survey": survey_name,
         "modality": MODALITY_SPECTRA,
-        "healpix_order": read_healpix_order(info),
+        "healpix_order": require_healpix_order(info, str(Path(spectra_root) / "spectrum_info.json")),
         "link_id_column": LAKE_JOIN_ID_COLUMN,
         "ra_column": None,
         "dec_column": None,
@@ -588,7 +588,7 @@ def build_cutout_schema_manifest(cutout_root: Path | str, survey_name: str) -> d
         "manifest_version": MANIFEST_VERSION,
         "survey": survey_name,
         "modality": MODALITY_CUTOUT,
-        "healpix_order": read_healpix_order(info),
+        "healpix_order": require_healpix_order(info, str(info_path)),
         "link_id_column": LAKE_JOIN_ID_COLUMN,
         "ra_column": None,
         "dec_column": None,
@@ -626,7 +626,7 @@ def rebuild_schema_manifest(
         write_catalog_schema_manifest(
             root,
             survey,
-            healpix_order=int(read_healpix_order(info, 5)),
+            healpix_order=require_healpix_order(info, str(info_path)),
             ra_column=str(info.get("ra_column", "ra")),
             dec_column=str(info.get("dec_column", "dec")),
             link_id_mode=str(info.get("link_id_mode", "sequential")),
@@ -672,7 +672,7 @@ def format_manifest_table(
     modality = manifest.get("modality", MODALITY_CATALOG)
     lines = [
         f"Survey: {manifest.get('survey')}  modality: {modality}",
-        f"HEALPix order: {read_healpix_order(manifest)}  columns: {manifest.get('n_columns')}",
+        f"HEALPix order: {require_healpix_order(manifest, 'schema manifest')}  columns: {manifest.get('n_columns')}",
     ]
     if modality == MODALITY_CATALOG:
         link_id_mode = manifest.get("link_id_mode") or ""

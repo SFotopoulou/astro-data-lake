@@ -7,25 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [0.9.0] - 2026-11-18
 
-- **HEALPix order renamed `hats_order` → `healpix_order`** (breaking; reingest or
-  rewrite existing lakes). The stored key in `catalog_info.json`,
-  `spectrum_info.json`, `cutout_info.json`, `crossmatch_info.json`, tile
-  indexes, schema manifests, and the registry column is now `healpix_order`.
-  Readers no longer accept the old `hats_order` key. The `[partitioning]`
-  key in `lake_config.toml` is now `healpix_order`; a leftover `hats_order`
-  raises `LakeConfigInvalid`. The Python constant `DEFAULT_HATS_ORDER` is now
-  `DEFAULT_HEALPIX_ORDER`.
-- **CLI `--norder` → `--healpix-order`** on every command that took
-  `--norder`. `--norder` still works as a hidden alias. `--norder-b` is
-  unchanged.
+Upgrade notes (breaking changes, details under **Changed**):
 
-### Fixed
-
-- **`dl-export-moc` / `dl-region --export-moc` ASCII and JSON** — no longer pass
-  FITS-only `fits_keywords` into mocpy (which raised
-  ``fits_keyword argument is only valid when fits is the output format``).
+- The HEALPix order is stored as `healpix_order` everywhere (was `hats_order`).
+  Existing catalog, spectrum, and cutout metadata must be updated or reingested.
+  Readers raise `HealpixOrderError` when the key is missing; they never fall back
+  to order 5. Check each `*_info.json` before querying.
+- `[partitioning] hats_order` in `lake_config.toml` is now `healpix_order`. The old key
+  is rejected at load time.
+- Commands take `--healpix-order` (was `--norder`). `--norder` still works as a hidden alias.
+- Python: `DEFAULT_HATS_ORDER` is now `DEFAULT_HEALPIX_ORDER`.
 
 ### Added
 
@@ -66,6 +59,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   footprint polygons and/or source circles (default 0.5″). Supports `--mode
   sources|footprint|both`, `--where` / `--limit` on sources, and optional region
   clips (`--from-area`, `--cone`, `--bbox`, `--npix`, `--moc`).
+
+- **Readers raise when `healpix_order` is missing** — catalog, spectrum, and cutout
+  accessors, the tile index, registry and manifest builders, crossmatch, and
+  `dl-refresh-lake-registry` now raise `HealpixOrderError` (naming the file) instead
+  of falling back to order 5. Repair with `dl-repair-catalog-metadata --healpix-order N`.
+- **ML datasets and `update_index_column`** take `norder=None` and resolve the order
+  from the stored metadata. Pass `norder=` only to override it.
+- **Link validator** (`dl-validate-catalog-spectra-link`) resolves the order from the
+  stored catalog layer.
+
+### Changed
+
+- **HEALPix order renamed `hats_order` → `healpix_order`** (breaking; reingest or
+  rewrite existing lakes). The stored key in `catalog_info.json`,
+  `spectrum_info.json`, `cutout_info.json`, `crossmatch_info.json`, tile
+  indexes, schema manifests, and the registry column is now `healpix_order`.
+  Readers no longer accept the old `hats_order` key. The `[partitioning]`
+  key in `lake_config.toml` is now `healpix_order`; a leftover `hats_order`
+  raises `LakeConfigInvalid`. The Python constant `DEFAULT_HATS_ORDER` is now
+  `DEFAULT_HEALPIX_ORDER`.
+- **CLI `--norder` → `--healpix-order`** on every command that took
+  `--norder`. `--norder` still works as a hidden alias. `--norder-b` is
+  unchanged.
+- **`scipy>=1.11` is a declared dependency** — spectra readers and the Zarr
+  spectra ingest already imported it but did not declare it.
+
+### Fixed
+
+- **`dl-export-moc` / `dl-region --export-moc` ASCII and JSON** — no longer pass
+  FITS-only `fits_keywords` into mocpy (which raised
+  ``fits_keyword argument is only valid when fits is the output format``).
 
 ## [0.8.0] - 2026-11-10
 
@@ -359,7 +383,8 @@ Upgrade notes (breaking changes, details under **Changed**):
 - Multi-survey catalog (Parquet/HATS), cutout, and 1-D spectrum (Zarr v3) ingest.
 - Lake registry, crossmatch, validation, and export tooling.
 
-[Unreleased]: https://github.com/SFotopoulou/data_lake/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/SFotopoulou/data_lake/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/SFotopoulou/data_lake/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/SFotopoulou/data_lake/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/SFotopoulou/data_lake/compare/v0.6.0...v0.7.0
 [0.4.1]: https://github.com/SFotopoulou/data_lake/compare/v0.4.0...v0.4.1

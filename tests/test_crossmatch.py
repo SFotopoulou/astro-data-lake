@@ -1568,6 +1568,7 @@ class TestDescribeCrossmatch:
                 "survey_a": "A",
                 "survey_b": "B",
                 "match_radius_arcsec": 2.0,
+                "healpix_order": 5,
                 "total_rows": 999,  # stale sidecar
                 "n_tiles": 99,
             },
@@ -1577,3 +1578,15 @@ class TestDescribeCrossmatch:
         assert desc["disk_rows"] == 3
         assert desc["disk_tiles"] == 1
         assert desc["total_rows"] == 3
+
+    def test_describe_raises_without_healpix_order(self, tmp_path: Path) -> None:
+        from data_lake.healpix_order import HealpixOrderError
+        from data_lake.io.crossmatch import describe_crossmatch_tree
+
+        root = _write_minimal_xm_tree(
+            tmp_path / "lake",
+            "A_x_B__r2.0",
+            {"match_mode": "sky", "survey_a": "A", "survey_b": "B"},
+        )
+        with pytest.raises(HealpixOrderError, match="crossmatch_info.json"):
+            describe_crossmatch_tree(root)

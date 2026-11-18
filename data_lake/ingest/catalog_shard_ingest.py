@@ -64,7 +64,7 @@ from data_lake.ingest.fits_to_parquet import (
     healpix_dir,
     record_fits_hdu,
 )
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import require_healpix_order
 from data_lake.io.fits_read import catalog_fits_read_policy, parse_hdu_spec
 
 log = logging.getLogger(__name__)
@@ -220,8 +220,8 @@ def _check_against_catalog(shard_info: dict, catalog_root: Path) -> None:
     if info is None:
         return
     problems: list[str] = []
-    lake_order = read_healpix_order(info)
-    if lake_order is not None and int(lake_order) != int(shard_info["norder"]):
+    lake_order = require_healpix_order(info, str(catalog_root / "catalog_info.json"))
+    if int(lake_order) != int(shard_info["norder"]):
         problems.append(f"healpix_order: lake={lake_order} shards={shard_info['norder']}")
     lake_mode = info.get("link_id_mode")
     shard_mode = shard_info.get("link_id_mode")

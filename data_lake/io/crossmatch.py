@@ -56,7 +56,11 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import (
+    HealpixOrderError,
+    require_healpix_order,
+    require_healpix_order_file,
+)
 from data_lake.io.catalog import CatalogAccessor, ReturnFormat
 from data_lake.io.crossmatch_matchers import (
     MatchBackend,
@@ -1104,7 +1108,7 @@ def describe_crossmatch_tree(
         "match_col_b": match_col_b if match_mode == "column" else info.get("match_col_b"),
         "match_backend": info.get("match_backend"),
         "gpu_id": info.get("gpu_id"),
-        "healpix_order": read_healpix_order(info),
+        "healpix_order": require_healpix_order(info, str(root / "crossmatch_info.json")),
         "survey_a_norder": info.get("survey_a_norder"),
         "survey_b_norder": info.get("survey_b_norder"),
         "survey_a_ra_column": info.get("survey_a_ra_column"),
@@ -1307,14 +1311,13 @@ def format_crossmatch_report(desc: dict[str, Any]) -> str:
 
 def _sky_columns_from_catalog_info(catalog_root: Path) -> tuple[str, str, int]:
     info_path = catalog_root / "catalog_info.json"
-    if not info_path.is_file():
-        return "ra", "dec", 5
+    norder = require_healpix_order_file(info_path)
     with open(info_path) as fh:
         info = json.load(fh)
     return (
         str(info.get("ra_column", "ra")),
         str(info.get("dec_column", "dec")),
-        int(read_healpix_order(info, 5)),
+        norder,
     )
 
 
@@ -1983,12 +1986,15 @@ def _resolve_crossmatch_norder(out_root: Path, norder: int | None) -> int:
         return norder
     info_path = out_root / CROSSMATCH_INFO_FILENAME
     if info_path.is_file():
-        with open(info_path) as fh:
-            return int(read_healpix_order(json.load(fh), 5))
+        return require_healpix_order_file(info_path)
+    # No sidecar: the tile layout is the only evidence of the order.
     for path in sorted(out_root.glob("Norder=*")):
         if path.is_dir() and path.name.startswith("Norder="):
             return int(path.name.split("=", 1)[1])
-    return 5
+    raise HealpixOrderError(
+        f"{out_root}: no {CROSSMATCH_INFO_FILENAME} and no Norder=* tiles; "
+        "pass the order explicitly."
+    )
 
 
 def _crossmatch_parquet_glob(out_root: Path, norder: int) -> str:
@@ -3339,14 +3345,9 @@ def build_column_crossmatch(
 
 def _base_catalog_norder(lake_root: Path, survey: str) -> int:
     from data_lake.schema_registry import resolve_catalog_root
-    info_path = resolve_catalog_root(lake_root, survey) / "catalog_info.json"
-    if info_path.is_file():
-        try:
-            with open(info_path) as fh:
-                return int(read_healpix_order(json.load(fh), 5))
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
-            pass
-    return 5
+    return require_healpix_order_file(
+        resolve_catalog_root(lake_root, survey) / "catalog_info.json"
+    )
 
 
 def _in_scope_crossmatch_a_tiles(
@@ -3789,7 +3790,10 @@ class CrossmatchAccessor:
             with open(info_path) as fh:
                 self._info = json.load(fh)
 
-        self.norder: int = norder if norder is not None else int(read_healpix_order(self._info, 5))
+        self.norder: int = (
+            norder if norder is not None
+            else require_healpix_order(self._info, str(info_path))
+        )
         self._con = connect_duckdb(":memory:")
         glob = str(self._xm_root / f"Norder={self.norder}" / "**" / "*.parquet")
         self._con.execute(

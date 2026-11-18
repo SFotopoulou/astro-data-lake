@@ -35,7 +35,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import read_healpix_order, require_healpix_order_file
 from data_lake.ingest.fits_to_parquet import (
     LAKE_JOIN_ID_COLUMN,
     healpix_dir,
@@ -122,30 +122,35 @@ def _read_catalog_tile_columns(tile_path: Path, columns: list[str]) -> dict[str,
     return out
 
 
+def _order_from_layer(info_path: Path, explicit: int | None) -> int:
+    """Stored order when the sidecar has one, else *explicit*, else raise.
+
+    The stored value takes precedence over *explicit* (existing behaviour).
+    Missing both raises :class:`HealpixOrderError`; there is no default.
+    """
+    if info_path.is_file():
+        stored = read_healpix_order(_load_json(info_path))
+        if stored is not None:
+            return stored
+    if explicit is not None:
+        return int(explicit)
+    return require_healpix_order_file(info_path)
+
+
 def _resolve_norders(
     catalog_root: Path,
     spectra_root: Path,
     norder: int | None,
     rep: LinkValidationReport,
 ) -> tuple[int, int]:
-    """Return ``(cat_order, spec_order)``; each defaults independently.
+    """Return ``(cat_order, spec_order)``; each comes from its sidecar or *norder*.
 
     Orders may differ when catalog and spectra were partitioned at different
     resolutions — this is now supported via ``_spectrum_npix`` on catalog rows.
     A warning (not an error) is emitted when orders differ.
     """
-    cat_order: int | None = norder
-    spec_order: int | None = norder
-
-    cat_info = catalog_root / "catalog_info.json"
-    if cat_info.is_file():
-        cat_order = int(read_healpix_order(_load_json(cat_info), cat_order or 5))
-    spec_info = spectra_root / "spectrum_info.json"
-    if spec_info.is_file():
-        spec_order = int(read_healpix_order(_load_json(spec_info), spec_order or 5))
-
-    cat_order = cat_order or 5
-    spec_order = spec_order or 5
+    cat_order = _order_from_layer(catalog_root / "catalog_info.json", norder)
+    spec_order = _order_from_layer(spectra_root / "spectrum_info.json", norder)
 
     if cat_order != spec_order:
         rep.warnings.append(

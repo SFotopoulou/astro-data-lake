@@ -123,8 +123,8 @@ share its DuckDB connection.
 
 IDs that are not found are reported in one warning at construction; accessing
 such a sample raises `KeyError`, so drop them first (`ds.tile_npix < 0` marks
-them). Both datasets default to `norder=5`; pass `norder=` if the survey uses a
-different `healpix_order`.
+them). Both datasets read the lake's stored `healpix_order` by default and raise if
+it is missing; pass `norder=` to override it.
 
 `TileSequentialSampler` (for `CutoutDataset` or `SpectrumDataset`) yields
 samples grouped by tile, shuffling the tile order by default, so consecutive

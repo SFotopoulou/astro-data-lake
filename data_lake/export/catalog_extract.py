@@ -56,7 +56,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-from data_lake.healpix_order import read_healpix_order
+from data_lake.healpix_order import require_healpix_order_file
 from data_lake.ingest.fits_to_parquet import (
     _read_source_table,
     _ZSTD_LEVEL,
@@ -853,11 +853,7 @@ def _lake_catalog_root(lake_root: Path | str, survey: str) -> Path:
 def _lake_norder(catalog_root: Path, norder: int | None) -> int:
     if norder is not None:
         return norder
-    info_path = catalog_root / "catalog_info.json"
-    if info_path.is_file():
-        with open(info_path) as fh:
-            return int(read_healpix_order(json.load(fh), 5))
-    return 5
+    return require_healpix_order_file(catalog_root / "catalog_info.json")
 
 
 def read_lake_catalog_info(lake_root: Path | str, survey: str) -> dict[str, Any]:

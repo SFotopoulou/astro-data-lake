@@ -2675,7 +2675,11 @@ def finalize_catalog_survey(
         dec = info.get("dec_column", dec)
         if link_id_mode is None:
             sid = info.get("link_id_mode", sid)
-        healpix_order = int(read_healpix_order(info, healpix_order))
+        # Stored order wins when present; otherwise the explicit ``norder``
+        # argument (required, no default) is kept and written back below.
+        stored_order = read_healpix_order(info)
+        if stored_order is not None:
+            healpix_order = stored_order
         stream = bool(info.get("ingest_streaming", stream))
         if allow_incomplete is None:
             allow_incomplete = bool(info.get("allow_incomplete_link_id", False))
