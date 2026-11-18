@@ -283,8 +283,6 @@ class TestSpplateIngest:
 
     def test_triplet_hash_matches_composite_catalog(self, tmp_path: Path) -> None:
         """source_id from triplet hash == _source_id in catalog ingested with PLATE,MJD,FIBERID."""
-        import pyarrow as pa
-        import pyarrow.parquet as pq
 
         from data_lake.ingest.fits_to_parquet import composite_link_label, normalize_object_id
         from data_lake.ingest.sdss_specobj_lookup import (
@@ -362,7 +360,6 @@ def _make_records(source_ids, n_pix: int, *, wavelength_mode: str = "per_source"
 def _make_tile(tile_path, records, n_pix, *, wavelength_mode, n_diag=None):
     """Create a Zarr tile from records at the given path."""
     import numpy as np
-    import zarr
 
     from data_lake.ingest.fits_to_spectra_zarr import (
         _open_or_create_spectrum_tile,
@@ -670,7 +667,6 @@ class TestVectorizedSpplateDecoder:
 
     def test_decoder_skips_all_zero_flux_fibers(self, tmp_path: Path) -> None:
         """Fibers with all-zero flux are excluded by the active-flux mask."""
-        import numpy as np
         from astropy.io import fits
 
         from data_lake.ingest.spplate_parallel_ingest import (

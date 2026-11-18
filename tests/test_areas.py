@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 
 from data_lake.discovery.areas import (
-    Area,
     area_is_valid,
     areas_dir,
     list_areas,

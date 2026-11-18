@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import numpy as np
-import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest

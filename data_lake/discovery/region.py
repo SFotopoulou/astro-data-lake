@@ -19,9 +19,9 @@ Pixel indices are HEALPix **NESTED** scheme throughout, matching the on-disk
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Literal, Sequence
+from typing import Any, Iterable, Literal
 
 import healpy as hp
 import numpy as np

@@ -42,9 +42,9 @@ from data_lake.knobs import WRITE_MAX_OPEN_TILES
 import logging
 import time
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Literal, Sequence
+from typing import Callable, Sequence
 
 import numpy as np
 
@@ -57,7 +57,6 @@ from data_lake.ingest.desi_parallel_ingest import (
     TileBatch,
     WorkerResult,
     ZarrDuplicateMode,
-    _canonical_fits_path,
     ingest_spectra_parallel,
 )
 from data_lake.ingest.sdss_specobj_lookup import (
@@ -284,7 +283,6 @@ def _decode_spplate_to_worker_result(
         ra_keep = ra_arr[keep]
         dec_keep = dec_arr[keep]
         sids_keep = sid_arr[keep]
-        fids_keep = fids[keep]
 
         # --- Build meta in bulk (one structured array, no per-row dict) ---
         exptime = float(phdr.get("EXPTIME", 0.0))

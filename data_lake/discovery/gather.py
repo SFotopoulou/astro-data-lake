@@ -31,8 +31,7 @@ from typing import Any, Sequence
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from data_lake.discovery.partner_tile_cache import PartnerTileCache, PartnerTileCacheConfig
-from data_lake.discovery.region import Region
+from data_lake.discovery.partner_tile_cache import PartnerTileCache
 from data_lake.discovery.selection import BaseSelection
 from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, healpix_dir
 from data_lake.io.catalog import CatalogAccessor
@@ -130,7 +129,6 @@ def _fetch_partner_catalog(
     fetch_cols: list[str],
 ):
     """Load partner catalog rows for crossmatch matches (exact or geometric tiles)."""
-    import polars as pl
 
     sids_b = matches["source_id_b"].unique().to_list()
     if CROSSMATCH_HEALPIX_NPIX_B in matches.columns:

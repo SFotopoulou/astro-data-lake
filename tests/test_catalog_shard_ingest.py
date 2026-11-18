@@ -18,14 +18,12 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 from astropy.table import Table
-from astropy.io import fits
 
 from data_lake.ingest.fits_to_parquet import (
     ingest_catalog,
     LAKE_JOIN_ID_COLUMN,
 )
 from data_lake.ingest.catalog_shard_ingest import (
-    _shard_part_path,
     _load_checkpoint,
     _append_checkpoint,
     _collect_fits_files,

@@ -64,7 +64,6 @@ class TestTransforms:
         import polars as pl
 
         from data_lake.homogenize.survey_registry import resolve_catalog_rules
-        from data_lake.homogenize.transforms import TransformRule
 
         rules = resolve_catalog_rules(None, "ALLWISE", "phot_ab_v1")
         assert len(rules) >= 1
@@ -830,7 +829,7 @@ class TestZarrHomogenize:
     def test_spectra_flux_scale(self, tmp_path: Path) -> None:
         from data_lake.discovery.selection import selection_from_all_tiles
         from data_lake.homogenize.zarr_engine import homogenize_zarr
-        from synthetic_lake_helpers import HEALPIX_ORDER, SURVEY, ingest_synthetic_spectrum_lake
+        from synthetic_lake_helpers import SURVEY, ingest_synthetic_spectrum_lake
 
         lake = tmp_path / "lake"
         ingest_synthetic_spectrum_lake(lake)

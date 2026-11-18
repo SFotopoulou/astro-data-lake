@@ -96,7 +96,6 @@ def _read_fibermap_targetids(path: Path) -> tuple[np.ndarray, int | None, str]:
             raise KeyError(f"{path}: no FIBERMAP extension (found {sorted(names)[:12]}...)")
 
         fmap = hdul["FIBERMAP"].data
-        n_fibermap = len(fmap)
         for col in ("TARGETID", "TARGET_ID"):
             if col in fmap.dtype.names:
                 return np.asarray(fmap[col]), _exp_fibermap_nrow(hdul), col

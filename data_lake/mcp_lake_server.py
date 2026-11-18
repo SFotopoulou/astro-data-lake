@@ -864,7 +864,6 @@ def main() -> None:
     except ImportError as exc:  # pragma: no cover
         raise SystemExit("dl-mcp-lake requires click") from exc
 
-    from pathlib import Path
 
     from data_lake.cli_utils import (
         configure_cli_logging,

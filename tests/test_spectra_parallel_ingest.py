@@ -6,7 +6,6 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-import numpy as np
 import pytest
 import zarr
 

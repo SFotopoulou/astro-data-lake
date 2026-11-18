@@ -16,13 +16,12 @@ import gzip
 import hashlib
 import json
 import logging
-import math
 import os
 import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, Literal, Mapping, Sequence
+from typing import Callable, Literal, Mapping, Sequence
 
 TileMode = Literal["skip", "overwrite", "append"]
 DuplicateIdMode = Literal["skip", "error", "last"]

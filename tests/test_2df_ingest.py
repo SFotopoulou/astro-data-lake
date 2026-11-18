@@ -226,7 +226,6 @@ class TestDetect2df:
         assert _detect_format_from_path(p) == "2df"
 
     def test_does_not_detect_generic_as_2df(self, tmp_path: Path) -> None:
-        from astropy.table import Table
         from data_lake.ingest.fits_to_spectra_zarr import _detect_format_from_path
 
         p = tmp_path / "generic_spec.fits"
@@ -289,11 +288,10 @@ class TestRead2dfSpectrum:
 
     def test_multi_hdu_returns_one_record_per_spectrum(self, tmp_path: Path) -> None:
         from astropy.io import fits as afits
-        from data_lake.ingest.fits_to_parquet import normalize_object_id
         from data_lake.ingest.fits_to_spectra_zarr import _read_2df_spectrum
 
         p = tmp_path / "389442.fits"
-        spfiles = _write_2df_multi_spectrum(
+        _write_2df_multi_spectrum(
             p,
             seqnum=389442,
             ra=6.268,
@@ -383,7 +381,6 @@ class TestRead2dfSpectrum:
 
 class TestIngest2df:
     def test_ingest_single_file(self, tmp_path: Path) -> None:
-        from data_lake.ingest.fits_to_parquet import normalize_object_id
         from data_lake.ingest.fits_to_spectra_zarr import ingest_spectra_from_fits
         from data_lake.io.spectra import SpectrumAccessor
 
@@ -409,7 +406,6 @@ class TestIngest2df:
         assert np.allclose(sp.ivar, 0.25)
 
     def test_ingest_auto_detection(self, tmp_path: Path) -> None:
-        from data_lake.ingest.fits_to_parquet import normalize_object_id
         from data_lake.ingest.fits_to_spectra_zarr import ingest_spectra_from_fits
 
         p = tmp_path / "200001.fits"
@@ -425,9 +421,7 @@ class TestIngest2df:
         assert expected_id in index_map
 
     def test_duplicate_skipped(self, tmp_path: Path) -> None:
-        from data_lake.ingest.fits_to_parquet import normalize_object_id
         from data_lake.ingest.fits_to_spectra_zarr import ingest_spectra_from_fits
-        from data_lake.io.spectra import SpectrumAccessor
 
         p = tmp_path / "111111.fits"
         spfile = _write_2df_spectrum(p, seqnum=111111, ra=2.0, dec=-2.0)
@@ -440,17 +434,17 @@ class TestIngest2df:
             fmt="2df", healpix_order=5, on_duplicate_source_id="skip",
         )
 
-        acc = SpectrumAccessor(lake, "2DFG_DR3")
         sid = _expected_2df_source_id(spfile, 180)
         # Tile should have exactly one row for this source
         import zarr
-        import glob as _glob
         tiles = list((lake / "spectra" / "2DFG_DR3").rglob("*.zarr"))
         assert len(tiles) == 1
         root = zarr.open_group(str(tiles[0]), mode="r")
         from data_lake.ingest.zarr_ids import zarr_join_array
 
-        assert zarr_join_array(root).shape[0] == 1
+        join_ids = zarr_join_array(root)
+        assert join_ids.shape[0] == 1
+        assert int(join_ids[0]) == sid
 
     def test_spectrum_index_updated_in_catalog(self, tmp_path: Path) -> None:
         """After ingest, _spectrum_index must be patched in the Parquet catalog."""
@@ -579,7 +573,6 @@ class TestIngest2df:
         reason="requires data/389442.fits",
     )
     def test_real_389442_fits_ingests_two_spectra(self, tmp_path: Path) -> None:
-        from data_lake.ingest.fits_to_parquet import normalize_object_id
         from data_lake.ingest.fits_to_spectra_zarr import ingest_spectra_from_fits
 
         repo_root = Path(__file__).resolve().parents[1]

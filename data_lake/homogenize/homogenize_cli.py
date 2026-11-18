@@ -216,20 +216,15 @@ try:
             raise click.ClickException("Use either --survey or --from-product, not both.")
 
         catalog_from_product = modality == MODALITY_CATALOG and from_product is not None
-        if catalog_from_product:
-            target = from_product
-        elif modality == MODALITY_CATALOG:
-            if not survey:
+        if modality == MODALITY_CATALOG:
+            if not survey and from_product is None:
                 raise click.ClickException(
                     "--survey is required (or set homogenize.survey / --from-product)"
                 )
-            target = survey
-        else:
-            if not survey:
-                raise click.ClickException(
-                    f"--survey is required for --modality {modality}"
-                )
-            target = survey
+        elif not survey:
+            raise click.ClickException(
+                f"--survey is required for --modality {modality}"
+            )
 
         if not transform_id:
             default_transform = {

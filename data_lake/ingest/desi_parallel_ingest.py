@@ -1013,7 +1013,6 @@ try:
 
     from ..cli_utils import (
         config_option,
-        configure_cli_logging,
         configure_file_only_logging,
         ingest_token_option,
         load_optional_config,
@@ -1022,7 +1021,6 @@ try:
         progress_option,
         require_ingest_permission,
         require_output_root,
-        resolve_log_level,
         validate_quiet_verbose,
     )
 

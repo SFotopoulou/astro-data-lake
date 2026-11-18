@@ -642,7 +642,6 @@ def _dedup_table(
     if "_source_id" not in table.schema.names:
         return table
 
-    import pyarrow.compute as pc
 
     sid_col = table.column("_source_id")
     # Build index: last occurrence wins (we reverse, dedup, reverse back)
@@ -650,9 +649,6 @@ def _dedup_table(
     n = len(table)
     if n == 0:
         return table
-
-    # Indices of all rows
-    order = pa.array(range(n), type=pa.int64())
 
     if on_duplicate_id == "last":
         # Keep last occurrence: iterate reversed, keep first seen

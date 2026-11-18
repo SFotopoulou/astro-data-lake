@@ -1,6 +1,5 @@
 """Unit tests for catalog_cli_options.resolve_catalog_tile_mode."""
 
-import pytest
 
 from data_lake.ingest.catalog_cli_options import resolve_catalog_tile_mode
 

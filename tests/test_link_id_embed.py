@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-import pytest
 
 
 def test_values_to_numpy_int_and_str() -> None:

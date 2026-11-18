@@ -8,10 +8,8 @@ and ``HeartbeatReporter``.
 
 from __future__ import annotations
 
-import importlib
 import io
 import logging
-import time
 import warnings
 
 import pytest

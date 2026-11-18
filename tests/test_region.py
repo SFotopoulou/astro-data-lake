@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import healpy as hp
 import numpy as np
 import pytest
 
@@ -109,9 +108,8 @@ class TestMocRegion:
             pytest.skip("mocpy installed; covered by integration tests")
 
     def test_moc_roundtrip_when_available(self) -> None:
-        mocpy = pytest.importorskip("mocpy")
+        pytest.importorskip("mocpy")  # skip when mocpy is missing
         # Build a MOC at order 4 over a few cells; ensure to_npix returns pixels.
-        moc = mocpy.MOC.from_string("4/0-3")
         region = Region.from_moc(moc_string="4/0-3")
         npix = region.to_npix(4)
         assert npix.issuperset({0, 1, 2, 3})

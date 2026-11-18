@@ -20,7 +20,6 @@ from typing import Any, Iterator
 
 from data_lake.healpix_order import read_healpix_order
 from data_lake.ingest.checkpoint_sidecars import (
-    paths_from_file_list_file,
     validate_ingest_sidecars,
 )
 

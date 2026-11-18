@@ -1203,7 +1203,6 @@ class TestColumnCrossmatchEngine:
 
     def test_non_overlapping_tile_produces_no_match(self, tmp_path: Path) -> None:
         """Key match only in a non-overlapping B tile → no association row (locality)."""
-        import healpy as hp_lib
         lake = tmp_path / "lake"
         healpix_order = 3  # low order so pixels are large and far-apart pixels are unambiguous
 

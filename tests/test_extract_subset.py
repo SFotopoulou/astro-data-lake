@@ -1014,7 +1014,6 @@ class TestOpenTileLRU:
 
     def test_extract_respects_max_open_tiles(self, synthetic_lake: Path):
         """max_open_tiles=2 keeps at most 2 stores open during a multi-tile extract."""
-        import zarr
 
         from data_lake.io.spectra import SpectrumAccessor
 

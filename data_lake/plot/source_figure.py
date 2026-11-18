@@ -160,13 +160,6 @@ def plot_source_sed_spectrum(
     # SED panel
     # ------------------------------------------------------------------
     if sed.points:
-        lam = sed.lambda_eff_um
-        mag = sed.ab_mag
-        err = sed.ab_mag_err
-
-        yerr = np.where(np.isnan(err), 0.0, err)
-        has_err = ~np.isnan(err)
-
         for i, pt in enumerate(sed.points):
             colour = _BAND_COLOURS[i % len(_BAND_COLOURS)]
             ax_sed.errorbar(

@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
-import pytest
 from astropy.table import Table
 
 from data_lake.ingest.catalog_parallel_ingest import (

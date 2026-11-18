@@ -10,7 +10,6 @@ from click.testing import CliRunner
 from data_lake.admin.init_lake import dl_init, init_lake
 from data_lake.cli_utils import (
     INGEST_TOKEN_ENV,
-    hash_ingest_token,
     require_ingest_permission,
 )
 from data_lake.config import LakeConfig

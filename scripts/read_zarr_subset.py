@@ -147,7 +147,6 @@ def _lookup_id_columns(
     Only tiles that contain at least one requested _source_id are read.
     Uses pyarrow for zero-copy column reads.
     """
-    import pyarrow as pa
     import pyarrow.parquet as pq
 
     sid_set = set(source_ids.tolist())

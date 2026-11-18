@@ -749,7 +749,6 @@ try:
         resolve_log_level,
         validate_quiet_verbose,
     )
-    from data_lake.config import LakeConfig
 
     @click.command("dl-describe-survey")
     @click.argument("survey", type=str)

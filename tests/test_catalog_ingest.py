@@ -232,7 +232,6 @@ class TestShrinkTileStrings:
 
     def test_shrink_skips_huge_row_count(self, monkeypatch):
         from data_lake.ingest.fits_to_parquet import (
-            _MAX_ROWS_STRING_SHRINK,
             _shrink_tile_table_for_disk,
         )
 
@@ -806,7 +805,6 @@ class TestStreamingIngest:
 class TestParquetTileIntegrity:
     def test_corrupt_tile_recovered_on_append(self, tmp_path: Path) -> None:
         from data_lake.ingest.fits_to_parquet import (
-            _write_catalog_parquet_tile,
             _write_tile_for_mode,
             CatalogParquetOptions,
         )
@@ -1348,7 +1346,6 @@ class TestSetColumnEndToEnd:
 
     def test_composite_link_id_mode_recorded(self, tmp_path):
         from data_lake.ingest.fits_to_parquet import ingest_catalog, parse_set_column_spec
-        import pyarrow as pa
         fits_path = tmp_path / "v1.fits"
         self._write_fits(fits_path, visit=1)
         _, scalar = parse_set_column_spec("VISIT=1")
@@ -1550,11 +1547,8 @@ class TestResolveLinkObjectId:
         np.testing.assert_array_equal(ids, expected)
 
     def test_vector_composite_matches_scalar(self):
-        import numpy as np
 
         from data_lake.ingest.fits_to_parquet import (
-            composite_link_label,
-            normalize_object_id,
             resolve_link_object_id,
             resolve_link_object_ids,
         )

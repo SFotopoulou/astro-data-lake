@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -43,7 +41,6 @@ def _make_mock_accessor(columns: list[str], row_data: dict, source_id: int):
     """Build a mock CatalogAccessor that returns one row for get_sources_by_id."""
     import pyarrow as pa
 
-    schema = pa.schema([(c, pa.float32() if "phot" in c else pa.int64()) for c in columns])
     arrays = [
         pa.array([row_data.get(c)], type=pa.float32() if "phot" in c else pa.int64())
         for c in columns

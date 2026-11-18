@@ -18,12 +18,11 @@ from concurrent.futures import Executor, FIRST_COMPLETED, Future, ProcessPoolExe
 from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Callable, Sequence
 
 import numpy as np
 
 from data_lake.ingest.desi_parallel_ingest import (
-    TileBatch,
     WorkerResult,
     ZarrDuplicateMode,
     _atomic_write_json,
@@ -32,12 +31,10 @@ from data_lake.ingest.desi_parallel_ingest import (
     _close_spectrum_tile_group,
     _load_tile_source_id_set,
     _recover_stale_parallel_commit,
-    _truncate_spectrum_tile_row_arrays,
 )
 from data_lake.ingest.fits_to_parquet import healpix_dir
 from data_lake.ingest.fits_to_spectra_zarr import (
     SpectrumDecodeConfig,
-    _META_DTYPE,
     _open_or_create_spectrum_tile,
     _write_spectrum_info,
     append_tile_batch_to_zarr,

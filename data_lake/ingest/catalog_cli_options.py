@@ -8,7 +8,6 @@ the two flags where they were previously diverging: --tile-mode and
 
 from __future__ import annotations
 
-import functools
 from typing import Callable
 
 try:

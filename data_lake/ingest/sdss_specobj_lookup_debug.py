@@ -12,10 +12,9 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import click
-from astropy.io import fits
 
 from data_lake.cli_utils import (
     config_option,
@@ -185,7 +184,6 @@ def inspect_spplate_plugmap(hdul) -> dict[str, Any]:
         try:
             objid = ftable.data["OBJID"][row_i]
             run = int(ftable.data["RUN"][row_i]) if "RUN" in names else None
-            field = int(ftable.data["FIELD"][row_i]) if "FIELD" in names else None
             if run is not None and int(objid[0]) == run:
                 audit["notes"].append(
                     "OBJID[0] matches RUN — confirms imaging objID, not spectroscopic specObjID."

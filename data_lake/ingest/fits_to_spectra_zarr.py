@@ -86,7 +86,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import shutil
 import time
 from dataclasses import dataclass
@@ -108,7 +107,6 @@ from data_lake.ingest.fits_to_parquet import (
     is_valid_sky_position,
     object_id_from_fits_header,
     resolve_link_object_id,
-    sky_from_fits_header,
     sky_from_header_chain,
 )
 from data_lake.ingest.zarr_ids import create_zarr_join_array, zarr_join_array
@@ -732,7 +730,6 @@ def _spplate_flux_and_calib_hdus(
     flux_2d = _spplate_2d_as_fiber_by_pix(hdul[0].data, phdr)
 
     ivar_2d: np.ndarray | None = None
-    sigma_2d: np.ndarray | None = None
     ivar_hdu = _spplate_hdu_by_name(hdul, "IVAR")
     if ivar_hdu is not None:
         ivar_2d = _spplate_2d_as_fiber_by_pix(ivar_hdu.data, ivar_hdu.header)
@@ -741,8 +738,6 @@ def _spplate_flux_and_calib_hdus(
         arr = _spplate_2d_as_fiber_by_pix(h1.data, h1.header)
         if (h1.name or "").strip().upper() == "IVAR":
             ivar_2d = arr
-        elif arr.shape == flux_2d.shape:
-            sigma_2d = arr
 
     and_mask: np.ndarray | None = None
     or_mask: np.ndarray | None = None
@@ -3555,7 +3550,7 @@ def ingest_spectra_from_fits(
             "resolution matrix is defined relative to a fixed wavelength grid."
         )
 
-    from data_lake.io.fits_read import FitsReadPolicy, default_fits_read_policy
+    from data_lake.io.fits_read import default_fits_read_policy
 
     detected_fmt, records, wcs_attrs, res_diags, res_offsets = _load_spectrum_records_from_path(
         source_path,

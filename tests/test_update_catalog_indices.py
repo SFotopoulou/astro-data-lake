@@ -20,7 +20,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 from astropy.io import fits
-from astropy.table import Table
 
 
 # ---------------------------------------------------------------------------
@@ -565,7 +564,7 @@ class TestUpdateIndexFromZarrTiles:
         import pyarrow as pa
         import pyarrow.parquet as pq
 
-        from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN, healpix_dir
+        from data_lake.ingest.fits_to_parquet import LAKE_JOIN_ID_COLUMN
         from data_lake.ingest.update_catalog_indices import (
             update_index_column_from_zarr_tiles,
         )

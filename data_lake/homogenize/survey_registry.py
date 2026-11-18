@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from data_lake.homogenize.registry import load_transform
 from data_lake.homogenize.transforms import (
     TransformRule,
     normalize_transform_steps,

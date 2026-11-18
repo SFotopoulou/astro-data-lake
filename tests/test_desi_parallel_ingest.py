@@ -50,7 +50,6 @@ def _synthetic_payload(path_str: str, sources: list[tuple[int, int, float]]):
 
     batches: list[TileBatch] = []
     for pix, items in by_pix.items():
-        n = len(items)
         flux = np.stack([np.full(N_PIX, sid, dtype=np.float32) for sid, _ in items])
         ivar = np.stack([np.full(N_PIX, 1.0 / (sid + 1), dtype=np.float32) for sid, _ in items])
         mask = np.stack([np.full(N_PIX, sid % 5, dtype=np.uint8) for sid, _ in items])

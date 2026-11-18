@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from data_lake.io.fits_read import contiguous_runs
 from data_lake.io.zarr_batch import read_zarr_rows

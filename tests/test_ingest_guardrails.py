@@ -9,11 +9,10 @@ import pytest
 
 from data_lake.cli_utils import (
     INGEST_TOKEN_ENV,
-    hash_ingest_token,
     require_ingest_permission,
     write_ingest_token_hash,
 )
-from data_lake.config import LakeConfig, _Guardrails, _Lake, _Paths
+from data_lake.config import LakeConfig, _Guardrails
 
 
 def _cfg(tmp_path: Path, token: str = "secret") -> LakeConfig:

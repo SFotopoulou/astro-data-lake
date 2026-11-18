@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
-import pytest
 
 from data_lake.ingest.fits_to_parquet import (
     LAKE_JOIN_ID_COLUMN,

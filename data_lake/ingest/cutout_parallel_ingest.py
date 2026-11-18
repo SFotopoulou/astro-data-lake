@@ -8,16 +8,14 @@ from __future__ import annotations
 
 from data_lake.knobs import WRITE_MAX_OPEN_TILES
 
-import json
 import logging
 import time
 import traceback
 from collections import OrderedDict, deque
-from concurrent.futures import Executor, FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
-from concurrent.futures.process import BrokenProcessPool
+from concurrent.futures import FIRST_COMPLETED, Future, ProcessPoolExecutor, wait
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Literal, Sequence
 
 import numpy as np
 

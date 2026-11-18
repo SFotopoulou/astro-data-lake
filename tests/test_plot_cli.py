@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -60,7 +59,7 @@ def _write_minimal_spectrum(lake_root: Path, survey: str, source_id: int, spectr
         _open_or_create_spectrum_tile,
         _write_spectrum_info,
     )
-    from data_lake.ingest.fits_to_parquet import assign_healpix, healpix_dir, LAKE_JOIN_ID_COLUMN
+    from data_lake.ingest.fits_to_parquet import healpix_dir
     from data_lake.ingest.zarr_ids import zarr_join_array
 
     N_PIX = 32
