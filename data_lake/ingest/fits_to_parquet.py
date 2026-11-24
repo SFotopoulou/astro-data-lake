@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -2088,7 +2089,14 @@ def _shrink_tile_table_for_disk(table: pa.Table) -> pa.Table:
 
 
 def _parquet_tile_tmp_path(out_file: Path) -> Path:
-    return out_file.with_name(out_file.name + ".tmp")
+    """Return a per-attempt temp path next to *out_file*.
+
+    Uses ``<name>.<pid>.<nonce>.tmp`` so concurrent or retried writers never
+    share the same temp file (legacy ``<name>.tmp`` is still swept as stale).
+    """
+    return out_file.with_name(
+        f"{out_file.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
+    )
 
 
 def _is_valid_parquet_tile(path: Path) -> bool:
@@ -2102,9 +2110,21 @@ def _is_valid_parquet_tile(path: Path) -> bool:
         return False
 
 
+def _iter_stale_parquet_tmp_files(root: Path) -> list[Path]:
+    """Legacy ``*.parquet.tmp`` and unique ``*.parquet.<pid>.<nonce>.tmp``."""
+    if not root.exists():
+        return []
+    found: dict[Path, None] = {}
+    for pattern in ("*.parquet.tmp", "*.parquet.*.tmp"):
+        for tmp in root.rglob(pattern):
+            if tmp.is_file():
+                found[tmp] = None
+    return list(found)
+
+
 def _remove_stale_parquet_tmp_files(catalog_root: Path) -> None:
-    """Drop leftover ``*.parquet.tmp`` from killed ingest jobs."""
-    for tmp in catalog_root.rglob("*.parquet.tmp"):
+    """Drop leftover parquet write temps from killed ingest jobs."""
+    for tmp in _iter_stale_parquet_tmp_files(catalog_root):
         log.warning("Removing stale temporary tile %s", tmp)
         try:
             tmp.unlink()
@@ -2852,11 +2872,6 @@ def _write_catalog_parquet_tile(
     if options.shrink_strings_for_tiles:
         tile_table = _shrink_tile_table_for_disk(tile_table)
     tmp = _parquet_tile_tmp_path(out_file)
-    if tmp.exists():
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
     try:
         writer = pq.ParquetWriter(
             str(tmp),

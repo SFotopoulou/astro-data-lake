@@ -155,14 +155,29 @@ Npix shard parts → one concat per Npix → lake tile                   (phase 
 ```
 
 In the **map** phase each Slurm array task handles one RA folder and writes
-`<shard-root>/<survey>/Norder=N/Dir=D/Npix=P/part-<stem>.parquet`. Parts are never
-modified once written, so tasks run fully in parallel. A JSONL checkpoint lets a killed
-task resume.
+`<shard-root>/<survey>/Norder=N/Dir=D/Npix=P/part-<stem>.parquet`. Valid parts are never
+modified once written, so tasks run fully in parallel. Resume skips a part only when it is
+valid Parquet; empty or truncated leftovers from an aborted publish are rewritten. A JSONL
+checkpoint lets a killed task resume after those repairs.
 
 In the **reduce** phase each worker owns a separate set of tiles. It reads all parts for a
 tile once, removes duplicates according to `--on-duplicate-id`, and writes the final lake
-tile. No tile locking is needed, so reduce scales linearly with workers. After all tiles
-succeed, reduce finalizes the catalog (see [Finalize](#parallel-catalog-batch-large-file-lists)).
+tile. Invalid parts fail with their path and size before concat. No tile locking is needed,
+so reduce scales linearly with workers. After all tiles succeed, reduce finalizes the
+catalog (see [Finalize](#parallel-catalog-batch-large-file-lists)).
+
+If a previous map left empty `part-*.parquet` or `part-*.parquet.tmp` files (for example
+after a staging/publish abort), delete them under the shard survey tree, remove the
+affected sources from `map_checkpoint.jsonl` if needed, re-run map, then reduce:
+
+```bash
+find "$SHARD_ROOT/$SURVEY" -name 'part-*.parquet' -size -8c -delete
+find "$SHARD_ROOT/$SURVEY" -name 'part-*.parquet*.tmp' -delete
+```
+
+`DATA_LAKE_PARALLEL_CATALOG_MAX_BYTES` (default 512 MiB) is a **per-file on-disk** gate for
+the parallel whole-file decode path, not a per-worker RAM budget. Peak map memory scales
+roughly with `n_workers × decoded size of each in-flight file`.
 
 ### Choosing the HEALPix order
 

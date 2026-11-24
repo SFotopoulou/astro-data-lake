@@ -826,7 +826,6 @@ class TestParquetTileIntegrity:
 
     def test_atomic_write_leaves_no_tmp(self, tmp_path: Path) -> None:
         from data_lake.ingest.fits_to_parquet import (
-            _parquet_tile_tmp_path,
             _write_catalog_parquet_tile,
             CatalogParquetOptions,
         )
@@ -834,8 +833,7 @@ class TestParquetTileIntegrity:
         out = tmp_path / "tile.parquet"
         tbl = pa.table({"a": [1, 2, 3]})
         _write_catalog_parquet_tile(tbl, out, CatalogParquetOptions())
-        tmp = _parquet_tile_tmp_path(out)
-        assert not tmp.exists()
+        assert not list(tmp_path.glob("*.tmp"))
         pq.read_metadata(str(out))
 
 

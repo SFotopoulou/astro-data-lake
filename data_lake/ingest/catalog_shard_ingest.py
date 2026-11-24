@@ -15,8 +15,9 @@ Design
     FITS → decode_catalog_file_to_batches → immutable per-Npix part files
     <shard-root>/<survey>/Norder=N/Dir=D/Npix=P/part-<stem>.parquet
 
-Each part is written once and never modified.  Resume is free: skip if the
-part file already exists.  A JSONL checkpoint records completed source paths.
+Each part is written once and never modified.  Resume skips only *valid*
+Parquet parts (empty or truncated leftovers from aborted publishes are
+rewritten).  A JSONL checkpoint records completed source paths.
 
 **Phase reduce** (single job, many CPUs):
 
@@ -34,6 +35,7 @@ import errno
 import json
 import logging
 import os
+import secrets
 import shutil
 import sys
 import time
@@ -254,11 +256,56 @@ def _staging_has_room(staging_dir: Path, needed_bytes: int) -> bool:
     return free >= needed_bytes * _STAGING_HEADROOM
 
 
+def _publish_tmp_path(final: Path) -> Path:
+    """Per-attempt temp next to *final* for cross-device publish."""
+    return final.with_name(
+        f"{final.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
+    )
+
+
+def _safe_unlink_staged(staged: Path, final: Path) -> None:
+    """Remove a staging file unless it is the same inode as *final*."""
+    if not staged.exists():
+        return
+    try:
+        if final.exists() and staged.samefile(final):
+            return
+    except OSError:
+        pass
+    try:
+        staged.unlink()
+    except OSError as exc:
+        log.warning("Could not remove staged file %s: %s", staged, exc)
+
+
+def _remove_stale_tmps_beside(path: Path) -> None:
+    """Drop leftover ``path.name.tmp`` / ``path.name.*.tmp`` next to *path*."""
+    parent = path.parent
+    if not parent.is_dir():
+        return
+    name = path.name
+    for tmp in parent.glob(f"{name}.tmp"):
+        _unlink_stale_tmp(tmp)
+    for tmp in parent.glob(f"{name}.*.tmp"):
+        _unlink_stale_tmp(tmp)
+
+
+def _unlink_stale_tmp(tmp: Path) -> None:
+    if not tmp.is_file():
+        return
+    log.warning("Removing stale temporary file %s", tmp)
+    try:
+        tmp.unlink()
+    except OSError as exc:
+        log.warning("Could not remove %s: %s", tmp, exc)
+
+
 def _publish(staged: Path, final: Path) -> None:
     """Move a finished file from staging to its final location atomically.
 
-    Same filesystem → ``os.replace``.  Cross-device → copy to ``<final>.tmp``
-    then ``os.replace`` so readers never see a partial file.
+    Same filesystem → ``os.replace``.  Cross-device → copy to a unique
+    ``<final>.<pid>.<nonce>.tmp`` then ``os.replace`` so readers never see a
+    partial file.
     """
     final.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -267,7 +314,7 @@ def _publish(staged: Path, final: Path) -> None:
     except OSError as exc:
         if exc.errno != errno.EXDEV:
             raise
-    tmp = final.with_name(final.name + ".tmp")
+    tmp = _publish_tmp_path(final)
     try:
         shutil.copyfile(staged, tmp)
         os.replace(tmp, final)
@@ -287,6 +334,7 @@ def _write_tile_staged(
     estimated_bytes: int,
 ) -> None:
     """Write *table* to *final_path*, via *staging_dir* when it has room."""
+    _remove_stale_tmps_beside(final_path)
     if staging_dir is None or not _staging_has_room(staging_dir, estimated_bytes):
         if staging_dir is not None:
             log.warning(
@@ -296,11 +344,13 @@ def _write_tile_staged(
         _write_catalog_parquet_tile(table, final_path, options)
         return
     staged = _staged_path(staging_dir, final_root, final_path)
+    _remove_stale_tmps_beside(staged)
     try:
         _write_catalog_parquet_tile(table, staged, options)
         _publish(staged, final_path)
-    finally:
-        staged.unlink(missing_ok=True)
+    except Exception:
+        _safe_unlink_staged(staged, final_path)
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -341,9 +391,21 @@ def _map_one_file(
     n_written = 0
     for npix, tile_table in batches:
         part_path = _shard_part_path(shard_root, survey, healpix_order, npix, stem)
-        if part_path.exists():
-            # idempotent resume: never overwrite a completed part
+        if _is_valid_parquet_tile(part_path):
+            # idempotent resume: never overwrite a completed valid part
             continue
+        if part_path.exists():
+            size = part_path.stat().st_size if part_path.is_file() else -1
+            log.warning(
+                "Removing invalid shard part %s (size=%s); rewriting.",
+                part_path, size,
+            )
+            try:
+                part_path.unlink()
+            except OSError as exc:
+                raise RuntimeError(
+                    f"Cannot remove invalid shard part {part_path}: {exc}"
+                ) from exc
         _write_tile_staged(
             tile_table,
             part_path,
@@ -523,7 +585,8 @@ def run_map_phase(
 
     Skips files recorded in the JSONL checkpoint (default
     ``<shard_root>/<survey>/map_checkpoint.jsonl``) unless *skip_completed*
-    is False; existing part files are never rewritten either way.
+    is False.  Existing part files are skipped only when they are valid
+    Parquet; empty or truncated leftovers are rewritten.
     With *staging_dir*, each part is written there first and then moved to
     ``shard_root``.  Per-file errors are appended to *failures_log* (JSONL).
     *fits_hdu* selects the FITS table extension(s) of every file.
@@ -710,6 +773,20 @@ def _reduce_one_npix(
     exists = out_path.exists()
     if exists and tile_mode == "skip":
         return npix, 0, "skipped"
+
+    bad_parts: list[str] = []
+    for p in part_paths:
+        if _is_valid_parquet_tile(p):
+            continue
+        size = p.stat().st_size if p.is_file() else -1
+        bad_parts.append(f"{p} (size={size})")
+    if bad_parts:
+        shown = ", ".join(bad_parts[:5])
+        more = f" (+{len(bad_parts) - 5} more)" if len(bad_parts) > 5 else ""
+        raise ValueError(
+            f"Npix={npix}: {len(bad_parts)} invalid shard part(s); "
+            f"delete them and re-map the source files. Bad: {shown}{more}"
+        )
 
     # ParquetFile avoids Hive-partition inference from ``Norder=/Npix=`` paths.
     tables = [pq.ParquetFile(str(p)).read() for p in part_paths]

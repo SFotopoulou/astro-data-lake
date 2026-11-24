@@ -186,7 +186,7 @@ class TestFailuresLog:
     def test_reduce_records_bad_npix(self, catalog_fits_files, shard_root, lake_root, tmp_path):
         _run_map(catalog_fits_files, shard_root)
         npix, parts = next(_iter_shard_parts(shard_root, _SURVEY, _NORDER))
-        parts[0].write_bytes(b"corrupt")
+        parts[0].write_bytes(b"")  # empty part (aborted publish)
         flog = tmp_path / "fail.jsonl"
         catalog_root = lake_root / "catalogs" / _SURVEY
         result = run_reduce_phase(
@@ -202,6 +202,8 @@ class TestFailuresLog:
         (entry,) = [json.loads(l) for l in flog.read_text().splitlines()]
         assert entry["npix"] == npix
         assert str(parts[0]) in entry["parts"]
+        assert str(parts[0]) in entry["error"]
+        assert "size=0" in entry["error"]
 
 
 # ---------------------------------------------------------------------------
@@ -649,7 +651,133 @@ class TestStaging:
         mod._publish(staged, final)
         assert final.read_bytes() == b"data"
         assert not staged.exists()
-        assert not final.with_name(final.name + ".tmp").exists()
+        assert not list(final.parent.glob("x.parquet*.tmp"))
+
+    def test_publish_cross_device_failure_leaves_no_empty_final(
+        self, tmp_path, monkeypatch
+    ):
+        import errno as _errno
+        import data_lake.ingest.catalog_shard_ingest as mod
+
+        staged = tmp_path / "a" / "x.parquet"
+        staged.parent.mkdir()
+        staged.write_bytes(b"good-data")
+        final = tmp_path / "b" / "x.parquet"
+
+        real_replace = mod.os.replace
+
+        def fake_replace(src, dst):
+            if Path(src) == staged:
+                raise OSError(_errno.EXDEV, "cross-device")
+            raise OSError(_errno.EIO, "replace failed")
+
+        monkeypatch.setattr(mod.os, "replace", fake_replace)
+
+        def boom_copy(src, dst):
+            Path(dst).write_bytes(b"")  # aborted copy leaves 0-byte tmp
+            raise OSError(_errno.ENOSPC, "no space")
+
+        monkeypatch.setattr(mod.shutil, "copyfile", boom_copy)
+        with pytest.raises(OSError, match="no space"):
+            mod._publish(staged, final)
+        assert not final.exists()
+        assert staged.read_bytes() == b"good-data"
+        assert not list(final.parent.glob("x.parquet*.tmp"))
+
+    def test_write_tile_staged_failure_keeps_final(
+        self, tmp_path, monkeypatch
+    ):
+        import data_lake.ingest.catalog_shard_ingest as mod
+        from data_lake.ingest.fits_to_parquet import CatalogParquetOptions
+
+        final_root = tmp_path / "shard"
+        final = final_root / "survey" / "part-a.parquet"
+        final.parent.mkdir(parents=True)
+        final.write_bytes(b"keep-me")
+        staging = tmp_path / "ssd"
+        # Force same-path alias: staging_dir == final_root would make staged==final
+        # after relative mirror; instead make publish raise after a good staged write.
+        monkeypatch.setattr(
+            mod, "_publish", lambda staged, final_path: (_ for _ in ()).throw(
+                OSError("publish failed")
+            ),
+        )
+        tbl = pa.table({"a": [1, 2, 3]})
+        with pytest.raises(OSError, match="publish failed"):
+            mod._write_tile_staged(
+                tbl, final, final_root, CatalogParquetOptions(), staging,
+                estimated_bytes=100,
+            )
+        assert final.read_bytes() == b"keep-me"
+        staged = staging / "survey" / "part-a.parquet"
+        assert not staged.exists()
+
+
+# ---------------------------------------------------------------------------
+# Test: invalid part rewrite / diagnose
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidShardParts:
+    def test_map_rewrites_empty_part(self, catalog_fits_files, shard_root):
+        _run_map(catalog_fits_files, shard_root)
+        parts = list((shard_root / _SURVEY).rglob("part-*.parquet"))
+        assert parts
+        victim = parts[0]
+        victim.write_bytes(b"")
+        assert victim.stat().st_size == 0
+
+        # Clear checkpoint so the source is processed again.
+        cp = shard_root / _SURVEY / "map_checkpoint.jsonl"
+        if cp.exists():
+            cp.unlink()
+        _run_map(catalog_fits_files, shard_root)
+        assert victim.is_file()
+        assert victim.stat().st_size >= 8
+        pq.read_metadata(str(victim))
+
+    def test_map_rewrites_empty_part_when_checkpointed(
+        self, catalog_fits_files, shard_root
+    ):
+        """Even with checkpoint skip, a re-map of that file rewrites bad parts.
+
+        Checkpoint skip is per source path; force one source through
+        ``skip_completed=False`` semantics by calling map again after deleting
+        only that path from the checkpoint is unnecessary — call map with
+        ``skip_completed=False``.
+        """
+        _run_map(catalog_fits_files, shard_root)
+        parts = list((shard_root / _SURVEY).rglob("part-*.parquet"))
+        victim = parts[0]
+        victim.write_bytes(b"")
+        run_map_phase(
+            source_paths=catalog_fits_files,
+            shard_root=shard_root,
+            survey=_SURVEY,
+            ra_col=_RA_COL,
+            dec_col=_DEC_COL,
+            healpix_order=_NORDER,
+            link_id_col=_LINK_ID_COL,
+            n_workers=1,
+            skip_completed=False,
+        )
+        assert victim.stat().st_size >= 8
+        pq.read_metadata(str(victim))
+
+    def test_reduce_error_includes_empty_part_path(
+        self, catalog_fits_files, shard_root, lake_root
+    ):
+        from data_lake.ingest.catalog_shard_ingest import _reduce_one_npix
+
+        _run_map(catalog_fits_files, shard_root)
+        npix, parts = next(_iter_shard_parts(shard_root, _SURVEY, _NORDER))
+        parts[0].write_bytes(b"")
+        catalog_root = lake_root / "catalogs" / _SURVEY
+        with pytest.raises(ValueError, match=str(parts[0])) as exc_info:
+            _reduce_one_npix(
+                npix, parts, catalog_root, _NORDER, "skip",
+            )
+        assert "size=0" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
